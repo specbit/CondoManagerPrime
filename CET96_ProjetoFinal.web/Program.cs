@@ -1,5 +1,6 @@
 using CET96_ProjetoFinal.web.Data;
 using CET96_ProjetoFinal.web.Entities;
+using CET96_ProjetoFinal.web.Helpers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,14 +16,14 @@ namespace CET96_ProjetoFinal.web
             builder.Services.AddControllersWithViews();
 
             // This gets the connection string from your appsettings.json
-            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+            var connectionString = builder.Configuration.GetConnectionString("ApplicationUserConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
             // This registers the DbContext with the application's services
-            builder.Services.AddDbContext<DataContext>(options =>
+            builder.Services.AddDbContext<ApplicationUserDataContext>(options =>
                 options.UseSqlServer(connectionString));
 
             // Configure Identity services
-            builder.Services.AddDefaultIdentity<User>(options =>
+            builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
             {
                 options.User.RequireUniqueEmail = true; // Ensure unique email addresses
                 options.SignIn.RequireConfirmedAccount = false;
@@ -33,9 +34,20 @@ namespace CET96_ProjetoFinal.web
                 options.Password.RequiredLength = 6;
             })
                 .AddRoles<IdentityRole>() // Using roles
-                .AddEntityFrameworkStores<DataContext>();
+                .AddEntityFrameworkStores<ApplicationUserDataContext>();
+
+            // Register custom application services
+
+            // Register the custom helper for user operations
+            builder.Services.AddScoped<IApplicationUserHelper, ApplicationUserHelper>();
+
+            // Register SeedDb service to seed the database
+            builder.Services.AddTransient<SeedDb>(); // Register the Seeder
 
             var app = builder.Build();
+
+            // Call the RunSeeding method to seed the database with initial data
+            RunSeeding(app);
 
             // Configure the HTTP request pipeline.
             if (!app.Environment.IsDevelopment())
@@ -50,6 +62,7 @@ namespace CET96_ProjetoFinal.web
 
             app.UseRouting();
 
+            app.UseAuthentication();
             app.UseAuthorization();
 
             app.MapControllerRoute(
@@ -58,5 +71,24 @@ namespace CET96_ProjetoFinal.web
 
             app.Run();
         }
+
+        private static void RunSeeding(IHost host)
+        {
+            var scopeFactory = host.Services.GetService<IServiceScopeFactory>();
+            using (var scope = scopeFactory?.CreateScope())
+            {
+                var seeder = scope?.ServiceProvider.GetService<SeedDb>();
+                if (seeder != null)
+                {
+                    seeder.SeedAsync().Wait();
+                }
+                else
+                {
+                    var logger = scope?.ServiceProvider.GetRequiredService<ILogger<Program>>();
+                    logger.LogError("Failed to retrieve SeedDB service during startup.");
+                }
+            }
+        }
+
     }
 }

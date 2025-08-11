@@ -4,17 +4,19 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CET96_ProjetoFinal.web.Data
 {
-    public class DataContext : IdentityDbContext<User>
+    public class ApplicationUserDataContext : IdentityDbContext<ApplicationUser>
     {
-        public DataContext(DbContextOptions<DataContext> options) : base(options)
+        public ApplicationUserDataContext(DbContextOptions<ApplicationUserDataContext> options) : base(options)
         {
         }
+       
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
             // Additional model configurations can be added here
         }
-        // DbSet properties for your entities can be added here, e.g.:
-        // public DbSet<Product> Products { get; set; }
+
+        // DbSet for the Company entity
+        public DbSet<Company> Companies { get; set; }
     }
 }
