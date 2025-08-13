@@ -70,5 +70,17 @@ namespace CET96_ProjetoFinal.web.Helpers
         {
             return await _userManager.Users.ToListAsync();
         }
+
+        // Update user information
+        public async Task<IdentityResult> UpdateUserAsync(ApplicationUser user)
+        {
+            return await _userManager.UpdateAsync(user);
+        }
+
+        // Change user password
+        public async Task<IdentityResult> ChangePasswordAsync(ApplicationUser user, string oldPassword, string newPassword)
+        {
+            return await _userManager.ChangePasswordAsync(user, oldPassword, newPassword);
+        }
     }
 }

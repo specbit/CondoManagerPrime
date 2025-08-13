@@ -124,7 +124,6 @@ namespace CET96_ProjetoFinal.web.Controllers
                 }
             }
 
-            // If we got this far, something failed, redisplay form
             return View(model);
         }
 
@@ -136,6 +135,57 @@ namespace CET96_ProjetoFinal.web.Controllers
             await _applicationUserHelper.LogoutAsync();
             // After logging out, send the user to the home page.
             return RedirectToAction("Index", "Home");
+        }
+
+        // GET: /Account/ChangePassword
+        [HttpGet]
+        public IActionResult ChangePassword()
+        {
+            return View();
+        }
+
+        // POST: /Account/ChangePassword
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model)
+        {
+            // First, check if the new password is the same as the old one.
+            if (model.OldPassword == model.NewPassword)
+            {
+                ModelState.AddModelError("NewPassword", "The new password cannot be the same as the current password.");
+            }
+
+            if (!ModelState.IsValid)
+            {
+                // Clear the password fields before sending the model back to the view for security.
+                model.OldPassword = string.Empty;
+                model.NewPassword = string.Empty;
+                model.ConfirmPassword = string.Empty;
+
+                return View(model);
+            }
+
+            var user = await _applicationUserHelper.GetUserByEmailasync(User.Identity.Name);
+
+            if (user == null)
+            {
+                ModelState.AddModelError(string.Empty, "User not found.");
+                return View(model);
+            }
+
+            var result = await _applicationUserHelper.ChangePasswordAsync(user, model.OldPassword, model.NewPassword);
+            if (!result.Succeeded)
+            {
+                foreach (var error in result.Errors)
+                {
+                    ModelState.AddModelError(string.Empty, error.Description);
+                }
+                return View(model);
+            }
+
+            TempData["SuccessMessage"] = "Your password has been changed successfully.";
+
+            return RedirectToAction("ChangePassword");
         }
     }
 }
