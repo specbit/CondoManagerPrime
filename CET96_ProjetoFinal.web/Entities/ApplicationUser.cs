@@ -29,5 +29,13 @@ namespace CET96_ProjetoFinal.web.Entities
         [Required(ErrorMessage = "Email is required.")]
         [EmailAddress(ErrorMessage = "Invalid Email format.")]
         public override string Email { get; set; }
+
+        // This is the link to the company. It can be null (nullable, with '?') because
+        // a user exists before their company is created.
+        public int? CompanyId { get; set; }
+        public Company? Company { get; set; }
+        // This will temporarily hold the company name from the registration form.
+        [MaxLength(100)]
+        public string CompanyName { get; set; }
     }
 }

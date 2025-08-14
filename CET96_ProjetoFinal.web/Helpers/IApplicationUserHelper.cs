@@ -99,5 +99,35 @@ namespace CET96_ProjetoFinal.web.Helpers
         /// <returns>The result of the password change operation.</returns>
         Task<IdentityResult> ChangePasswordAsync(ApplicationUser user, string oldPassword, string newPassword);
 
+        /// <summary>
+        /// Retrieves a user by their unique identifier.
+        /// </summary>
+        /// <remarks>Use this method to fetch user details when you have the user's unique identifier.
+        /// Ensure that the <paramref name="userId"/> is valid and not null or empty before calling this
+        /// method.</remarks>
+        /// <param name="userId">The unique identifier of the user to retrieve. Cannot be null or empty.</param>
+        /// <returns>A task that represents the asynchronous operation. The task result contains the <see cref="ApplicationUser">
+        /// corresponding to the specified <paramref name="userId"/>, or <see langword="null"/> if no user is found.</returns>
+        Task<ApplicationUser> GetUserByIdAsync(string userId);
+
+        /// <summary>
+        /// Confirms a user's email address using the provided confirmation token.
+        /// </summary>
+        /// <remarks>This method validates the provided token and updates the user's email confirmation
+        /// status if the token is valid. If the token is invalid or expired, the operation will fail, and the returned
+        /// <see cref="IdentityResult"/> will contain error details.</remarks>
+        /// <param name="user">The user whose email address is being confirmed. Cannot be null.</param>
+        /// <param name="token">The email confirmation token associated with the user. Cannot be null or empty.</param>
+        /// <returns>A <see cref="Task{TResult}"/> that represents the asynchronous operation.  The task result contains an <see
+        /// cref="IdentityResult"/> indicating whether the email confirmation was successful.</returns>
+        Task<IdentityResult> ConfirmEmailAsync(ApplicationUser user, string token);
+
+        /// <summary>
+        /// Generates a token that can be used to confirm the email address of the specified user.
+        /// </summary>
+        /// <param name="user">The user for whom the email confirmation token is generated. Cannot be null.</param>
+        /// <returns>A task that represents the asynchronous operation. The task result contains the email confirmation token as
+        /// a string.</returns>
+        Task<string> GenerateEmailConfirmationTokenAsync(ApplicationUser user);
     }
 }

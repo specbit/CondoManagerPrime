@@ -13,7 +13,7 @@ namespace CET96_ProjetoFinal.web.Entities
         public string? Description { get; set; }
 
         [MaxLength(20)]
-        public string? TaxNumber { get; set; } // "Número Fiscal"
+        public string? TaxId { get; set; } // "Número Fiscal"
 
         // This property indicates whether the payment has been validated.
         public bool PaymentValidated { get; set; } = false; // Defaults to false
@@ -21,6 +21,9 @@ namespace CET96_ProjetoFinal.web.Entities
         // Links the Company to the first admin who created it.
         public string ApplicationUserId { get; set; }
         public ApplicationUser ApplicationUser { get; set; }
+
+        // This is the property that allows a company to have a list of all its users.
+        public ICollection<ApplicationUser> Users { get; set; }
 
         // --- Audit Fields ---
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

@@ -1,6 +1,8 @@
 using CET96_ProjetoFinal.web.Data;
 using CET96_ProjetoFinal.web.Entities;
 using CET96_ProjetoFinal.web.Helpers;
+using CET96_ProjetoFinal.web.Services;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -23,10 +25,26 @@ namespace CET96_ProjetoFinal.web
                 options.UseSqlServer(connectionString));
 
             // Configure Identity services
-            builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
+            //builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
+            //{
+            //    options.User.RequireUniqueEmail = true; // Ensure unique email addresses
+            //    options.SignIn.RequireConfirmedAccount = true;
+            //    options.Password.RequireDigit = false; // relax password policy for testing
+            //    options.Password.RequireLowercase = false;
+            //    options.Password.RequireNonAlphanumeric = false;
+            //    options.Password.RequireUppercase = false;
+            //    options.Password.RequiredLength = 6;
+            //})
+            //    .AddRoles<IdentityRole>() // Using roles
+            //    .AddEntityFrameworkStores<ApplicationUserDataContext>();
+
+            builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
             {
+                // This requires that a user's email must be confirmed before they can sign in.
                 options.User.RequireUniqueEmail = true; // Ensure unique email addresses
-                options.SignIn.RequireConfirmedAccount = false;
+                options.SignIn.RequireConfirmedAccount = true;
+
+                // Your relaxed password policy
                 options.Password.RequireDigit = false; // relax password policy for testing
                 options.Password.RequireLowercase = false;
                 options.Password.RequireNonAlphanumeric = false;
@@ -34,7 +52,21 @@ namespace CET96_ProjetoFinal.web
                 options.Password.RequiredLength = 6;
             })
                 .AddRoles<IdentityRole>() // Using roles
-                .AddEntityFrameworkStores<ApplicationUserDataContext>();
+                .AddEntityFrameworkStores<ApplicationUserDataContext>()
+                .AddDefaultTokenProviders(); // Important for password reset and email confirmation tokens
+
+            // This adds the cookie authentication handler
+            // Explicitly configures the cookie
+            builder.Services.Configure<SecurityStampValidatorOptions>(options =>
+            {
+                // This forces the application to check the user's security stamp in the database
+                // on every request. If the user is deleted, the check will fail, and they will be logged out.
+                options.ValidationInterval = TimeSpan.Zero;
+            });
+
+
+            // Register the custom email sender service
+            builder.Services.AddTransient<IEmailSender, DebugEmailSender>();
 
             // Register custom application services
 

@@ -1,0 +1,75 @@
+﻿@model CET96_ProjetoFinal.web.Models.PaymentViewModel
+
+@{
+    ViewData["Title"] = "Payment Confirmation";
+}
+
+<h1>@ViewData["Title"]</h1>
+<h4>Review your company details and enter payment information to proceed.</h4>
+<hr />
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card card-body mb-4 bg-light">
+            <h5>Company Details</h5>
+            <p>
+                <strong>Name:</strong> @Model.CompanyName <br />
+                <strong>Description:</strong> @Model.CompanyDescription <br />
+                <strong>Tax ID:</strong> @Model.CompanyTaxId
+            </p>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card card-body shadow-sm">
+            <h5>Pay with Credit Card</h5>
+            <form asp-action="Create" method="post">
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                @* Hidden fields to pass company data through the form submission *@
+                <input type="hidden" asp-for="CompanyName" />
+                <input type="hidden" asp-for="CompanyDescription" />
+                <input type="hidden" asp-for="CompanyTaxId" />
+
+                <div class="form-group mb-3">
+                    <label asp-for="CardHolderName"></label>
+                    <input asp-for="CardHolderName" class="form-control" />
+                    <span asp-validation-for="CardHolderName" class="text-danger"></span>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label asp-for="CardNumber"></label>
+                    <input asp-for="CardNumber" class="form-control" placeholder="0000 0000 0000 0000" />
+                    <span asp-validation-for="CardNumber" class="text-danger"></span>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label asp-for="ExpirationDate"></label>
+                        <input asp-for="ExpirationDate" class="form-control" placeholder="MM/YY" />
+                        <span asp-validation-for="ExpirationDate" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Cvv"></label>
+                        <input asp-for="Cvv" class="form-control" placeholder="123" />
+                        <span asp-validation-for="Cvv" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <div class="form-group mt-3">
+                    <button type="submit" class="btn btn-success w-100">Confirm Payment & Create Company</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="mt-3">
+    <a asp-controller="Company" asp-action="Create" class="btn btn-outline-secondary">Back to Edit Company</a>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

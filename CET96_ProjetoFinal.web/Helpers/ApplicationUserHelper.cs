@@ -82,5 +82,23 @@ namespace CET96_ProjetoFinal.web.Helpers
         {
             return await _userManager.ChangePasswordAsync(user, oldPassword, newPassword);
         }
+
+        // Get User By Id
+        public async Task<ApplicationUser> GetUserByIdAsync(string userId)
+        {
+            return await _userManager.FindByIdAsync(userId);
+        }
+
+        // Confirm Email
+        public async Task<IdentityResult> ConfirmEmailAsync(ApplicationUser user, string token)
+        {
+            return await _userManager.ConfirmEmailAsync(user, token);
+        }
+
+        // Token Generate
+        public async Task<string> GenerateEmailConfirmationTokenAsync(ApplicationUser user)
+        {
+            return await _userManager.GenerateEmailConfirmationTokenAsync(user);
+        }
     }
 }
