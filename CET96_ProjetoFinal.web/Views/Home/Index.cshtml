@@ -1,8 +1,22 @@
-﻿@{
+﻿@model CET96_ProjetoFinal.web.Models.HomeViewModel
+
+@{
     ViewData["Title"] = "Home Page";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome to Condo Manager Prime</h1>
-    <p>Manage your Condos Efficinently.</p>
-</div>
+@if (Model != null)
+{
+    // View for a logged-in Company Administrator
+    <div class="text-center">
+        <h1 class="display-4">Welcome to @Model.CompanyName</h1>
+        <p>This is your company's main dashboard.</p>
+    </div>
+}
+else
+{
+    // Default view for visitors
+    <div class="text-center">
+        <h1 class="display-4">Welcome to Condo Manager Prime</h1>
+        <p>Manage your Condos Efficently.</p>
+    </div>
+}
