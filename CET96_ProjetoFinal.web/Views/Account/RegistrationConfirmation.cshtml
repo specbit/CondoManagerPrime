@@ -7,3 +7,14 @@
     Thank you for registering. Please check your email to confirm your account.
     (In development, check the Visual Studio Output window for the confirmation link).
 </p>
+
+@* This section is for development convenience and should be removed for production *@
+<div class="alert alert-info">
+    <p>
+        <strong>For Development Only:</strong>
+        Click the link below to confirm your account.
+    </p>
+    <p>
+        <a href="@Model.ConfirmationLink">Confirm Account</a>
+    </p>
+</div>

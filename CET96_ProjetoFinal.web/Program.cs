@@ -66,7 +66,8 @@ namespace CET96_ProjetoFinal.web
 
 
             // Register the custom email sender service
-            builder.Services.AddTransient<IEmailSender, DebugEmailSender>();
+            //builder.Services.AddTransient<IEmailSender, DebugEmailSender>();
+            builder.Services.AddTransient<IEmailSender, SendGridEmailSender>();
 
             // Register custom application services
 
@@ -75,6 +76,7 @@ namespace CET96_ProjetoFinal.web
 
             // Register SeedDb service to seed the database
             builder.Services.AddTransient<SeedDb>(); // Register the Seeder
+            //builder.Services.AddTransient<MockSeedDb>(); // Register the Seeder
 
             var app = builder.Build();
 

@@ -217,9 +217,15 @@ namespace CET96_ProjetoFinal.web.Controllers
                         await _emailSender.SendEmailAsync(model.Username,
                             "Confirm your email for CondoManagerPrime",
                             $"Please confirm your account by clicking this link: <a href='{confirmationLink}'>link</a>");
+                        // --- END EMAIL CONFIRMATION LOGIC ---
+
+                        var modelForView = new RegistrationConfirmationViewModel
+                        {
+                            ConfirmationLink = confirmationLink
+                        };
 
                         // Show a page telling the user to check their email. NO company is created here.
-                        return View("RegistrationConfirmation");
+                        return View("RegistrationConfirmation", modelForView);
                     }
                     foreach (var error in result.Errors)
                     {
@@ -291,7 +297,11 @@ namespace CET96_ProjetoFinal.web.Controllers
                 return View(model);
             }
 
-            TempData["SuccessMessage"] = "Your password has been changed successfully.";
+            // After a successful password change, we must refresh the user's
+            // login cookie to update it with the new security stamp.
+            await _signInManager.RefreshSignInAsync(user);
+
+            TempData["PasswordSuccessMessage"] = "Your password has been changed successfully.";
 
             return RedirectToAction("ChangePassword");
         }

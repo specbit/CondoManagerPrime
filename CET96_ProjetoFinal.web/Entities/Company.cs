@@ -6,14 +6,27 @@ namespace CET96_ProjetoFinal.web.Entities
     {
         public int Id { get; set; }
 
-        [Required]
+        [Required(ErrorMessage = "Name of the company is required.")]
         [MaxLength(100)]
         public string Name { get; set; }
 
         public string? Description { get; set; }
 
         [MaxLength(20)]
+        [Required(ErrorMessage = "Tax ID is required.")]
         public string? TaxId { get; set; } // "Número Fiscal"
+
+        [Required(ErrorMessage = "Address is required.")]
+        [MaxLength(200)]
+        public string Address { get; set; }
+
+        [Required(ErrorMessage = "Phone number is required")]
+        [Phone]
+        public string PhoneNumber { get; set; }
+
+        [Required(ErrorMessage = "Email is required.")]
+        [EmailAddress]
+        public string Email { get; set; }
 
         // This property indicates whether the payment has been validated.
         public bool PaymentValidated { get; set; } = false; // Defaults to false

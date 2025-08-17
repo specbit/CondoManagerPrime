@@ -47,7 +47,10 @@ namespace CET96_ProjetoFinal.web.Controllers
                 {
                     name = model.Name,
                     description = model.Description,
-                    taxId = model.TaxId
+                    taxId = model.TaxId,
+                    address = model.Address,
+                    phoneNumber = model.PhoneNumber,
+                    email = model.Email
                 });
             }
             return View(model);
