@@ -1,6 +1,7 @@
 using CET96_ProjetoFinal.web.Data;
 using CET96_ProjetoFinal.web.Entities;
 using CET96_ProjetoFinal.web.Helpers;
+using CET96_ProjetoFinal.web.Repositories;
 using CET96_ProjetoFinal.web.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
@@ -70,9 +71,10 @@ namespace CET96_ProjetoFinal.web
             builder.Services.AddTransient<IEmailSender, SendGridEmailSender>();
 
             // Register custom application services
-
-            // Register the custom helper for user operations
             builder.Services.AddScoped<IApplicationUserHelper, ApplicationUserHelper>();
+            builder.Services.AddScoped<IApplicationUserRepository, ApplicationUserRepository>();
+            builder.Services.AddScoped<ICompaniesRepository, CompanyRepository>();
+
 
             // Register SeedDb service to seed the database
             builder.Services.AddTransient<SeedDb>(); // Register the Seeder

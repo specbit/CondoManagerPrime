@@ -1,4 +1,6 @@
-﻿@{
+﻿@inject IWebHostEnvironment Environment
+
+@{
     ViewData["Title"] = "Registration Confirmation";
 }
 
@@ -9,12 +11,16 @@
 </p>
 
 @* This section is for development convenience and should be removed for production *@
-<div class="alert alert-info">
-    <p>
-        <strong>For Development Only:</strong>
-        Click the link below to confirm your account.
-    </p>
-    <p>
-        <a href="@Model.ConfirmationLink">Confirm Account</a>
-    </p>
-</div>
+@if (Environment.IsDevelopment())
+{
+    @* This section will only be rendered when running in Development mode *@
+    <div class="alert alert-info">
+        <p>
+            <strong>For Development Only:</strong>
+            Click the link below to confirm your account.
+        </p>
+        <p>
+            <a href="@Model.ConfirmationLink">Confirm Account</a>
+        </p>
+    </div>
+}

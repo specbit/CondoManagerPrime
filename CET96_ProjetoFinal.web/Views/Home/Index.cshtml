@@ -4,19 +4,69 @@
     ViewData["Title"] = "Home Page";
 }
 
-@if (Model != null)
+@if (Model != null && Model.Companies != null)
 {
-    // View for a logged-in Company Administrator
+    // --- View for a logged-in Company Administrator ---
     <div class="text-center">
-        <h1 class="display-4">Welcome to <span style="color: #0d6efd;">@Model.CompanyName</span></h1>
-        <p>This is your company's main dashboard.</p>
+        <h1 class="display-4">Administrator Dashboard</h1>
+        <p>Manage your companies from the cards below.</p>
     </div>
+
+    <div class="d-flex justify-content-start mb-3">
+        <a asp-action="Create" asp-controller="Companies" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Create New Company
+        </a>
+    </div>
+
+    <hr />
+
+    @if (Model.Companies.Any())
+    {
+        <div class="row">
+            @foreach (var company in Model.Companies)
+            {
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <a asp-controller="Condominiums" asp-action="Index" asp-route-companyId="@company.Id" class="card-link">
+                        <div class="card h-100 shadow-sm card-hover">
+                            <div class="card-body">
+                                <h5 class="card-title">@company.Name</h5>
+                                <p class="card-text text-muted">@company.Address</p>
+                            </div>
+                            <div class="card-footer bg-transparent border-top-0 d-flex justify-content-end">
+                                <a asp-controller="Companies" asp-action="Edit" asp-route-id="@company.Id" class="btn btn-sm btn-outline-secondary me-2">Edit</a>
+                                <a asp-controller="Companies" asp-action="Delete" asp-route-id="@company.Id" class="btn btn-sm btn-outline-danger">Deactivate</a>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info text-center" role="alert">
+            You have not created any companies yet.
+        </div>
+    }
 }
 else
 {
-    // Default view for visitors
+    // --- Default view for visitors ---
     <div class="text-center">
         <h1 class="display-4">Welcome to Condo Manager Prime</h1>
         <p>Manage your Condos Efficently.</p>
     </div>
 }
+
+<style>
+    a.card-link, a.card-link:hover {
+        color: inherit;
+        text-decoration: none;
+    }
+
+    .card-hover:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1) !important;
+        transition: all 0.3s ease;
+    }
+</style>

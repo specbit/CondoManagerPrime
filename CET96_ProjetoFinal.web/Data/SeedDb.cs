@@ -2,7 +2,6 @@
 using CET96_ProjetoFinal.web.Enums;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace CET96_ProjetoFinal.web.Data
 {
@@ -39,29 +38,45 @@ namespace CET96_ProjetoFinal.web.Data
             // --- 2. Create the Platform Administrator User ---
             // This user has the highest level of access and manages the entire platform.
             // It should not be creatable from any public-facing registration page.
-            var platformAdminUser = await _userManager.FindByEmailAsync("nuno.goncalo.gomes@formandos.cinel.pt");
-            if (platformAdminUser == null)
-            {
-                platformAdminUser = new ApplicationUser
-                {
-                    FirstName = "System",
-                    LastName = "Admin",
-                    UserName = "nuno.goncalo.gomes@formandos.cinel.pt",
-                    Email = "nuno.goncalo.gomes@formandos.cinel.pt",
 
-                    //PLACEHOLDER VALUES FOR REQUIRED FIELDS 
-                    IdentificationDocument = "000000000",
-                    DocumentType = DocumentTypeEnum.Other,
-                    PhoneNumber = "000000000",
-                };
-
-                // IMPORTANT: Use a strong password from configuration in a real project!
-                var result = await _userManager.CreateAsync(platformAdminUser, "123456");
-                if (result.Succeeded)
+                var platformAdminUser = await _userManager.FindByEmailAsync("nuno.goncalo.gomes@formandos.cinel.pt");
+                if (platformAdminUser == null)
                 {
-                    await _userManager.AddToRoleAsync(platformAdminUser, "Platform Administrator");
+                    platformAdminUser = new ApplicationUser
+                    {
+                        UserName = "nuno.goncalo.gomes@formandos.cinel.pt",
+                        Email = "nuno.goncalo.gomes@formandos.cinel.pt",
+                        FirstName = "System",
+                        LastName = "Admin",
+                        IdentificationDocument = "000000000",
+                        DocumentType = DocumentTypeEnum.Other,
+                        PhoneNumber = "000000000",
+                        CompanyName = "Platform Administration"
+                    };
+
+                    // This try/catch block will catch any type of error during user creation
+                    try
+                    {
+                        var result = await _userManager.CreateAsync(platformAdminUser, "123456");
+
+                        if (result.Succeeded)
+                        {
+                            await _userManager.AddToRoleAsync(platformAdminUser, "Platform Administrator");
+                        }
+                        else
+                        {
+                            // This 'else' block catches graceful failures, like password policy issues.
+                            // You can inspect the 'result.Errors' here to see the problem.
+                            System.Diagnostics.Debugger.Break();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // This 'catch' block will catch hard crashes like the SqlNullValueException.
+                        // You can inspect the 'ex' object here to see the real exception details.
+                        System.Diagnostics.Debugger.Break();
+                    }
                 }
-            }
         }
     }
 }

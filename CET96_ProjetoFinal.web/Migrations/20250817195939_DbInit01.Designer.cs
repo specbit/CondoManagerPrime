@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CET96_ProjetoFinal.web.Migrations
 {
     [DbContext(typeof(ApplicationUserDataContext))]
-    [Migration("20250814205335_AddCompanyUserRelationship")]
-    partial class AddCompanyUserRelationship
+    [Migration("20250817195939_DbInit01")]
+    partial class DbInit01
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -35,6 +35,11 @@ namespace CET96_ProjetoFinal.web.Migrations
 
                     b.Property<int?>("CompanyId")
                         .HasColumnType("int");
+
+                    b.Property<string>("CompanyName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
@@ -123,6 +128,11 @@ namespace CET96_ProjetoFinal.web.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<string>("ApplicationUserId")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
@@ -131,6 +141,10 @@ namespace CET96_ProjetoFinal.web.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("IsActive")
@@ -144,7 +158,12 @@ namespace CET96_ProjetoFinal.web.Migrations
                     b.Property<bool>("PaymentValidated")
                         .HasColumnType("bit");
 
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("TaxId")
+                        .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 

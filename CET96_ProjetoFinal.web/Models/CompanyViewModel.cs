@@ -4,6 +4,8 @@ namespace CET96_ProjetoFinal.web.Models
 {
     public class CompanyViewModel
     {
+        public int Id { get; set; }
+
         [Required(ErrorMessage = "Name of the company is required.")]
         [MaxLength(100, ErrorMessage = "The {0} field must not exceed {1} characters.")]
         [Display(Name = "Company Name")]
