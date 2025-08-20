@@ -2,7 +2,7 @@
 
 namespace CET96_ProjetoFinal.web.Entities
 {
-    public class Company
+    public class Company : IEntity
     {
         public int Id { get; set; }
 
