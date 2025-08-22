@@ -2,6 +2,7 @@
 using CET96_ProjetoFinal.web.Entities;
 using CET96_ProjetoFinal.web.Helpers;
 using CET96_ProjetoFinal.web.Models;
+using CET96_ProjetoFinal.web.Repositories;
 using CET96_ProjetoFinal.web.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,18 +10,27 @@ using Microsoft.AspNetCore.Mvc;
 namespace CET96_ProjetoFinal.web.Controllers
 {
     [Authorize(Roles = "Company Administrator")]
+    /// <summary>
+    /// Handles the payment simulation and final creation of a new company.
+    /// </summary>
     public class PaymentController : Controller
     {
         private readonly ApplicationUserDataContext _context;
         private readonly IApplicationUserHelper _userHelper;
         private readonly IEmailSender _emailSender;
+        private readonly ICompanyRepository _companiesRepository;
 
         // The constructor must request the services that are registered in Program.cs
-        public PaymentController(ApplicationUserDataContext context, IApplicationUserHelper userHelper, IEmailSender emailSender)
+        public PaymentController(
+            ApplicationUserDataContext context, 
+            IApplicationUserHelper userHelper, 
+            IEmailSender emailSender,
+            ICompanyRepository companiesRepository)
         {
             _context = context;
             _userHelper = userHelper;
             _emailSender = emailSender;
+            _companiesRepository = companiesRepository;
         }
 
         // GET: /Payment/Create
@@ -41,6 +51,15 @@ namespace CET96_ProjetoFinal.web.Controllers
         }
 
         // POST: /Payment/Create
+        /// <summary>
+        /// Finalizes the company creation process after payment simulation. This action
+        /// performs server-side validation to prevent duplicate data, creates the new Company entity,
+        /// links it to the current user, saves all changes to the database in a single transaction,
+        /// and sends a welcome email.
+        /// </summary>
+        /// <param name="model">The payment view model containing the company's details.</param>
+        /// <returns>A redirect to the administrator's dashboard on success, or back to the
+        /// form with validation errors on failure.</returns>
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(PaymentViewModel model)
@@ -52,10 +71,12 @@ namespace CET96_ProjetoFinal.web.Controllers
 
             // 1. Get the user from the database.
             var user = await _userHelper.GetUserByEmailasync(User.Identity.Name);
+
             if (user == null)
             {
                 return NotFound();
             }
+
 
             // 2. Create the new Company object in memory.
             var company = new Company

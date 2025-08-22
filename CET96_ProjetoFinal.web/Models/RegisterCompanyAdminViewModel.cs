@@ -3,6 +3,10 @@ using System.ComponentModel.DataAnnotations;
 
 namespace CET96_ProjetoFinal.web.Models
 {
+    /// <summary>
+    /// Represents the data collected from the initial registration form for a new Company Administrator.
+    /// It includes all necessary fields for creating both the user and their first associated company.
+    /// </summary>
     public class RegisterCompanyAdminViewModel
     {
         // --- User Details ---

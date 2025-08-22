@@ -1,5 +1,4 @@
-﻿using CET96_ProjetoFinal.web.Entities;
-using CET96_ProjetoFinal.web.Helpers;
+﻿using CET96_ProjetoFinal.web.Helpers;
 using CET96_ProjetoFinal.web.Models;
 using CET96_ProjetoFinal.web.Repositories; // Add this using directive
 using Microsoft.AspNetCore.Authorization;
@@ -12,10 +11,10 @@ namespace CET96_ProjetoFinal.web.Controllers
     public class CompaniesController : Controller
     {
         private readonly IApplicationUserHelper _userHelper;
-        private readonly ICompaniesRepository _companiesRepository; // Inject the repository
+        private readonly ICompanyRepository _companiesRepository; // Inject the repository
 
         // Update the constructor to accept the repository
-        public CompaniesController(IApplicationUserHelper userHelper, ICompaniesRepository companiesRepository)
+        public CompaniesController(IApplicationUserHelper userHelper, ICompanyRepository companiesRepository)
         {
             _userHelper = userHelper;
             _companiesRepository = companiesRepository;
@@ -42,41 +41,112 @@ namespace CET96_ProjetoFinal.web.Controllers
         }
 
         // GET: /Companies/Create
-        public async Task<IActionResult> Create()
+        //public async Task<IActionResult> Create()
+        //{
+        //    var user = await _userHelper.GetUserByEmailasync(User.Identity.Name);
+        //    if (user == null) return NotFound();
+        //    var model = new CompanyViewModel { Name = user.CompanyName };
+        //    return View(model);
+        //}
+
+        /// <summary>
+        /// Prepares and displays the company creation form. The form will be
+        /// pre-filled with a company name if one is provided via the companyName parameter,
+        /// otherwise it will be blank for creating a new company.
+        /// </summary>
+        /// <param name="companyName">An optional company name, typically passed from the initial user
+        /// registration flow, to pre-fill the form.</param>
+        /// <returns>A ViewResult displaying the Create.cshtml page with a CompanyViewModel.</returns>
+        public IActionResult Create(string? companyName)
         {
-            var user = await _userHelper.GetUserByEmailasync(User.Identity.Name);
-            if (user == null) return NotFound();
-            var model = new CompanyViewModel { Name = user.CompanyName };
+            var model = new CompanyViewModel();
+
+            if (!string.IsNullOrEmpty(companyName))
+            {
+                // This block runs ONLY when the name is passed from the registration flow.
+                model.Name = companyName;
+            }
+
+            // If no name is passed (from the dashboard button), an empty model is returned.
             return View(model);
         }
 
         // POST: /Companies/Create
+        /// <summary>
+        /// Handles the submission of the new company form. It performs comprehensive
+        /// server-side validation for both data annotations and for duplicate data (Name, Tax ID, etc.)
+        /// before redirecting to the payment step.
+        /// </summary>
+        /// <param name="model">The view model containing the data for the new company submitted from the form.</param>
+        /// <returns>A RedirectToAction to the payment controller on successful validation, or the Create
+        /// view with error messages if any validation fails.</returns>
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult Create(CompanyViewModel model)
+        public async Task<IActionResult> Create(CompanyViewModel model)
         {
+            // First, check the basic data annotations (like [Required], [EmailAddress])
             if (ModelState.IsValid)
             {
-                return RedirectToAction("Create", "Payment", new
+                // Check if the Name is already in use
+                if (await _companiesRepository.IsNameInUseAsync(model.Name))
                 {
-                    name = model.Name,
-                    description = model.Description,
-                    taxId = model.TaxId,
-                    address = model.Address,
-                    phoneNumber = model.PhoneNumber,
-                    email = model.Email
-                });
+                    ModelState.AddModelError("Name", "This Company Name is already registered.");
+                }
+
+                // Check if the Tax ID is already in use
+                if (await _companiesRepository.IsTaxIdInUseAsync(model.TaxId))
+                {
+                    ModelState.AddModelError("TaxId", "This Tax ID is already registered.");
+                }
+
+                // Check if the Email is already in use
+                if (await _companiesRepository.IsEmailInUseAsync(model.Email))
+                {
+                    ModelState.AddModelError("Email", "This email is already in use by another company.");
+                }
+
+                // Check if the Phone Number is already in use
+                if (await _companiesRepository.IsPhoneNumberInUseAsync(model.PhoneNumber))
+                {
+                    ModelState.AddModelError("PhoneNumber", "This Phone Number is already in use by another company.");
+                }
+
+                // If all validations pass (both basic and custom), proceed to payment
+                if (ModelState.IsValid)
+                {
+                    return RedirectToAction("Create", "Payment", new
+                    {
+                        name = model.Name,
+                        description = model.Description,
+                        taxId = model.TaxId,
+                        address = model.Address,
+                        phoneNumber = model.PhoneNumber,
+                        email = model.Email
+                    });
+                }
             }
+
+            // If any validation fails, return to the form to display the errors.
             return View(model);
         }
 
         // UPDATE
         // GET: Companies/Edit/5
-        public async Task<IActionResult> Edit(int? id)
+        /// <summary>
+        /// Prepares and displays the form for editing a company.
+        /// </summary>
+        /// <param name="id">The ID of the company to edit.</param>
+        /// <param name="source">An optional string to enable a context-aware "Back" link.</param>
+        /// <returns>The Edit view with the company's data.</returns>
+        [HttpGet]
+        public async Task<IActionResult> Edit(int? id, string? source)
         {
             if (id == null) return NotFound();
 
+            // Fetch the company from the repository
             var company = await _companiesRepository.GetByIdAsync(id.Value);
+
+            // Check if the company exists
             if (company == null) return NotFound();
 
             // Map the database entity to the ViewModel for the view
@@ -91,15 +161,44 @@ namespace CET96_ProjetoFinal.web.Controllers
                 Email = company.Email
             };
 
+            ViewData["Source"] = source; // Pass the source to the view for context-aware navigation
+
             return View(model);
         }
 
         // POST: Companies/Edit/5
-        [HttpPost]
+        /// <summary>
+        /// Handles the submission of the company edit form. It validates the data,
+        /// updates the company record, and redirects the user back to their original
+        /// location (either the dashboard or the inactive list).
+        /// </summary>
+        /// <param name="id">The ID of the company being edited, from the URL.</param>
+        /// <param name="model">The view model containing the updated company data from the form.</param>
+        /// <param name="source">An optional string indicating the originating page (e.g., "inactive")
+        /// to enable a context-aware redirect after saving.</param>
+        /// <returns>A RedirectToAction on success, or the Edit view with validation errors on failure.</returns>        [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, CompanyViewModel model)
+        public async Task<IActionResult> Edit(int id, CompanyViewModel model, string? source)
         {
             if (id != model.Id) return NotFound();
+
+            //// Note: We pass model.Id to exclude the current company from the check
+            //if (await _companiesRepository.IsNameInUseAsync(model.Name, model.Id))
+            //{
+            //    ModelState.AddModelError("Name", "This Company Name is already registered.");
+            //}
+            //if (await _companiesRepository.IsTaxIdInUseAsync(model.TaxId, model.Id))
+            //{
+            //    ModelState.AddModelError("TaxId", "This Tax ID is already registered.");
+            //}
+            //if (await _companiesRepository.IsEmailInUseAsync(model.Email, model.Id))
+            //{
+            //    ModelState.AddModelError("Email", "This email is already in use by another company.");
+            //}
+            //if (await _companiesRepository.IsPhoneNumberInUseAsync(model.PhoneNumber, model.Id))
+            //{
+            //    ModelState.AddModelError("PhoneNumber", "This Phone Number is already in use by another company.");
+            //}
 
             if (ModelState.IsValid)
             {
@@ -120,7 +219,7 @@ namespace CET96_ProjetoFinal.web.Controllers
                     _companiesRepository.Update(company);
                     await _companiesRepository.SaveAllAsync();
                 }
-                catch (DbUpdateConcurrencyException)
+                catch (DbUpdateConcurrencyException) // Handle concurrency issues
                 {
                     if (!await _companiesRepository.ExistsAsync(model.Id))
                     {
@@ -131,8 +230,20 @@ namespace CET96_ProjetoFinal.web.Controllers
                         throw;
                     }
                 }
-                return RedirectToAction(nameof(Index));
+
+                // Redirect based on the source parameter
+                if (source == "inactive")
+                {
+                    return RedirectToAction(nameof(InactiveCompanies));
+                }
+
+                else
+                {
+                    return RedirectToAction("Index", "Home"); // Redirect to the main dashboard after editing
+                }
             }
+
+            ViewData["Source"] = source; // Pass the source to the view
             return View(model);
         }
 
@@ -157,6 +268,53 @@ namespace CET96_ProjetoFinal.web.Controllers
             if (company != null)
             {
                 company.IsActive = false; // Soft delete
+                _companiesRepository.Update(company);
+                await _companiesRepository.SaveAllAsync();
+            }
+            return RedirectToAction("Index", "Home");
+        }
+
+        // GET: Companies/InactiveCompanies
+        /// <summary>
+        /// Displays a view listing all companies that have been marked as inactive
+        /// for the current administrator.
+        /// </summary>
+        /// <returns>A ViewResult with a list of inactive companies.</returns>
+        public async Task<IActionResult> InactiveCompanies()
+        {
+            var user = await _userHelper.GetUserByEmailasync(User.Identity.Name);
+            var inactiveCompanies = await _companiesRepository.GetInactiveCompaniesByUserIdAsync(user.Id);
+            return View(inactiveCompanies);
+        }
+
+        // GET: Companies/Reactivate/5
+        /// <summary>
+        /// Displays a confirmation page before reactivating a company.
+        /// </summary>
+        /// <param name="id">The ID of the company to be reactivated.</param>
+        /// <returns>A ViewResult with the company's details.</returns>
+        public async Task<IActionResult> Reactivate(int? id)
+        {
+            if (id == null) return NotFound();
+            var company = await _companiesRepository.GetByIdAsync(id.Value);
+            if (company == null) return NotFound();
+            return View(company);
+        }
+
+        // POST: Companies/Reactivate/5
+        /// <summary>
+        /// Handles the POST request to reactivate a company by setting its IsActive flag to true.
+        /// </summary>
+        /// <param name="id">The ID of the company to reactivate.</param>
+        /// <returns>A RedirectToAction to the main dashboard on success.</returns>
+        [HttpPost, ActionName("Reactivate")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ReactivateConfirmed(int id)
+        {
+            var company = await _companiesRepository.GetByIdAsync(id);
+            if (company != null)
+            {
+                company.IsActive = true; // Set the flag back to true
                 _companiesRepository.Update(company);
                 await _companiesRepository.SaveAllAsync();
             }
