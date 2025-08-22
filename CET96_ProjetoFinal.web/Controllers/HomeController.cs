@@ -12,12 +12,12 @@ namespace CET96_ProjetoFinal.web.Controllers
     {
         // Just DbContext for this more direct query (for Admin user dashboard).
         private readonly ApplicationUserDataContext _context;
-        private readonly ICompaniesRepository _companiesRepository;
+        private readonly ICompanyRepository _companiesRepository;
         private readonly IApplicationUserHelper _userHelper;
 
         public HomeController(
             ApplicationUserDataContext context, 
-            ICompaniesRepository companiesRepository, 
+            ICompanyRepository companiesRepository, 
             IApplicationUserHelper userHelper)
         {
             _context = context;

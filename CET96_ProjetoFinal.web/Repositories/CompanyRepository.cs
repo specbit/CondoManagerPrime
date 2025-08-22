@@ -1,11 +1,18 @@
 ﻿using CET96_ProjetoFinal.web.Data;
 using CET96_ProjetoFinal.web.Entities;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 
 namespace CET96_ProjetoFinal.web.Repositories
 {
-    public class CompanyRepository : GenericRepository<Company>, ICompaniesRepository
+    /// <summary>
+    /// Implements the repository for the Company entity, providing both generic CRUD operations
+    /// and custom, company-specific data access methods.
+    /// </summary>
+    /// <remarks>
+    /// This class handles all direct database interactions for companies, abstracting the
+    /// data layer from the application's business logic.
+    /// </remarks>
+    public class CompanyRepository : GenericRepository<Company>, ICompanyRepository
     {
         private readonly ApplicationUserDataContext _context;
 
@@ -49,9 +56,62 @@ namespace CET96_ProjetoFinal.web.Repositories
         public async Task<IEnumerable<Company>> GetCompaniesByUserIdAsync(string userId)
         {
             // This query finds all companies that were created by the specified user
-            // and are also marked as active (for your "Deactivate" feature).
+            // and are also marked as active (for "Deactivate" feature).
             return await _context.Companies
                                  .Where(c => c.ApplicationUserId == userId && c.IsActive)
+                                 .OrderBy(c => c.Name)
+                                 .ToListAsync();
+        }
+
+        /// <summary>
+        /// Checks if a company Tax ID is already in use.
+        /// </summary>
+        /// <param name="taxId">The Tax ID to check for duplicates.</param>
+        /// <returns>True if the Tax ID is in use; otherwise, false.</returns>
+        public async Task<bool> IsTaxIdInUseAsync(string taxId)
+        {
+            return await _context.Companies.AnyAsync(c => c.TaxId == taxId);
+        }
+
+        /// <summary>
+        /// Checks if a company email address is already in use.
+        /// </summary>
+        /// <param name="email">The email address to check for duplicates.</param>
+        /// <returns>True if the email is in use; otherwise, false.</returns>
+        public async Task<bool> IsEmailInUseAsync(string email)
+        {
+            return await _context.Companies.AnyAsync(c => c.Email == email);
+        }
+
+        /// <summary>
+        /// Checks if a company name is already in use.
+        /// </summary>
+        /// <param name="name">The company name to check for duplicates.</param>
+        /// <returns>True if the name is in use; otherwise, false.</returns>
+        public async Task<bool> IsNameInUseAsync(string name)
+        {
+            return await _context.Companies.AnyAsync(c => c.Name == name);
+        }
+
+        /// <summary>
+        /// Checks if a company phone number is already in use.
+        /// </summary>
+        /// <param name="phoneNumber">The phone number to check for duplicates.</param>
+        /// <returns>True if the phone number is in use; otherwise, false.</returns>
+        public async Task<bool> IsPhoneNumberInUseAsync(string phoneNumber)
+        {
+            return await _context.Companies.AnyAsync(c => c.PhoneNumber == phoneNumber);
+        }
+
+        /// <summary>
+        /// Gets all inactive companies created by a specific user.
+        /// </summary>
+        /// <param name="userId">The ID of the user whose inactive companies to retrieve.</param>
+        /// <returns>A collection of the user's inactive companies.</returns>
+        public async Task<IEnumerable<Company>> GetInactiveCompaniesByUserIdAsync(string userId)
+        {
+            return await _context.Companies
+                                 .Where(c => c.ApplicationUserId == userId && !c.IsActive) // The only change is !c.IsActive
                                  .OrderBy(c => c.Name)
                                  .ToListAsync();
         }

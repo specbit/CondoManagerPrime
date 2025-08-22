@@ -10,6 +10,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CET96_ProjetoFinal.web.Controllers
 {
+    /// <summary>
+    /// Manages all user account-related actions such as registration, login, logout,
+    /// and email confirmation.
+    /// </summary>
     public class AccountController : Controller
     {
         private readonly IApplicationUserHelper _applicationUserHelper;
@@ -182,6 +186,16 @@ namespace CET96_ProjetoFinal.web.Controllers
         //}
 
         // POST: /Account/Register
+        /// <summary>
+        /// Handles the HTTP POST request for new user registration. It validates the submitted data,
+        /// creates a new ApplicationUser with the 'Company Administrator' role, and sends a
+        /// confirmation email.
+        /// </summary>
+        /// <param name="model">The registration view model containing the user's and company's initial information.</param>
+        /// <returns>
+        /// The RegistrationConfirmation view on success.
+        /// Returns the Register view with validation errors if the model is invalid or the email is already in use.
+        /// </returns>
         [HttpPost]
         [AllowAnonymous]
         [ValidateAntiForgeryToken]
@@ -190,6 +204,7 @@ namespace CET96_ProjetoFinal.web.Controllers
             if (ModelState.IsValid)
             {
                 var user = await _applicationUserHelper.GetUserByEmailasync(model.Username);
+
                 if (user == null)
                 {
                     user = new ApplicationUser
@@ -205,9 +220,11 @@ namespace CET96_ProjetoFinal.web.Controllers
                     };
 
                     var result = await _applicationUserHelper.AddUserAsync(user, model.Password);
+
                     if (result.Succeeded)
                     {
-                        await _applicationUserHelper.AddUserToRoleAsync(user, "Company Administrator");
+                        // Ensure the "Company Administrator" role exists before adding the user to it.
+                        await _applicationUserHelper.AddUserToRoleAsync(user, "Company Administrator"); // Add the user to the "Company Administrator" role
 
                         // --- EMAIL CONFIRMATION LOGIC ---
                         var token = await _applicationUserHelper.GenerateEmailConfirmationTokenAsync(user);
@@ -306,7 +323,14 @@ namespace CET96_ProjetoFinal.web.Controllers
             return RedirectToAction("ChangePassword");
         }
 
-        // --- ROBUST ACTION TO HANDLE THE CONFIRMATION LINK ---
+        /// <summary>
+        /// Handles the link clicked by a user from their email to confirm their account.
+        /// It validates the user and token, confirms the email, signs the user in, and
+        /// redirects them to the company creation flow.
+        /// </summary>
+        /// <param name="userId">The ID of the user to confirm.</param>
+        /// <param name="token">The confirmation token.</param>
+        /// <returns>A redirect to the company creation page on success, or an er
         [HttpGet]
         [AllowAnonymous]
         public async Task<IActionResult> ConfirmEmail(string userId, string token)
@@ -338,7 +362,8 @@ namespace CET96_ProjetoFinal.web.Controllers
                 if (!companyExists)
                 {
                     // The redirect will now succeed because the user is properly authenticated WITH their roles.
-                    return RedirectToAction("Create", "Companies");
+                    //return RedirectToAction("Create", "Companies");
+                    return RedirectToAction("Create", "Companies", new { companyName = user.CompanyName });
                 }
 
                 // If for some reason they already have a company, send them home.

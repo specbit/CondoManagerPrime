@@ -12,6 +12,8 @@
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
             <input type="hidden" asp-for="Id" />
 
+            <input type="hidden" name="source" value="@(ViewData["Source"] as string)" />
+
             <div class="form-group mb-3">
                 <label asp-for="Name" class="control-label"></label>
                 <input asp-for="Name" class="form-control" />
@@ -42,9 +44,18 @@
                 <input asp-for="Email" class="form-control" />
                 <span asp-validation-for="Email" class="text-danger"></span>
             </div>
+
             <div class="form-group">
                 <input type="submit" value="Save" class="btn btn-primary" />
-                <a asp-action="Index" asp-controller="Home" class="btn btn-outline-secondary">Back to Dashboard</a>
+
+                @if (ViewData["Source"] as string == "inactive")
+                {
+                    <a asp-action="InactiveCompanies" class="btn btn-outline-secondary">Back to Inactive List</a>
+                }
+                else
+                {
+                    <a asp-action="Index" asp-controller="Home" class="btn btn-outline-secondary">Back to Dashboard</a>
+                }
             </div>
         </form>
     </div>

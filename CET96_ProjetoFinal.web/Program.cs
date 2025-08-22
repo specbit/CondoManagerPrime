@@ -73,7 +73,7 @@ namespace CET96_ProjetoFinal.web
             // Register custom application services
             builder.Services.AddScoped<IApplicationUserHelper, ApplicationUserHelper>();
             builder.Services.AddScoped<IApplicationUserRepository, ApplicationUserRepository>();
-            builder.Services.AddScoped<ICompaniesRepository, CompanyRepository>();
+            builder.Services.AddScoped<ICompanyRepository, CompanyRepository>();
 
 
             // Register SeedDb service to seed the database

@@ -16,6 +16,9 @@
         <a asp-action="Create" asp-controller="Companies" class="btn btn-primary">
             <i class="fas fa-plus"></i> Create New Company
         </a>
+        <a asp-action="InactiveCompanies" asp-controller="Companies" class="btn btn-outline-secondary ms-2">
+            View Inactive Companies
+        </a>
     </div>
 
     <hr />
@@ -26,18 +29,25 @@
             @foreach (var company in Model.Companies)
             {
                 <div class="col-md-6 col-lg-4 mb-4">
-                    <a asp-controller="Condominiums" asp-action="Index" asp-route-companyId="@company.Id" class="card-link">
-                        <div class="card h-100 shadow-sm card-hover">
+                    <div class="card h-100 shadow-sm card-hover">
+                        <a asp-controller="Condominiums" asp-action="Index" asp-route-companyId="@company.Id" class="card-link">
                             <div class="card-body">
-                                <h5 class="card-title">@company.Name</h5>
-                                <p class="card-text text-muted">@company.Address</p>
+                                <p class="mb-2">
+                                    <small class="text-muted"><strong>Company Name:</strong></small><br>
+                                    @company.Name
+                                </p>
+                                <p class="mb-0">
+                                    <small class="text-muted"><strong>Address:</strong></small><br>
+                                    @company.Address
+                                </p>
                             </div>
-                            <div class="card-footer bg-transparent border-top-0 d-flex justify-content-end">
-                                <a asp-controller="Companies" asp-action="Edit" asp-route-id="@company.Id" class="btn btn-sm btn-outline-secondary me-2">Edit</a>
-                                <a asp-controller="Companies" asp-action="Delete" asp-route-id="@company.Id" class="btn btn-sm btn-outline-danger">Deactivate</a>
-                            </div>
+                        </a>
+                        <div class="card-footer bg-transparent border-top-0 d-flex justify-content-end">
+                            <a asp-controller="Companies" asp-action="Details" asp-route-id="@company.Id" class="btn btn-sm btn-outline-info me-2">Details</a>
+                            <a asp-controller="Companies" asp-action="Edit" asp-route-id="@company.Id" class="btn btn-sm btn-outline-warning me-2">Edit</a>
+                            <a asp-controller="Companies" asp-action="Delete" asp-route-id="@company.Id" class="btn btn-sm btn-outline-danger">Deactivate</a>
                         </div>
-                    </a>
+                    </div>
                 </div>
             }
         </div>
