@@ -28,7 +28,7 @@ namespace CET96_ProjetoFinal.web.Repositories
         /// <param name="userId">The ID of the user whose companies to retrieve.</param>
         /// <returns>A collection of the user's active companies.</returns>
         Task<IEnumerable<Company>> GetCompaniesByUserIdAsync(string userId);
-
+        // --- Methods for CREATE validation (take 1 argument) ---
         /// <summary>
         /// Checks if a company name is already in use.
         /// </summary>
@@ -56,6 +56,14 @@ namespace CET96_ProjetoFinal.web.Repositories
         /// <param name="phoneNumber">The phone number to check.</param>
         /// <returns>True if the phone number is in use; otherwise, false.</returns>
         Task<bool> IsPhoneNumberInUseAsync(string phoneNumber);
+        // --- END Methods for CREATE validation (take 1 argument) ---
+
+        // --- Methods for EDIT validation (take 2 arguments) ---
+        Task<bool> IsNameInUseAsync(string name, int companyIdToExclude);
+        Task<bool> IsTaxIdInUseAsync(string taxId, int companyIdToExclude);
+        Task<bool> IsEmailInUseAsync(string email, int companyIdToExclude);
+        Task<bool> IsPhoneNumberInUseAsync(string phoneNumber, int companyIdToExclude);
+        // --- END Methods for EDIT validation (take 2 arguments) ---
 
         /// <summary>
         /// Gets all inactive companies created by a specific user.
@@ -63,5 +71,7 @@ namespace CET96_ProjetoFinal.web.Repositories
         /// <param name="userId">The ID of the user whose inactive companies to retrieve.</param>
         /// <returns>A collection of the user's inactive companies.</returns>
         Task<IEnumerable<Company>> GetInactiveCompaniesByUserIdAsync(string userId);
+
+        Task<bool> DoesCompanyExistForUserAsync(string userId);
     }
 }

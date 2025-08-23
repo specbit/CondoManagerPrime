@@ -1,9 +1,6 @@
-using CET96_ProjetoFinal.web.Data;
-using CET96_ProjetoFinal.web.Helpers;
 using CET96_ProjetoFinal.web.Models;
 using CET96_ProjetoFinal.web.Repositories;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore; // Required for .Include()
 using System.Diagnostics;
 
 namespace CET96_ProjetoFinal.web.Controllers
@@ -11,73 +8,87 @@ namespace CET96_ProjetoFinal.web.Controllers
     public class HomeController : Controller
     {
         // Just DbContext for this more direct query (for Admin user dashboard).
-        private readonly ApplicationUserDataContext _context;
-        private readonly ICompanyRepository _companiesRepository;
-        private readonly IApplicationUserHelper _userHelper;
+        private readonly ICompanyRepository _companyRepository;
+        private readonly IApplicationUserRepository _userRepository;
 
-        public HomeController(
-            ApplicationUserDataContext context, 
-            ICompanyRepository companiesRepository, 
-            IApplicationUserHelper userHelper)
+        // The constructor is updated to ask for the new IApplicationUserRepository
+        public HomeController(ICompanyRepository companyRepository, IApplicationUserRepository userRepository)
         {
-            _context = context;
-            _companiesRepository = companiesRepository;
-            _userHelper = userHelper;
+            _companyRepository = companyRepository;
+            _userRepository = userRepository;
         }
 
         //public async Task<IActionResult> Index()
         //{
-        //    // Check if a user is logged in
-        //    if (User.Identity.IsAuthenticated)
+        //    // Check if a user is logged in and has the correct administrator role.
+        //    if (User.Identity.IsAuthenticated && User.IsInRole("Company Administrator"))
         //    {
-        //        // Fetch the user from the database and explicitly include their Company data in one query
-        //        var user = await _context.Users
-        //            .Include(u => u.Company) // This is the key line that joins the tables
-        //            .FirstOrDefaultAsync(u => u.UserName == User.Identity.Name);
-
-        //        // Check if the user was found and has a company linked
-        //        if (user != null && user.Company != null)
+        //        // First, get the full user object for the person who is logged in.
+        //        var user = await _userRepository.GetUserByEmailasync(User.Identity.Name);
+        //        if (user == null)
         //        {
-        //            var model = new HomeViewModel
-        //            {
-        //                CompanyName = user.Company.Name
-        //            };
-        //            return View(model);
+        //            // This is a safety check; it should not happen for a logged-in user.
+        //            return NotFound();
         //        }
+
+        //        // Next, use the repository to fetch the list of companies created by this specific user.
+        //        var companies = await _companyRepository.GetCompaniesByUserIdAsync(user.Id);
+
+        //        // We create our ViewModel and pass the list of companies to it.
+        //        var model = new HomeViewModel
+        //        {
+        //            Companies = companies
+        //        };
+
+        //        // Finally, we pass the model (containing the list) to the View.
+        //        return View(model);
         //    }
 
-        //    // If the user is not logged in or has no company, show the default view
+        //    // If the user is not logged in or not an admin, show the default public view.
         //    return View();
         //}
-
         public async Task<IActionResult> Index()
         {
-            // Check if a user is logged in and has the correct administrator role.
-            if (User.Identity.IsAuthenticated && User.IsInRole("Company Administrator"))
+            var model = new HomeViewModel(); // Create an empty ViewModel first
+
+            if (User.Identity.IsAuthenticated)
             {
-                // First, get the full user object for the person who is logged in.
-                var user = await _userHelper.GetUserByEmailasync(User.Identity.Name);
-                if (user == null)
+                if (User.IsInRole("Platform Administrator"))
                 {
-                    // This is a safety check; it should not happen for a logged-in user.
-                    return NotFound();
+                    // If Platform Admin, get all users and add them to the model
+                    var allUsers = await _userRepository.GetAllUsersAsync();
+
+                    var userViewModelList = new List<ApplicationUserViewModel>();
+
+                    foreach (var user in allUsers)
+                    {
+                        var roles = await _userRepository.GetUserRolesAsync(user);
+
+                        userViewModelList.Add(new ApplicationUserViewModel
+                        {
+                            Id = user.Id,
+                            FirstName = user.FirstName,
+                            LastName = user.LastName,
+                            UserName = user.UserName, // Or user.Email
+                            IsDeactivated = user.DeactivatedAt.HasValue,
+                            Roles = roles
+                        });
+                    }
+                    model.AllUsers = userViewModelList;
                 }
-
-                // Next, use the repository to fetch the list of companies created by this specific user.
-                var companies = await _companiesRepository.GetCompaniesByUserIdAsync(user.Id);
-
-                // We create our ViewModel and pass the list of companies to it.
-                var model = new HomeViewModel
+                else if (User.IsInRole("Company Administrator"))
                 {
-                    Companies = companies
-                };
-
-                // Finally, we pass the model (containing the list) to the View.
-                return View(model);
+                    // If Company Admin, get their companies and add them to the model
+                    var user = await _userRepository.GetUserByEmailasync(User.Identity.Name);
+                    if (user != null)
+                    {
+                        model.Companies = await _companyRepository.GetCompaniesByUserIdAsync(user.Id);
+                    }
+                }
             }
 
-            // If the user is not logged in or not an admin, show the default public view.
-            return View();
+            // Pass the model (which may or may not be populated) to the single Index view
+            return View(model);
         }
 
         public IActionResult Privacy()

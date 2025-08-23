@@ -1,0 +1,16 @@
+﻿@{
+    ViewData["Title"] = "Deactivate Account";
+}
+
+<h1 class="text-danger">Deactivate Account</h1>
+<h3 class="text-danger">Are you sure you want to deactivate your account?</h3>
+
+<div>
+    <hr />
+    <p>If you proceed, your account will be permanently disabled and you will be logged out.</p>
+
+    <form asp-action="DeactivateMyAccount" method="post">
+        <input type="submit" value="Yes, Deactivate My Account" class="btn btn-danger" />
+        <a asp-action="AccountDetails" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>

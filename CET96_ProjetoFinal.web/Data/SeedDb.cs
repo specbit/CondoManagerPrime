@@ -14,8 +14,8 @@ namespace CET96_ProjetoFinal.web.Data
         public SeedDb(ApplicationUserDataContext context, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager)
         {
             _context = context;
-            _userManager = userManager;
-            _roleManager = roleManager;
+            _userManager = userManager; // Manages user creation, deletion, and role assignments
+            _roleManager = roleManager; // Manages roles within the application
         }
 
         public async Task SeedAsync()
@@ -48,6 +48,7 @@ namespace CET96_ProjetoFinal.web.Data
                         Email = "nuno.goncalo.gomes@formandos.cinel.pt",
                         FirstName = "System",
                         LastName = "Admin",
+                        EmailConfirmed = true,
                         IdentificationDocument = "000000000",
                         DocumentType = DocumentTypeEnum.Other,
                         PhoneNumber = "000000000",

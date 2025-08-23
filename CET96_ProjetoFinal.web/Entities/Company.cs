@@ -41,11 +41,14 @@ namespace CET96_ProjetoFinal.web.Entities
         // --- Audit Fields ---
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
+        public DateTime? DeletedAt { get; set; }   // Tracks WHEN it was deactivated
+
         public bool IsActive { get; set; } = true;
 
         // It's good practice to track which user made changes.
         // These can be null if the system performs an action.
         public string? UserCreatedId { get; set; }
         public string? UserUpdatedId { get; set; }
+        public string? UserDeletedId { get; set; } // Tracks WHO deactivated it
     }
 }

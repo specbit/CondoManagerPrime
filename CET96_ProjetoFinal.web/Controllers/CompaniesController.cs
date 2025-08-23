@@ -10,13 +10,13 @@ namespace CET96_ProjetoFinal.web.Controllers
     [Authorize(Roles = "Company Administrator")]
     public class CompaniesController : Controller
     {
-        private readonly IApplicationUserHelper _userHelper;
-        private readonly ICompanyRepository _companiesRepository; // Inject the repository
+        private readonly IApplicationUserRepository _userRepository;
+        private readonly ICompanyRepository _companiesRepository; 
 
         // Update the constructor to accept the repository
-        public CompaniesController(IApplicationUserHelper userHelper, ICompanyRepository companiesRepository)
+        public CompaniesController(IApplicationUserRepository userHelper, ICompanyRepository companiesRepository)
         {
-            _userHelper = userHelper;
+            _userRepository = userHelper;
             _companiesRepository = companiesRepository;
         }
 
@@ -177,28 +177,29 @@ namespace CET96_ProjetoFinal.web.Controllers
         /// <param name="source">An optional string indicating the originating page (e.g., "inactive")
         /// to enable a context-aware redirect after saving.</param>
         /// <returns>A RedirectToAction on success, or the Edit view with validation errors on failure.</returns>        [HttpPost]
+        [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, CompanyViewModel model, string? source)
         {
             if (id != model.Id) return NotFound();
 
             //// Note: We pass model.Id to exclude the current company from the check
-            //if (await _companiesRepository.IsNameInUseAsync(model.Name, model.Id))
-            //{
-            //    ModelState.AddModelError("Name", "This Company Name is already registered.");
-            //}
-            //if (await _companiesRepository.IsTaxIdInUseAsync(model.TaxId, model.Id))
-            //{
-            //    ModelState.AddModelError("TaxId", "This Tax ID is already registered.");
-            //}
-            //if (await _companiesRepository.IsEmailInUseAsync(model.Email, model.Id))
-            //{
-            //    ModelState.AddModelError("Email", "This email is already in use by another company.");
-            //}
-            //if (await _companiesRepository.IsPhoneNumberInUseAsync(model.PhoneNumber, model.Id))
-            //{
-            //    ModelState.AddModelError("PhoneNumber", "This Phone Number is already in use by another company.");
-            //}
+            if (await _companiesRepository.IsNameInUseAsync(model.Name, model.Id))
+            {
+                ModelState.AddModelError("Name", "This Company Name is already registered.");
+            }
+            if (await _companiesRepository.IsTaxIdInUseAsync(model.TaxId, model.Id))
+            {
+                ModelState.AddModelError("TaxId", "This Tax ID is already registered.");
+            }
+            if (await _companiesRepository.IsEmailInUseAsync(model.Email, model.Id))
+            {
+                ModelState.AddModelError("Email", "This email is already in use by another company.");
+            }
+            if (await _companiesRepository.IsPhoneNumberInUseAsync(model.PhoneNumber, model.Id))
+            {
+                ModelState.AddModelError("PhoneNumber", "This Phone Number is already in use by another company.");
+            }
 
             if (ModelState.IsValid)
             {
@@ -260,20 +261,33 @@ namespace CET96_ProjetoFinal.web.Controllers
         }
 
         // POST: Companies/Delete/5 (This performs the Deactivate action)
+        /// <summary>
+        /// Handles the POST request to deactivate a company (soft delete). It sets the
+        /// company's IsActive flag to false and records the user and timestamp of the action.
+        /// </summary>
+        /// <param name="id">The ID of the company to deactivate.</param>
+        /// <returns>A RedirectToAction to the home dashboard.</returns>
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
+            // Fetch the company from the repository
             var company = await _companiesRepository.GetByIdAsync(id);
+
             if (company != null)
             {
-                company.IsActive = false; // Soft delete
-                _companiesRepository.Update(company);
-                await _companiesRepository.SaveAllAsync();
+                // Get the user who is performing the action
+                var user = await _userRepository.GetUserByEmailasync(User.Identity.Name);
+
+                company.IsActive = false;  // Soft delete by marking as inactive
+                company.DeletedAt = DateTime.UtcNow; // Record WHEN it was deactivated
+                company.UserDeletedId = user.Id;     // Record WHO deactivated it
+                
+                _companiesRepository.Update(company); // Mark the entity as modified
+                await _companiesRepository.SaveAllAsync(); // Save changes to the database
             }
             return RedirectToAction("Index", "Home");
         }
-
         // GET: Companies/InactiveCompanies
         /// <summary>
         /// Displays a view listing all companies that have been marked as inactive
@@ -282,7 +296,7 @@ namespace CET96_ProjetoFinal.web.Controllers
         /// <returns>A ViewResult with a list of inactive companies.</returns>
         public async Task<IActionResult> InactiveCompanies()
         {
-            var user = await _userHelper.GetUserByEmailasync(User.Identity.Name);
+            var user = await _userRepository.GetUserByEmailasync(User.Identity.Name);
             var inactiveCompanies = await _companiesRepository.GetInactiveCompaniesByUserIdAsync(user.Id);
             return View(inactiveCompanies);
         }
@@ -303,7 +317,8 @@ namespace CET96_ProjetoFinal.web.Controllers
 
         // POST: Companies/Reactivate/5
         /// <summary>
-        /// Handles the POST request to reactivate a company by setting its IsActive flag to true.
+        /// Handles the POST request to reactivate a company. It sets the IsActive flag to true
+        /// and clears the deactivation audit fields.
         /// </summary>
         /// <param name="id">The ID of the company to reactivate.</param>
         /// <returns>A RedirectToAction to the main dashboard on success.</returns>
@@ -312,10 +327,15 @@ namespace CET96_ProjetoFinal.web.Controllers
         public async Task<IActionResult> ReactivateConfirmed(int id)
         {
             var company = await _companiesRepository.GetByIdAsync(id);
+
             if (company != null)
             {
-                company.IsActive = true; // Set the flag back to true
-                _companiesRepository.Update(company);
+                company.IsActive = true;
+                company.DeletedAt = null;     // Clear the deactivation date
+                company.UserDeletedId = null; // Clear the deactivation user
+
+                _companiesRepository.Update(company); // Mark the entity as modified
+
                 await _companiesRepository.SaveAllAsync();
             }
             return RedirectToAction("Index", "Home");

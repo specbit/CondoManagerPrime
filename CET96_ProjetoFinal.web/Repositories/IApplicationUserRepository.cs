@@ -1,28 +1,34 @@
 ﻿using CET96_ProjetoFinal.web.Entities;
+using CET96_ProjetoFinal.web.Models;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using System.Collections.Generic;
 
 namespace CET96_ProjetoFinal.web.Repositories
 {
     /// <summary>
-    /// Defines the contract for a repository that handles ApplicationUser data operations.
+    /// Defines the contract for a single repository that handles all ApplicationUser
+    /// data access and Identity-related business logic.
     /// </summary>
     public interface IApplicationUserRepository
     {
-        /// <summary>
-        /// Retrieves all users formatted for a dropdown list.
-        /// </summary>
-        /// <param name="selectedValue">The value to be pre-selected in the list.</param>
-        /// <returns>A SelectList object containing all users.</returns>
-        Task<SelectList> GetUsersForSelectListAsync(object? selectedValue = null);
+        // Methods for Identity operations (Lived in applicationUserHelper)
+        Task<IdentityResult> AddUserAsync(ApplicationUser user, string password);
+        Task AddUserToRoleAsync(ApplicationUser user, string roleName);
+        Task<IdentityResult> ChangePasswordAsync(ApplicationUser user, string oldPassword, string newPassword);
+        Task<IdentityResult> ConfirmEmailAsync(ApplicationUser user, string token);
+        Task<string> GenerateEmailConfirmationTokenAsync(ApplicationUser user);
+        Task<SignInResult> LoginAsync(LoginViewModel model);
+        Task LogoutAsync();
+        Task<IdentityResult> UpdateUserAsync(ApplicationUser user);
+        Task<IdentityResult> SetLockoutEndDateAsync(ApplicationUser user, DateTimeOffset? lockoutEnd);
 
-        /// <summary>
-        /// Asynchronously retrieves a user by their unique identifier.
-        /// </summary>
-        /// <param name="userId">The unique identifier of the user to retrieve. Cannot be null or empty.</param>
-        /// <returns>A task that represents the asynchronous operation. The task result contains the  <see
-        /// cref="ApplicationUser"/> object corresponding to the specified <paramref name="userId"/>,  or <see
-        /// langword="null"/> if no user with the given identifier exists.</returns>
+        // Methods for data queries
+        Task<ApplicationUser> GetUserByEmailasync(string email);
         Task<ApplicationUser> GetUserByIdAsync(string userId);
+        Task<IEnumerable<ApplicationUser>> GetAllUsersAsync();
+        Task<SelectList> GetUsersForSelectListAsync(object? selectedValue = null);
+        Task<bool> IsInRoleAsync(ApplicationUser user, string roleName);
+
+        Task<IList<string>> GetUserRolesAsync(ApplicationUser user);
     }
 }

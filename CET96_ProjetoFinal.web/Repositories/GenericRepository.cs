@@ -10,11 +10,13 @@ namespace CET96_ProjetoFinal.web.Repositories
     /// that implements the IEntity interface.
     /// </summary>
     /// <typeparam name="T">The entity type.</typeparam>
-    public class GenericRepository<T> : IGenericRepository<T> where T : class, IEntity
+    public class GenericRepository<T, TContext> : IGenericRepository<T>
+    where T : class, IEntity
+    where TContext : DbContext
     {
-        private readonly ApplicationUserDataContext _context;
+        protected readonly TContext _context;
 
-        public GenericRepository(ApplicationUserDataContext context)
+        public GenericRepository(TContext context)
         {
             _context = context;
         }

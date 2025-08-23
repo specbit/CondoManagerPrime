@@ -4,6 +4,7 @@ using CET96_ProjetoFinal.web.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CET96_ProjetoFinal.web.Migrations
 {
     [DbContext(typeof(ApplicationUserDataContext))]
-    partial class ApplicationUserDataContextModelSnapshot : ModelSnapshot
+    [Migration("20250822181123_AddDeactivationAuditFieldsToCompany")]
+    partial class AddDeactivationAuditFieldsToCompany
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -40,12 +43,6 @@ namespace CET96_ProjetoFinal.web.Migrations
 
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("DeactivatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("DeactivatedByUserId")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("DocumentType")
@@ -104,15 +101,9 @@ namespace CET96_ProjetoFinal.web.Migrations
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("bit");
 
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
                     b.Property<string>("UserName")
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
-
-                    b.Property<string>("UserUpdatedId")
-                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
