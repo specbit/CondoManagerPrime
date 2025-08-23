@@ -16,19 +16,19 @@ namespace CET96_ProjetoFinal.web.Controllers
     public class PaymentController : Controller
     {
         private readonly ApplicationUserDataContext _context;
-        private readonly IApplicationUserHelper _userHelper;
+        IApplicationUserRepository _userRepository;
         private readonly IEmailSender _emailSender;
         private readonly ICompanyRepository _companiesRepository;
 
         // The constructor must request the services that are registered in Program.cs
         public PaymentController(
-            ApplicationUserDataContext context, 
-            IApplicationUserHelper userHelper, 
+            ApplicationUserDataContext context,
+            IApplicationUserRepository userRepository, 
             IEmailSender emailSender,
             ICompanyRepository companiesRepository)
         {
             _context = context;
-            _userHelper = userHelper;
+            _userRepository = userRepository;
             _emailSender = emailSender;
             _companiesRepository = companiesRepository;
         }
@@ -70,7 +70,7 @@ namespace CET96_ProjetoFinal.web.Controllers
             }
 
             // 1. Get the user from the database.
-            var user = await _userHelper.GetUserByEmailasync(User.Identity.Name);
+            var user = await _userRepository.GetUserByEmailasync(User.Identity.Name);
 
             if (user == null)
             {
@@ -123,7 +123,8 @@ namespace CET96_ProjetoFinal.web.Controllers
                 // because the company creation was successful.
             }
 
-            TempData["SuccessMessage"] = "Company created and payment confirmed successfully!";
+            TempData["CompanySuccessMessage"] = "Company created and payment confirmed successfully!";
+            
             return RedirectToAction("Index", "Home");
         }
     }

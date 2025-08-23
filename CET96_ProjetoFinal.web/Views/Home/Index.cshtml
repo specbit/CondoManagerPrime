@@ -1,51 +1,104 @@
 ﻿@model CET96_ProjetoFinal.web.Models.HomeViewModel
+@inject CET96_ProjetoFinal.web.Repositories.IApplicationUserRepository UserRepository
 
 @{
     ViewData["Title"] = "Home Page";
 }
 
-@if (Model != null && Model.Companies != null)
+@* @if (TempData["SuccessMessage"] != null)
 {
-    // --- View for a logged-in Company Administrator ---
-    <div class="text-center">
-        <h1 class="display-4">Administrator Dashboard</h1>
-        <p>Manage your companies from the cards below.</p>
-    </div>
-
-    <div class="d-flex justify-content-start mb-3">
-        <a asp-action="Create" asp-controller="Companies" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Create New Company
-        </a>
-        <a asp-action="InactiveCompanies" asp-controller="Companies" class="btn btn-outline-secondary ms-2">
-            View Inactive Companies
-        </a>
-    </div>
-
-    <hr />
-
-    @if (Model.Companies.Any())
+    <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+}
+ *@
+@if (User.Identity.IsAuthenticated)
+{
+    @if (User.IsInRole("Platform Administrator"))
     {
+        @if (TempData["UserManagementSuccessMessage"] != null)
+        {
+            <div class="alert alert-success">@TempData["UserManagementSuccessMessage"]</div>
+        }
+
+        <div class="container mb-4">
+            <h1 class="display-4">Platform Administrator Dashboard</h1>
+            <p class="lead">Manage all platform users from the table below.</p>
+        </div>
+        <div class="card">
+            <div class="card-header"><h5 class="mb-0">System Users</h5></div>
+            <div class="card-body">
+                <table class="table table-hover mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Roles</th>
+                            <th>Status</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var user in Model.AllUsers)
+                        {
+                            <tr>
+                                <td>@user.FirstName @user.LastName</td>
+                                <td>@user.UserName</td>
+                                <td>
+                                    @foreach (var role in user.Roles)
+                                    {
+                                        <span class="badge bg-info me-1">@role</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (user.IsDeactivated)
+                                    {
+                                        <span class="badge bg-danger">Deactivated</span>
+                                    }
+                                    else
+                                    {
+
+                                        <span class="badge bg-success">Active</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    @if (user.Roles.Contains("Company Administrator") && !user.IsDeactivated)
+                                    {
+                                        <a asp-controller="PlatformAdmin" asp-action="DeactivateUser" asp-route-id="@user.Id" class="btn btn-sm btn-danger">Deactivate</a>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+    else if (User.IsInRole("Company Administrator"))
+    {
+        @if (TempData["CompanySuccessMessage"] != null)
+        {
+            <div class="alert alert-success">@TempData["CompanySuccessMessage"]</div>
+        }
+
+        <div class="container">
+            <h1 class="display-4">Administrator Dashboard</h1>
+            <p class="lead">Manage your companies from the cards below.</p>
+            <p>
+                <a asp-controller="Company" asp-action="Create" class="btn btn-primary">Create New Company</a>
+                <a asp-controller="Company" asp-action="InactiveCompanies" class="btn btn-secondary">View Inactive Companies</a>
+            </p>
+        </div>
+        <hr />
         <div class="row">
             @foreach (var company in Model.Companies)
             {
-                <div class="col-md-6 col-lg-4 mb-4">
-                    <div class="card h-100 shadow-sm card-hover">
-                        <a asp-controller="Condominiums" asp-action="Index" asp-route-companyId="@company.Id" class="card-link">
-                            <div class="card-body">
-                                <p class="mb-2">
-                                    <small class="text-muted"><strong>Company Name:</strong></small><br>
-                                    @company.Name
-                                </p>
-                                <p class="mb-0">
-                                    <small class="text-muted"><strong>Address:</strong></small><br>
-                                    @company.Address
-                                </p>
-                            </div>
-                        </a>
-                        <div class="card-footer bg-transparent border-top-0 d-flex justify-content-end">
-                            <a asp-controller="Companies" asp-action="Details" asp-route-id="@company.Id" class="btn btn-sm btn-outline-info me-2">Details</a>
-                            <a asp-controller="Companies" asp-action="Edit" asp-route-id="@company.Id" class="btn btn-sm btn-outline-warning me-2">Edit</a>
-                            <a asp-controller="Companies" asp-action="Delete" asp-route-id="@company.Id" class="btn btn-sm btn-outline-danger">Deactivate</a>
+                <div class="col-md-4 mb-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">@company.Name</h5>
+                            <p class="card-text">@company.Address</p>
+                            <a asp-controller="Company" asp-action="Details" asp-route-id="@company.Id" class="btn btn-info">Details</a>
+                            <a asp-controller="Company" asp-action="Edit" asp-route-id="@company.Id" class="btn btn-warning">Edit</a>
+                            <a asp-controller="Company" asp-action="Deactivate" asp-route-id="@company.Id" class="btn btn-danger">Deactivate</a>
                         </div>
                     </div>
                 </div>
@@ -54,29 +107,16 @@
     }
     else
     {
-        <div class="alert alert-info text-center" role="alert">
-            You have not created any companies yet.
+        <div class="text-center">
+            <h1 class="display-4">Welcome</h1>
+            <p>You are logged in.</p>
         </div>
     }
 }
 else
 {
-    // --- Default view for visitors ---
     <div class="text-center">
-        <h1 class="display-4">Welcome to Condo Manager Prime</h1>
-        <p>Manage your Condos Efficently.</p>
+        <h1 class="display-4">Welcome to CondoManagerPrime</h1>
+        <p>Your premium solution for condominium management.</p>
     </div>
 }
-
-<style>
-    a.card-link, a.card-link:hover {
-        color: inherit;
-        text-decoration: none;
-    }
-
-    .card-hover:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 4px 20px rgba(0,0,0,0.1) !important;
-        transition: all 0.3s ease;
-    }
-</style>

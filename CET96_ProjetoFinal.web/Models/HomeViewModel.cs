@@ -11,5 +11,8 @@ namespace CET96_ProjetoFinal.web.Models
 
         // This property to hold the list of companies for the dashboard
         public IEnumerable<Company> Companies { get; set; }
+
+        // This property to hold the list of users for the dashboard
+        public IEnumerable<ApplicationUserViewModel> AllUsers { get; set; }
     }
 }

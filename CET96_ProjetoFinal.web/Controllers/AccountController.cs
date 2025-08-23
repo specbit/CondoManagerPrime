@@ -2,6 +2,7 @@
 using CET96_ProjetoFinal.web.Entities;
 using CET96_ProjetoFinal.web.Helpers;
 using CET96_ProjetoFinal.web.Models;
+using CET96_ProjetoFinal.web.Repositories;
 using CET96_ProjetoFinal.web.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -16,19 +17,19 @@ namespace CET96_ProjetoFinal.web.Controllers
     /// </summary>
     public class AccountController : Controller
     {
-        private readonly IApplicationUserHelper _applicationUserHelper;
-        private readonly ApplicationUserDataContext _dataContext;
+        private readonly IApplicationUserRepository _userRepository;
+        private readonly ICompanyRepository _companyRepository;
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly IEmailSender _emailSender;
 
         public AccountController(
-            IApplicationUserHelper userHelper,
-            ApplicationUserDataContext context,
+            IApplicationUserRepository userRepository,
+            ICompanyRepository companyRepository,
             SignInManager<ApplicationUser> signInManager,
             IEmailSender emailSender)
         {
-            _applicationUserHelper = userHelper;
-            _dataContext = context;
+            _userRepository = userRepository;
+            _companyRepository = companyRepository;
             _signInManager = signInManager;
             _emailSender = emailSender;
         }
@@ -45,35 +46,6 @@ namespace CET96_ProjetoFinal.web.Controllers
             return View();
         }
 
-        //// POST: /Account/Login
-        //[HttpPost]
-        //[AllowAnonymous]
-        //public async Task<IActionResult> Login(LoginViewModel model)
-        //{
-        //    if (ModelState.IsValid)
-        //    {
-        //        var result = await _applicationUserHelper.LoginAsync(model);
-        //        if (result.Succeeded)
-        //        {
-        //            return RedirectToAction("Index", "Home");
-        //        }
-
-        //        // --- Check if login failed because email is not confirmed ---
-        //        if (result.IsNotAllowed)
-        //        {
-        //            ModelState.AddModelError(string.Empty, "You must confirm your email before you can log in.");
-        //        }
-        //        else
-        //        {
-        //            ModelState.AddModelError(string.Empty, "Invalid login attempt.");
-        //        }
-        //    }
-
-        //    ModelState.AddModelError(string.Empty, "Invalid login attempt.");
-
-        //    return View(model);
-        //}
-
         // POST: /Account/Login
         [HttpPost]
         [AllowAnonymous]
@@ -81,15 +53,15 @@ namespace CET96_ProjetoFinal.web.Controllers
         {
             if (ModelState.IsValid)
             {
-                var result = await _applicationUserHelper.LoginAsync(model);
+                var result = await _userRepository.LoginAsync(model);
 
                 if (result.Succeeded)
                 {
                     // --- CHECK FOR COMPANY ---
-                    var user = await _applicationUserHelper.GetUserByEmailasync(model.Username);
+                    var user = await _userRepository.GetUserByEmailasync(model.Username);
 
                     // Check if a company exists for this user.
-                    var companyExists = await _dataContext.Companies.AnyAsync(c => c.ApplicationUserId == user.Id);
+                    var companyExists = await _companyRepository.DoesCompanyExistForUserAsync(user.Id);
 
                     if (!companyExists)
                     {
@@ -120,71 +92,6 @@ namespace CET96_ProjetoFinal.web.Controllers
             return View();
         }
 
-        //// POST: /Account/Register
-        //[HttpPost]
-        //[AllowAnonymous]
-        //public async Task<IActionResult> Register(RegisterCompanyAdminViewModel model)
-        //{
-        //    if (ModelState.IsValid)
-        //    {
-        //        var user = await _applicationUserHelper.GetUserByEmailasync(model.Username);
-        //        if (user == null)
-        //        {
-        //            user = new ApplicationUser
-        //            {
-        //                FirstName = model.FirstName,
-        //                LastName = model.LastName,
-        //                UserName = model.Username, // Identity requires UserName
-        //                Email = model.Username,
-        //                IdentificationDocument = model.IdentificationDocument,
-        //                DocumentType = model.DocumentType,
-        //                PhoneNumber = model.PhoneNumber
-        //            };
-
-        //            // Create the user in the database
-        //            var result = await _applicationUserHelper.AddUserAsync(user, model.Password);
-        //            if (result.Succeeded)
-        //            {
-        //                await _applicationUserHelper.AddUserToRoleAsync(user, "Company Administrator");
-
-        //                // Create the associated Company 
-        //                var company = new Company
-        //                {
-        //                    Name = model.CompanyName,
-        //                    ApplicationUserId = user.Id, // Link the company to the new user
-        //                    UserCreatedId = user.Id,
-        //                    PaymentValidated = true // Simulate a successful payment
-        //                };
-
-        //                _dataContext.Companies.Add(company);
-        //                await _dataContext.SaveChangesAsync();
-
-        //                // Instead of using the helper for this one action, take direct control 
-        //                // of the sign-in process to ensure the session is updated immediately.
-        //                await _signInManager.SignInAsync(user, isPersistent: false);
-
-        //                // This is the crucial line that forces the login cookie to be recognized.
-        //                await _signInManager.RefreshSignInAsync(user);
-
-        //                // Send them to the home page
-        //                return RedirectToAction("Index", "Home");
-        //            }
-
-        //            // If creation failed, add errors to the page
-        //            foreach (var error in result.Errors)
-        //            {
-        //                ModelState.AddModelError(string.Empty, error.Description);
-        //            }
-        //        }
-        //        else
-        //        {
-        //            ModelState.AddModelError(string.Empty, "A user with this email already exists.");
-        //        }
-        //    }
-
-        //    return View(model);
-        //}
-
         // POST: /Account/Register
         /// <summary>
         /// Handles the HTTP POST request for new user registration. It validates the submitted data,
@@ -203,7 +110,7 @@ namespace CET96_ProjetoFinal.web.Controllers
         {
             if (ModelState.IsValid)
             {
-                var user = await _applicationUserHelper.GetUserByEmailasync(model.Username);
+                var user = await _userRepository.GetUserByEmailasync(model.Username);
 
                 if (user == null)
                 {
@@ -219,15 +126,15 @@ namespace CET96_ProjetoFinal.web.Controllers
                         CompanyName = model.CompanyName
                     };
 
-                    var result = await _applicationUserHelper.AddUserAsync(user, model.Password);
+                    var result = await _userRepository.AddUserAsync(user, model.Password);
 
                     if (result.Succeeded)
                     {
                         // Ensure the "Company Administrator" role exists before adding the user to it.
-                        await _applicationUserHelper.AddUserToRoleAsync(user, "Company Administrator"); // Add the user to the "Company Administrator" role
+                        await _userRepository.AddUserToRoleAsync(user, "Company Administrator"); // Add the user to the "Company Administrator" role
 
                         // --- EMAIL CONFIRMATION LOGIC ---
-                        var token = await _applicationUserHelper.GenerateEmailConfirmationTokenAsync(user);
+                        var token = await _userRepository.GenerateEmailConfirmationTokenAsync(user);
                         var confirmationLink = Url.Action("ConfirmEmail", "Account",
                             new { userId = user.Id, token }, Request.Scheme);
 
@@ -263,7 +170,7 @@ namespace CET96_ProjetoFinal.web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Logout()
         {
-            await _applicationUserHelper.LogoutAsync();
+            await _userRepository.LogoutAsync();
             // After logging out, send the user to the home page.
             return RedirectToAction("Index", "Home");
         }
@@ -296,7 +203,7 @@ namespace CET96_ProjetoFinal.web.Controllers
                 return View(model);
             }
 
-            var user = await _applicationUserHelper.GetUserByEmailasync(User.Identity.Name);
+            var user = await _userRepository.GetUserByEmailasync(User.Identity.Name);
 
             if (user == null)
             {
@@ -304,7 +211,7 @@ namespace CET96_ProjetoFinal.web.Controllers
                 return View(model);
             }
 
-            var result = await _applicationUserHelper.ChangePasswordAsync(user, model.OldPassword, model.NewPassword);
+            var result = await _userRepository.ChangePasswordAsync(user, model.OldPassword, model.NewPassword);
             if (!result.Succeeded)
             {
                 foreach (var error in result.Errors)
@@ -340,13 +247,14 @@ namespace CET96_ProjetoFinal.web.Controllers
                 return RedirectToAction("Index", "Home");
             }
 
-            var user = await _applicationUserHelper.GetUserByIdAsync(userId);
+            var user = await _userRepository.GetUserByIdAsync(userId);
             if (user == null)
             {
                 return View("Error");
             }
 
-            var result = await _applicationUserHelper.ConfirmEmailAsync(user, token);
+            var result = await _userRepository.ConfirmEmailAsync(user, token);
+
             if (result.Succeeded)
             {
                 // 1. Sign the user in to create a session.
@@ -358,7 +266,8 @@ namespace CET96_ProjetoFinal.web.Controllers
 
                 // 3. Now that the session is guaranteed to be valid and have the correct roles,
                 // check if they have a company.
-                var companyExists = await _dataContext.Companies.AnyAsync(c => c.ApplicationUserId == user.Id);
+                var companyExists = await _companyRepository.DoesCompanyExistForUserAsync(user.Id);
+
                 if (!companyExists)
                 {
                     // The redirect will now succeed because the user is properly authenticated WITH their roles.
@@ -372,6 +281,57 @@ namespace CET96_ProjetoFinal.web.Controllers
 
             // If confirmation fails, show an error.
             return View("Error");
+        }
+
+        /// <summary>
+        /// Displays the main account management page for the logged-in user.
+        /// </summary>
+        [Authorize]
+        public async Task<IActionResult> AccountDetails()
+        {
+            var user = await _userRepository.GetUserByEmailasync(User.Identity.Name);
+            if (user == null) return NotFound();
+
+            return View(user);
+        }
+
+        /// <summary>
+        /// Displays the confirmation page for account deactivation.
+        /// </summary>
+        [Authorize]
+        public IActionResult DeactivateMyAccount()
+        {
+            return View();
+        }
+
+        /// <summary>
+        /// Handles the POST request to deactivate the user's own account.
+        /// </summary>
+        [HttpPost, ActionName("DeactivateMyAccount")]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeactivateMyAccountConfirmed()
+        {
+            var user = await _userRepository.GetUserByEmailasync(User.Identity.Name);
+            if (user == null) return NotFound();
+
+            // CRUCIAL CHECK: See if this user owns any active companies
+            var activeCompanies = await _companyRepository.GetCompaniesByUserIdAsync(user.Id);
+            if (activeCompanies.Any())
+            {
+                TempData["ErrorMessage"] = "You cannot deactivate your account while you still manage active companies. Please deactivate them first.";
+                return RedirectToAction(nameof(AccountDetails));
+            }
+
+            // If they have no active companies, proceed with deactivation
+            user.DeactivatedAt = DateTime.UtcNow;
+            user.DeactivatedByUserId = user.Id; // They deactivated themselves
+            await _userRepository.UpdateUserAsync(user); // Save audit fields
+            await _userRepository.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue); // Lock the account
+
+            await _signInManager.SignOutAsync(); // Log them out immediately
+
+            return RedirectToAction("Index", "Home");
         }
     }
 }

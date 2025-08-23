@@ -18,12 +18,23 @@ namespace CET96_ProjetoFinal.web
             // Add services to the container.
             builder.Services.AddControllersWithViews();
 
-            // This gets the connection string from your appsettings.json
-            var connectionString = builder.Configuration.GetConnectionString("ApplicationUserConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+            // --- User Database Context ---
+            // This gets the connection string from appsettings.json
+            var connectionString = builder.Configuration.GetConnectionString("ApplicationUserConnection") 
+                ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
             // This registers the DbContext with the application's services
             builder.Services.AddDbContext<ApplicationUserDataContext>(options =>
                 options.UseSqlServer(connectionString));
+
+            // --- Condominium Database Context  ---
+            // This gets the new connection string from appsettings.json
+            var condominiumConnectionString = builder.Configuration.GetConnectionString("CondominiumConnection")
+                ?? throw new InvalidOperationException("Connection string 'CondominiumConnection' not found.");
+
+            // This registers the new DbContext using the new connection string
+            builder.Services.AddDbContext<CondominiumDataContext>(options =>
+                options.UseSqlServer(condominiumConnectionString));
 
             // Configure Identity services
             //builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
@@ -71,7 +82,7 @@ namespace CET96_ProjetoFinal.web
             builder.Services.AddTransient<IEmailSender, SendGridEmailSender>();
 
             // Register custom application services
-            builder.Services.AddScoped<IApplicationUserHelper, ApplicationUserHelper>();
+            //builder.Services.AddScoped<IApplicationUserHelper, ApplicationUserHelper>();
             builder.Services.AddScoped<IApplicationUserRepository, ApplicationUserRepository>();
             builder.Services.AddScoped<ICompanyRepository, CompanyRepository>();
 

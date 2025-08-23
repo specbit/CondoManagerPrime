@@ -1,4 +1,4 @@
-﻿@model IEnumerable<CET96_ProjetoFinal.web.Models.ApplicationUserWithRolesViewModel>
+﻿@model IEnumerable<CET96_ProjetoFinal.web.Models.ApplicationUserViewModel>
 
 @{
     ViewData["Title"] = "All Users";
@@ -24,18 +24,14 @@
                 <td>@Html.DisplayFor(modelItem => item.LastName)</td>
                 <td>@Html.DisplayFor(modelItem => item.UserName)</td>
                 <td>
-                    @{
-                        // Split the roles string into individual roles
-                        var roles = item.Roles.Split(new[] { ", " }, StringSplitOptions.None);
-                        foreach (var role in roles)
-                        {
-                            string badgeClass = "bg-secondary"; // Default color
-                            if (role == "Administrador") { badgeClass = "bg-danger"; }
-                            if (role == "Funcionário") { badgeClass = "bg-warning text-dark"; }
-                            if (role == "Cliente") { badgeClass = "bg-primary"; }
+                    @foreach (var role in item.Roles)
+                    {
+                        string badgeClass = "bg-secondary"; // Default color
+                        if (role == "Administrador") { badgeClass = "bg-danger"; }
+                        if (role == "Funcionário") { badgeClass = "bg-warning text-dark"; }
+                        if (role == "Cliente") { badgeClass = "bg-primary"; }
 
-                            <span class="badge @badgeClass">@role</span>
-                        }
+                        <span class="badge @badgeClass me-1">@role</span>
                     }
                 </td>
                 <td>

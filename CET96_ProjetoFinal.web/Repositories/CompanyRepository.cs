@@ -12,13 +12,13 @@ namespace CET96_ProjetoFinal.web.Repositories
     /// This class handles all direct database interactions for companies, abstracting the
     /// data layer from the application's business logic.
     /// </remarks>
-    public class CompanyRepository : GenericRepository<Company>, ICompanyRepository
+    public class CompanyRepository : GenericRepository<Company, ApplicationUserDataContext>, ICompanyRepository
     {
-        private readonly ApplicationUserDataContext _context;
+        //private readonly ApplicationUserDataContext _context;
 
         public CompanyRepository(ApplicationUserDataContext context) : base(context)
         {
-            _context = context;
+            //_context = context;
         }
 
         /// <summary>
@@ -63,6 +63,8 @@ namespace CET96_ProjetoFinal.web.Repositories
                                  .ToListAsync();
         }
 
+        // --- Methods for CREATE validation (take 1 argument) ---
+
         /// <summary>
         /// Checks if a company Tax ID is already in use.
         /// </summary>
@@ -102,6 +104,30 @@ namespace CET96_ProjetoFinal.web.Repositories
         {
             return await _context.Companies.AnyAsync(c => c.PhoneNumber == phoneNumber);
         }
+        // --- END Methods for CREATE validation (take 1 argument) ---
+
+        // --- Methods for EDIT validation (take 2 arguments) ---
+
+        public async Task<bool> IsNameInUseAsync(string name, int companyIdToExclude)
+        {
+            return await _context.Companies.AnyAsync(c => c.Name == name && c.Id != companyIdToExclude);
+        }
+
+        public async Task<bool> IsTaxIdInUseAsync(string taxId, int companyIdToExclude)
+        {
+            return await _context.Companies.AnyAsync(c => c.TaxId == taxId && c.Id != companyIdToExclude);
+        }
+
+        public async Task<bool> IsEmailInUseAsync(string email, int companyIdToExclude)
+        {
+            return await _context.Companies.AnyAsync(c => c.Email == email && c.Id != companyIdToExclude);
+        }
+
+        public async Task<bool> IsPhoneNumberInUseAsync(string phoneNumber, int companyIdToExclude)
+        {
+            return await _context.Companies.AnyAsync(c => c.PhoneNumber == phoneNumber && c.Id != companyIdToExclude);
+        }
+        // --- END Methods for EDIT validation (take 2 arguments) ---
 
         /// <summary>
         /// Gets all inactive companies created by a specific user.
@@ -114,6 +140,11 @@ namespace CET96_ProjetoFinal.web.Repositories
                                  .Where(c => c.ApplicationUserId == userId && !c.IsActive) // The only change is !c.IsActive
                                  .OrderBy(c => c.Name)
                                  .ToListAsync();
+        }
+
+        public async Task<bool> DoesCompanyExistForUserAsync(string userId)
+        {
+            return await _context.Companies.AnyAsync(c => c.ApplicationUserId == userId);
         }
     }
 }

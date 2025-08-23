@@ -37,5 +37,11 @@ namespace CET96_ProjetoFinal.web.Entities
         // This will temporarily hold the company name from the registration form.
         [MaxLength(100)]
         public string CompanyName { get; set; }
+
+        // --- Full Audit Trail ---
+        public DateTime? DeactivatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+        public string? DeactivatedByUserId { get; set; }
+        public string? UserUpdatedId { get; set; }
     }
 }

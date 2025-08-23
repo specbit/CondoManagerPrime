@@ -19,36 +19,37 @@
                 </button>
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
                     <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-                        </li>
                     </ul>
 
-                    <ul class="navbar-nav ms-auto">
+                    <ul class="navbar-nav">
                         @if (User.Identity.IsAuthenticated)
                         {
                             <li class="nav-item">
-                                <a class="nav-link text-dark" asp-controller="Account" asp-action="ChangePassword" title="Manage">
+                                <span class="navbar-text me-3">
                                     Hello @User.Identity.Name!
-
                                     @{
-                                        // Logic to get all roles from the user's claims
                                         var userRoles = string.Join(", ", User.Claims.Where(c => c.Type == System.Security.Claims.ClaimTypes.Role).Select(c => c.Value));
                                     }
-
                                     @if (!string.IsNullOrEmpty(userRoles))
                                     {
-                                        // Render the badge with the roles inside
-                                        <span class="badge bg-success ms-2">@userRoles</span>
+                                        <span class="badge bg-success">@userRoles</span>
                                     }
-                                </a>
+                                </span>
                             </li>
+
+                            @if (User.IsInRole("Platform Administrator"))
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link text-dark" asp-controller="Home" asp-action="Index">User Management</a>
+                                </li>
+                            }
+
                             <li class="nav-item">
-                                <!-- Secure logout form -->
-                                <form asp-controller="Account" asp-action="Logout" method="post">
+                                <a class="nav-link text-dark" asp-controller="Account" asp-action="AccountDetails">Manage Account</a>
+                            </li>
+
+                            <li class="nav-item">
+                                <form class="form-inline" asp-controller="Account" asp-action="Logout">
                                     <button type="submit" class="nav-link btn btn-link text-dark">Logout</button>
                                 </form>
                             </li>
