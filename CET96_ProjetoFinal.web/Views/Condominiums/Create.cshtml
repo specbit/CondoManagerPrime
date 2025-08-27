@@ -1,0 +1,63 @@
+﻿@model CET96_ProjetoFinal.web.Models.CondominiumViewModel
+
+@{
+    ViewData["Title"] = "Create";
+}
+
+<h1>Create Condominium</h1>
+
+<hr />
+<div class="row">
+    <div class="col-md-6">
+        <form asp-action="Create">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            @* Hidden field to pass the CompanyId to the controller *@
+            <input type="hidden" asp-for="CompanyId" value="@ViewData["CompanyId"]" />
+
+            <div class="form-group">
+                <label asp-for="Name" class="control-label"></label>
+                <input asp-for="Name" class="form-control" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Address" class="control-label"></label>
+                <input asp-for="Address" class="form-control" />
+                <span asp-validation-for="Address" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="PropertyRegistryNumber" class="control-label"></label>
+                <input asp-for="PropertyRegistryNumber" class="form-control" />
+                <span asp-validation-for="PropertyRegistryNumber" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="NumberOfUnits" class="control-label"></label>
+                <input asp-for="NumberOfUnits" class="form-control" />
+                <span asp-validation-for="NumberOfUnits" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="ContractValue" class="control-label"></label>
+                <input asp-for="ContractValue" class="form-control" />
+                <span asp-validation-for="ContractValue" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="FeePerUnit" class="control-label"></label>
+                <input asp-for="FeePerUnit" class="form-control" />
+                <span asp-validation-for="FeePerUnit" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Create" class="btn btn-primary" />
+            </div>
+        </form>
+    </div>
+</div>
+
+<div>
+    <a asp-action="Index" asp-route-id="@ViewData["CompanyId"]">Back to List</a>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

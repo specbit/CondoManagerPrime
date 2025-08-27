@@ -17,6 +17,8 @@ namespace CET96_ProjetoFinal.web.Models
     public class CondominiumViewModel
     {
         public int Id { get; set; }
+
+        [Display(Name = "Company Id")]
         public int CompanyId { get; set; }
 
         [Display(Name = "Condominium Manager")]

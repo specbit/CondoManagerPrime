@@ -20,34 +20,69 @@ namespace CET96_ProjetoFinal.web.Controllers
 
         //public async Task<IActionResult> Index()
         //{
-        //    // Check if a user is logged in and has the correct administrator role.
-        //    if (User.Identity.IsAuthenticated && User.IsInRole("Company Administrator"))
+        //    var model = new HomeViewModel(); // Create an empty ViewModel first
+
+        //    if (User.Identity.IsAuthenticated)
         //    {
-        //        // First, get the full user object for the person who is logged in.
-        //        var user = await _userRepository.GetUserByEmailasync(User.Identity.Name);
-        //        if (user == null)
+        //        if (User.IsInRole("Platform Administrator"))
         //        {
-        //            // This is a safety check; it should not happen for a logged-in user.
-        //            return NotFound();
+        //            // If Platform Admin, get all users and add them to the model
+        //            var allUsers = await _userRepository.GetAllUsersAsync();
+
+        //            var userViewModelList = new List<ApplicationUserViewModel>();
+
+        //            foreach (var user in allUsers)
+        //            {
+        //                var roles = await _userRepository.GetUserRolesAsync(user);
+
+        //                userViewModelList.Add(new ApplicationUserViewModel
+        //                {
+        //                    Id = user.Id,
+        //                    FirstName = user.FirstName,
+        //                    LastName = user.LastName,
+        //                    UserName = user.UserName, // Or user.Email
+        //                    IsDeactivated = user.DeactivatedAt.HasValue,
+        //                    Roles = roles
+        //                });
+        //            }
+        //            model.AllUsers = userViewModelList;
         //        }
-
-        //        // Next, use the repository to fetch the list of companies created by this specific user.
-        //        var companies = await _companyRepository.GetCompaniesByUserIdAsync(user.Id);
-
-        //        // We create our ViewModel and pass the list of companies to it.
-        //        var model = new HomeViewModel
+        //        else if (User.IsInRole("Company Administrator"))
         //        {
-        //            Companies = companies
-        //        };
-
-        //        // Finally, we pass the model (containing the list) to the View.
-        //        return View(model);
+        //            // If Company Admin, get their companies and add them to the model
+        //            var user = await _userRepository.GetUserByEmailasync(User.Identity.Name);
+        //            if (user != null)
+        //            {
+        //                model.Companies = await _companyRepository.GetCompaniesByUserIdAsync(user.Id);
+        //            }
+        //        }
         //    }
 
-        //    // If the user is not logged in or not an admin, show the default public view.
-        //    return View();
+        //    // Pass the model (which may or may not be populated) to the single Index view
+        //    return View(model);
         //}
+
         public async Task<IActionResult> Index()
+        {
+            var model = new HomeViewModel();
+
+            // This action now only handles the Company Administrator role.
+            if (User.Identity.IsAuthenticated && User.IsInRole("Company Administrator"))
+            {
+                var user = await _userRepository.GetUserByEmailasync(User.Identity.Name);
+                if (user != null)
+                {
+                    model.Companies = await _companyRepository.GetCompaniesByUserIdAsync(user.Id);
+                }
+            }
+
+            // Platform Admins will also see this page, but without any specific data loaded here.
+            // We will provide a link on the view for them to navigate to their dedicated user manager.
+
+            return View(model);
+        }
+
+        public async Task<IActionResult> HomePlatformAdmin()
         {
             var model = new HomeViewModel(); // Create an empty ViewModel first
 

@@ -12,99 +12,57 @@
  *@
 @if (User.Identity.IsAuthenticated)
 {
+    @* === PLATFORM ADMINISTRATOR DASHBOARD LINK === *@
     @if (User.IsInRole("Platform Administrator"))
     {
-        @if (TempData["UserManagementSuccessMessage"] != null)
-        {
-            <div class="alert alert-success">@TempData["UserManagementSuccessMessage"]</div>
-        }
-
         <div class="container mb-4">
             <h1 class="display-4">Platform Administrator Dashboard</h1>
-            <p class="lead">Manage all platform users from the table below.</p>
-        </div>
-        <div class="card">
-            <div class="card-header"><h5 class="mb-0">System Users</h5></div>
-            <div class="card-body">
-                <table class="table table-hover mb-0">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Name</th>
-                            <th>Email</th>
-                            <th>Roles</th>
-                            <th>Status</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var user in Model.AllUsers)
-                        {
-                            <tr>
-                                <td>@user.FirstName @user.LastName</td>
-                                <td>@user.UserName</td>
-                                <td>
-                                    @foreach (var role in user.Roles)
-                                    {
-                                        <span class="badge bg-info me-1">@role</span>
-                                    }
-                                </td>
-                                <td>
-                                    @if (user.IsDeactivated)
-                                    {
-                                        <span class="badge bg-danger">Deactivated</span>
-                                    }
-                                    else
-                                    {
-
-                                        <span class="badge bg-success">Active</span>
-                                    }
-                                </td>
-                                <td class="text-end">
-                                    @if (user.Roles.Contains("Company Administrator") && !user.IsDeactivated)
-                                    {
-                                        <a asp-controller="PlatformAdmin" asp-action="DeactivateUser" asp-route-id="@user.Id" class="btn btn-sm btn-danger">Deactivate</a>
-                                    }
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
+            <p class="lead">Welcome! Use the button below to access the user management panel.</p>
+            <hr />
+            <p>
+                @* THIS IS THE CORRECTED LINK *@
+                <a asp-controller="PlatformAdmin" asp-action="UserManager" class="btn btn-primary btn-lg">Go to User Management</a>
+            </p>
         </div>
     }
+
+    @* === COMPANY ADMINISTRATOR DASHBOARD === *@
     else if (User.IsInRole("Company Administrator"))
     {
-        @if (TempData["CompanySuccessMessage"] != null)
+        @if (TempData["StatusMessage"] != null)
         {
-            <div class="alert alert-success">@TempData["CompanySuccessMessage"]</div>
+            <div class="alert alert-success">@TempData["StatusMessage"]</div>
         }
 
         <div class="container">
             <h1 class="display-4">Administrator Dashboard</h1>
             <p class="lead">Manage your companies from the cards below.</p>
             <p>
-                <a asp-controller="Company" asp-action="Create" class="btn btn-primary">Create New Company</a>
-                <a asp-controller="Company" asp-action="InactiveCompanies" class="btn btn-secondary">View Inactive Companies</a>
+                <a asp-controller="Companies" asp-action="Create" class="btn btn-primary">Create New Company</a>
+                <a asp-controller="Companies" asp-action="InactiveCompanies" class="btn btn-secondary">View Inactive Companies</a>
             </p>
         </div>
         <hr />
         <div class="row">
-            @foreach (var company in Model.Companies)
+            @foreach (var company in Model.Companies ?? new List<CET96_ProjetoFinal.web.Entities.Company>())
             {
                 <div class="col-md-4 mb-4">
-                    <div class="card">
-                        <div class="card-body">
-                            <h5 class="card-title">@company.Name</h5>
-                            <p class="card-text">@company.Address</p>
-                            <a asp-controller="Company" asp-action="Details" asp-route-id="@company.Id" class="btn btn-info">Details</a>
-                            <a asp-controller="Company" asp-action="Edit" asp-route-id="@company.Id" class="btn btn-warning">Edit</a>
-                            <a asp-controller="Company" asp-action="Deactivate" asp-route-id="@company.Id" class="btn btn-danger">Deactivate</a>
+                    <a href="@Url.Action("Index", "Condominiums", new { id = company.Id })" class="card-link" style="text-decoration:none; color:inherit;">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">@company.Name</h5>
+                                <p class="card-text">@company.Address</p>
+                                <a asp-controller="Companies" asp-action="Details" asp-route-id="@company.Id" class="btn btn-info">Details</a>
+                                <a asp-controller="Companies" asp-action="Edit" asp-route-id="@company.Id" class="btn btn-warning">Edit</a>
+                                <a asp-controller="Companies" asp-action="Delete" asp-route-id="@company.Id" class="btn btn-danger">Deactivate</a>
+                            </div>
                         </div>
-                    </div>
+                    </a>
                 </div>
             }
         </div>
     }
+    @* === DEFAULT LOGGED-IN USER DASHBOARD === *@
     else
     {
         <div class="text-center">
@@ -113,10 +71,24 @@
         </div>
     }
 }
+@* === NOT LOGGED-IN USER WELCOME PAGE === *@
 else
 {
     <div class="text-center">
         <h1 class="display-4">Welcome to CondoManagerPrime</h1>
         <p>Your premium solution for condominium management.</p>
     </div>
+}
+
+@section Scripts {
+    <style>
+        .card-link {
+            text-decoration: none;
+            color: inherit;
+        }
+
+            .card-link .card:hover {
+                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            }
+    </style>
 }

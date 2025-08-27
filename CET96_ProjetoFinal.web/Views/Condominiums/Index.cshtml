@@ -1,0 +1,51 @@
+﻿@model IEnumerable<CET96_ProjetoFinal.web.Entities.Condominium>
+
+@{
+    ViewData["Title"] = "Condominiums";
+}
+
+<div class="container mb-4">
+    <h1 class="display-4">Condominiums</h1>
+    <p class="lead">Manage the condominiums for this company from the cards below.</p>
+    <p>
+        <a asp-action="Create" asp-route-id="@ViewBag.CompanyId" class="btn btn-primary">Create New Condominium</a>
+    </p>
+</div>
+<hr />
+
+<div class="row">
+    @foreach (var condominium in Model)
+    {
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">@condominium.Name</h5>
+                    <p class="card-text">
+                        <strong>Address:</strong> @condominium.Address<br />
+                        <strong>Units:</strong> @condominium.NumberOfUnits<br />
+                        <strong>Status:</strong>
+                        @if (condominium.IsActive)
+                        {
+                            <span class="badge bg-success">Active</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-danger">Inactive</span>
+                        }
+                    </p>
+                    <a asp-action="Details" asp-route-id="@condominium.Id" class="btn btn-sm btn-info">Details</a>
+                    <a asp-action="Edit" asp-route-id="@condominium.Id" class="btn btn-sm btn-warning">Edit</a>
+                    <a asp-action="Delete" asp-route-id="@condominium.Id" class="btn btn-sm btn-danger">Deactivate</a>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <style>
+        .card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+    </style>
+}
