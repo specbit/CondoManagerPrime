@@ -123,7 +123,7 @@ namespace CET96_ProjetoFinal.web.Controllers
                 // because the company creation was successful.
             }
 
-            TempData["CompanySuccessMessage"] = "Company created and payment confirmed successfully!";
+            TempData["StatusMessage"] = "Company created and payment confirmed successfully!";
             
             return RedirectToAction("Index", "Home");
         }

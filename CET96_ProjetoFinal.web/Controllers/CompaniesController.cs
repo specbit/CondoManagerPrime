@@ -20,7 +20,6 @@ namespace CET96_ProjetoFinal.web.Controllers
             _companiesRepository = companiesRepository;
         }
 
-        // READ (List)
         // GET: Companies
         public async Task<IActionResult> Index()
         {
@@ -267,7 +266,7 @@ namespace CET96_ProjetoFinal.web.Controllers
         /// </summary>
         /// <param name="id">The ID of the company to deactivate.</param>
         /// <returns>A RedirectToAction to the home dashboard.</returns>
-        [HttpPost, ActionName("Delete")]
+        [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {

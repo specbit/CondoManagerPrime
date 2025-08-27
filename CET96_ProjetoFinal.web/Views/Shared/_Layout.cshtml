@@ -37,12 +37,12 @@
                                 </span>
                             </li>
 
-                            @if (User.IsInRole("Platform Administrator"))
+                            @* @if (User.IsInRole("Platform Administrator"))
                             {
                                 <li class="nav-item">
-                                    <a class="nav-link text-dark" asp-controller="Home" asp-action="Index">User Management</a>
+                                    <a class="nav-link text-dark" asp-controller="Home" asp-action="HomePlatformAdmin">User Management</a>
                                 </li>
-                            }
+                            } *@
 
                             <li class="nav-item">
                                 <a class="nav-link text-dark" asp-controller="Account" asp-action="AccountDetails">Manage Account</a>
@@ -70,6 +70,7 @@
     </header>
     <div class="container">
         <main role="main" class="pb-3">
+            <partial name="_StatusMessage" model="@(TempData["StatusMessage"] as string)" />
             @RenderBody()
         </main>
     </div>

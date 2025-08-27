@@ -1,0 +1,12 @@
+﻿@model string
+
+@if (!String.IsNullOrEmpty(Model))
+{
+    // Check if the message starts with "Error:" to decide the color of the alert.
+    var statusMessageClass = Model.StartsWith("Error:") ? "danger" : "success";
+
+    <div class="alert alert-@statusMessageClass alert-dismissible" role="alert">
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        @Model
+    </div>
+}

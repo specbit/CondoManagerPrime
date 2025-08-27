@@ -1,13 +1,10 @@
-﻿using CET96_ProjetoFinal.web.Data;
-using CET96_ProjetoFinal.web.Entities;
-using CET96_ProjetoFinal.web.Helpers;
+﻿using CET96_ProjetoFinal.web.Entities;
 using CET96_ProjetoFinal.web.Models;
 using CET96_ProjetoFinal.web.Repositories;
 using CET96_ProjetoFinal.web.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace CET96_ProjetoFinal.web.Controllers
 {
@@ -21,17 +18,20 @@ namespace CET96_ProjetoFinal.web.Controllers
         private readonly ICompanyRepository _companyRepository;
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly IEmailSender _emailSender;
+        private readonly UserManager<ApplicationUser> _userManager;
 
         public AccountController(
             IApplicationUserRepository userRepository,
             ICompanyRepository companyRepository,
             SignInManager<ApplicationUser> signInManager,
-            IEmailSender emailSender)
+            IEmailSender emailSender,
+            UserManager<ApplicationUser> userManager)
         {
             _userRepository = userRepository;
             _companyRepository = companyRepository;
             _signInManager = signInManager;
             _emailSender = emailSender;
+            _userManager = userManager;
         }
 
         // GET: /Account/Login
@@ -47,41 +47,59 @@ namespace CET96_ProjetoFinal.web.Controllers
         }
 
         // POST: /Account/Login
+        //[HttpPost]
+        //[AllowAnonymous]
+        //public async Task<IActionResult> Login(LoginViewModel model)
+        //{
+        //    if (ModelState.IsValid)
+        //    {
+        //        var result = await _userRepository.LoginAsync(model);
+
+        //        if (result.Succeeded)
+        //        {
+        //            // --- CHECK FOR COMPANY ---
+        //            var user = await _userRepository.GetUserByEmailasync(model.Username);
+
+        //            // Check if a company exists for this user.
+        //            var companyExists = await _companyRepository.DoesCompanyExistForUserAsync(user.Id);
+
+        //            if (!companyExists)
+        //            {
+        //                // If no company exists, force them to the Create Company page.
+        //                return RedirectToAction("Create", "Companies");
+        //            }
+
+        //            // If a company exists, proceed to the home page.
+        //            return RedirectToAction("Index", "Home");
+        //        }
+        //        if (result.IsNotAllowed)
+        //        {
+        //            ModelState.AddModelError(string.Empty, "You must confirm your email before you can log in.");
+        //        }
+        //        else
+        //        {
+        //            ModelState.AddModelError(string.Empty, "Invalid login attempt.");
+        //        }
+        //    }
+        //    return View(model);
+        //}
         [HttpPost]
         [AllowAnonymous]
         public async Task<IActionResult> Login(LoginViewModel model)
         {
-            if (ModelState.IsValid)
+            if (!ModelState.IsValid) return View(model);
+
+            var result = await _userRepository.LoginAsync(model);
+
+            if (!result.Succeeded)
             {
-                var result = await _userRepository.LoginAsync(model);
-
-                if (result.Succeeded)
-                {
-                    // --- CHECK FOR COMPANY ---
-                    var user = await _userRepository.GetUserByEmailasync(model.Username);
-
-                    // Check if a company exists for this user.
-                    var companyExists = await _companyRepository.DoesCompanyExistForUserAsync(user.Id);
-
-                    if (!companyExists)
-                    {
-                        // If no company exists, force them to the Create Company page.
-                        return RedirectToAction("Create", "Company");
-                    }
-
-                    // If a company exists, proceed to the home page.
-                    return RedirectToAction("Index", "Home");
-                }
-                if (result.IsNotAllowed)
-                {
-                    ModelState.AddModelError(string.Empty, "You must confirm your email before you can log in.");
-                }
-                else
-                {
-                    ModelState.AddModelError(string.Empty, "Invalid login attempt.");
-                }
+                ModelState.AddModelError(string.Empty,
+                    result.IsNotAllowed ? "You must confirm your email before you can log in."
+                                        : "Invalid login attempt.");
+                return View(model);
             }
-            return View(model);
+
+            return RedirectToAction("Index", "Home");
         }
 
 
@@ -225,7 +243,7 @@ namespace CET96_ProjetoFinal.web.Controllers
             // login cookie to update it with the new security stamp.
             await _signInManager.RefreshSignInAsync(user);
 
-            TempData["PasswordSuccessMessage"] = "Your password has been changed successfully.";
+            TempData["StatusMessage"] = "Your password has been changed successfully.";
 
             return RedirectToAction("ChangePassword");
         }
@@ -295,43 +313,40 @@ namespace CET96_ProjetoFinal.web.Controllers
             return View(user);
         }
 
-        /// <summary>
-        /// Displays the confirmation page for account deactivation.
-        /// </summary>
-        [Authorize]
-        public IActionResult DeactivateMyAccount()
-        {
-            return View();
-        }
+        ///// <summary>
+        ///// Displays the confirmation page for account deactivation.
+        ///// </summary>
+        //[Authorize]
+        //public IActionResult DeactivateMyAccount()
+        //{
+        //    return View();
+        //}
 
-        /// <summary>
-        /// Handles the POST request to deactivate the user's own account.
-        /// </summary>
-        [HttpPost, ActionName("DeactivateMyAccount")]
-        [Authorize]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeactivateMyAccountConfirmed()
-        {
-            var user = await _userRepository.GetUserByEmailasync(User.Identity.Name);
-            if (user == null) return NotFound();
+        //[HttpPost, ActionName("DeactivateMyAccount")]
+        //[ValidateAntiForgeryToken]
+        //public async Task<IActionResult> DeactivateMyAccountConfirmed()
+        //{
+        //    // As per your new rule, only the Platform Admin can use this feature.
+        //    if (!User.IsInRole("Platform Administrator"))
+        //    {
+        //        TempData["StatusMessage"] = "Error: You do not have permission to perform this action.";
+        //        return RedirectToAction(nameof(AccountDetails));
+        //    }
 
-            // CRUCIAL CHECK: See if this user owns any active companies
-            var activeCompanies = await _companyRepository.GetCompaniesByUserIdAsync(user.Id);
-            if (activeCompanies.Any())
-            {
-                TempData["ErrorMessage"] = "You cannot deactivate your account while you still manage active companies. Please deactivate them first.";
-                return RedirectToAction(nameof(AccountDetails));
-            }
+        //    var user = await _userManager.GetUserAsync(User);
+        //    if (user == null)
+        //    {
+        //        return NotFound();
+        //    }
 
-            // If they have no active companies, proceed with deactivation
-            user.DeactivatedAt = DateTime.UtcNow;
-            user.DeactivatedByUserId = user.Id; // They deactivated themselves
-            await _userRepository.UpdateUserAsync(user); // Save audit fields
-            await _userRepository.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue); // Lock the account
+        //    // Deactivate the current user
+        //    user.DeactivatedAt = DateTime.UtcNow;
+        //    user.DeactivatedByUserId = user.Id; // They did it to themselves
+        //    await _userRepository.UpdateUserAsync(user);
+        //    await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
 
-            await _signInManager.SignOutAsync(); // Log them out immediately
-
-            return RedirectToAction("Index", "Home");
-        }
+        //    await _signInManager.SignOutAsync();
+        //    return RedirectToAction("Index", "Home");
+        //}
     }
 }
