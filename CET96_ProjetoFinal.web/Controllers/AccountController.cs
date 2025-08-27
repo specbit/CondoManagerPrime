@@ -35,6 +35,11 @@ namespace CET96_ProjetoFinal.web.Controllers
         }
 
         // GET: /Account/Login
+        /// <summary>
+        /// Displays the user login page.
+        /// </summary>
+        /// <returns>The login view.</returns>
+
         [AllowAnonymous]
         public IActionResult Login()
         {
@@ -46,43 +51,11 @@ namespace CET96_ProjetoFinal.web.Controllers
             return View();
         }
 
-        // POST: /Account/Login
-        //[HttpPost]
-        //[AllowAnonymous]
-        //public async Task<IActionResult> Login(LoginViewModel model)
-        //{
-        //    if (ModelState.IsValid)
-        //    {
-        //        var result = await _userRepository.LoginAsync(model);
-
-        //        if (result.Succeeded)
-        //        {
-        //            // --- CHECK FOR COMPANY ---
-        //            var user = await _userRepository.GetUserByEmailasync(model.Username);
-
-        //            // Check if a company exists for this user.
-        //            var companyExists = await _companyRepository.DoesCompanyExistForUserAsync(user.Id);
-
-        //            if (!companyExists)
-        //            {
-        //                // If no company exists, force them to the Create Company page.
-        //                return RedirectToAction("Create", "Companies");
-        //            }
-
-        //            // If a company exists, proceed to the home page.
-        //            return RedirectToAction("Index", "Home");
-        //        }
-        //        if (result.IsNotAllowed)
-        //        {
-        //            ModelState.AddModelError(string.Empty, "You must confirm your email before you can log in.");
-        //        }
-        //        else
-        //        {
-        //            ModelState.AddModelError(string.Empty, "Invalid login attempt.");
-        //        }
-        //    }
-        //    return View(model);
-        //}
+        /// <summary>
+        /// Handles the submission of the login form.
+        /// </summary>
+        /// <param name="model">The view model containing the user's login credentials.</param>
+        /// <returns>A redirect to the home page on successful login, or the login view with errors on failure.</returns>
         [HttpPost]
         [AllowAnonymous]
         public async Task<IActionResult> Login(LoginViewModel model)
@@ -104,6 +77,10 @@ namespace CET96_ProjetoFinal.web.Controllers
 
 
         // GET: /Account/Register
+        /// <summary>
+        /// Displays the user registration page.
+        /// </summary>
+        /// <returns>The registration view.</returns>
         [AllowAnonymous]
         public IActionResult Register()
         {
@@ -120,8 +97,7 @@ namespace CET96_ProjetoFinal.web.Controllers
         /// <returns>
         /// The RegistrationConfirmation view on success.
         /// Returns the Register view with validation errors if the model is invalid or the email is already in use.
-        /// </returns>
-        [HttpPost]
+        /// </returns>        [HttpPost]
         [AllowAnonymous]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Register(RegisterCompanyAdminViewModel model)
@@ -182,8 +158,11 @@ namespace CET96_ProjetoFinal.web.Controllers
             return View(model);
         }
 
-
         // POST: /Account/Logout
+        /// <summary>
+        /// Handles the user logout process.
+        /// </summary>
+        /// <returns>A redirect to the home page.</returns>
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Logout()
@@ -194,6 +173,10 @@ namespace CET96_ProjetoFinal.web.Controllers
         }
 
         // GET: /Account/ChangePassword
+        /// <summary>
+        /// Displays the change password page for the current user.
+        /// </summary>
+        /// <returns>The change password view.</returns>
         [HttpGet]
         public IActionResult ChangePassword()
         {
@@ -201,6 +184,11 @@ namespace CET96_ProjetoFinal.web.Controllers
         }
 
         // POST: /Account/ChangePassword
+        /// <summary>
+        /// Handles the submission of the change password form.
+        /// </summary>
+        /// <param name="model">The view model containing the old and new password information.</param>
+        /// <returns>A redirect to the change password page on success, or the view with errors on failure.</returns>
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model)

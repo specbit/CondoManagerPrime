@@ -1,58 +1,59 @@
 ﻿@model CET96_ProjetoFinal.web.Models.CondominiumViewModel
 
 @{
-    ViewData["Title"] = "Create";
+    ViewData["Title"] = "Create Condominium";
 }
 
 <h1>Create Condominium</h1>
-
 <hr />
 <div class="row">
     <div class="col-md-6">
         <form asp-action="Create">
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
-            @* Hidden field to pass the CompanyId to the controller *@
             <input type="hidden" asp-for="CompanyId" value="@ViewData["CompanyId"]" />
 
-            <div class="form-group">
+            <div class="form-group mb-3">
                 <label asp-for="Name" class="control-label"></label>
                 <input asp-for="Name" class="form-control" />
                 <span asp-validation-for="Name" class="text-danger"></span>
             </div>
-            <div class="form-group">
+            <div class="form-group mb-3">
                 <label asp-for="Address" class="control-label"></label>
                 <input asp-for="Address" class="form-control" />
                 <span asp-validation-for="Address" class="text-danger"></span>
             </div>
-            <div class="form-group">
+            <div class="form-group mb-3">
                 <label asp-for="PropertyRegistryNumber" class="control-label"></label>
                 <input asp-for="PropertyRegistryNumber" class="form-control" />
                 <span asp-validation-for="PropertyRegistryNumber" class="text-danger"></span>
             </div>
-            <div class="form-group">
+            <div class="form-group mb-3">
                 <label asp-for="NumberOfUnits" class="control-label"></label>
-                <input asp-for="NumberOfUnits" class="form-control" />
+                <input asp-for="NumberOfUnits" id="numberOfUnits" class="form-control" />
                 <span asp-validation-for="NumberOfUnits" class="text-danger"></span>
             </div>
-            <div class="form-group">
+            <div class="form-group mb-3">
                 <label asp-for="ContractValue" class="control-label"></label>
-                <input asp-for="ContractValue" class="form-control" />
+                <input asp-for="ContractValue" id="contractValue" class="form-control" />
                 <span asp-validation-for="ContractValue" class="text-danger"></span>
             </div>
-            <div class="form-group">
+            <div class="form-group mb-3">
                 <label asp-for="FeePerUnit" class="control-label"></label>
-                <input asp-for="FeePerUnit" class="form-control" />
+                @* This field is now readonly to prevent manual editing *@
+                <input asp-for="FeePerUnit" id="feePerUnit" class="form-control" readonly />
                 <span asp-validation-for="FeePerUnit" class="text-danger"></span>
             </div>
             <div class="form-group">
                 <input type="submit" value="Create" class="btn btn-primary" />
+                <a asp-action="Index" asp-route-id="@ViewData["CompanyId"]" class="btn btn-secondary">Back to List</a>
+
             </div>
         </form>
     </div>
 </div>
 
-<div>
+<div class="mt-3">
     <a asp-action="Index" asp-route-id="@ViewData["CompanyId"]">Back to List</a>
 </div>
 
@@ -60,4 +61,35 @@
     @{
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
+    <script>
+        // Wait for the document to be fully loaded
+        document.addEventListener('DOMContentLoaded', function () {
+
+            // Get references to the input fields
+            const contractValueInput = document.getElementById('contractValue');
+            const numberOfUnitsInput = document.getElementById('numberOfUnits');
+            const feePerUnitInput = document.getElementById('feePerUnit');
+
+            // This function performs the calculation
+            function calculateFee() {
+                // Get the values and convert them to numbers
+                const contractValue = parseFloat(contractValueInput.value) || 0;
+                const numberOfUnits = parseInt(numberOfUnitsInput.value) || 0;
+
+                // Check for valid inputs to avoid division by zero
+                if (numberOfUnits > 0 && contractValue > 0) {
+                    const fee = contractValue / numberOfUnits;
+                    // Update the fee field, formatted to 2 decimal places
+                    feePerUnitInput.value = fee.toFixed(2);
+                } else {
+                    // If inputs are invalid, show 0.00
+                    feePerUnitInput.value = '0.00';
+                }
+            }
+
+            // Add event listeners to calculate whenever the user types
+            contractValueInput.addEventListener('input', calculateFee);
+            numberOfUnitsInput.addEventListener('input', calculateFee);
+        });
+    </script>
 }

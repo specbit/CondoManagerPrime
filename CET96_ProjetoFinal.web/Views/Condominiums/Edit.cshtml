@@ -1,96 +1,86 @@
-﻿@model CET96_ProjetoFinal.web.Entities.Condominium
+﻿@model CET96_ProjetoFinal.web.Models.CondominiumViewModel
 
 @{
-    ViewData["Title"] = "Edit";
+    ViewData["Title"] = "Edit Condominium";
 }
 
-<h1>Edit</h1>
-
-<h4>Condominium</h4>
+<h1>Edit Condominium</h1>
 <hr />
 <div class="row">
-    <div class="col-md-4">
+    <div class="col-md-6">
         <form asp-action="Edit">
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
             <input type="hidden" asp-for="Id" />
-            <div class="form-group">
-                <label asp-for="CompanyId" class="control-label"></label>
-                <input asp-for="CompanyId" class="form-control" />
-                <span asp-validation-for="CompanyId" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="CondominiumManagerId" class="control-label"></label>
-                <input asp-for="CondominiumManagerId" class="form-control" />
-                <span asp-validation-for="CondominiumManagerId" class="text-danger"></span>
-            </div>
-            <div class="form-group">
+            <input type="hidden" asp-for="CompanyId" />
+
+            <div class="form-group mb-3">
                 <label asp-for="Name" class="control-label"></label>
                 <input asp-for="Name" class="form-control" />
                 <span asp-validation-for="Name" class="text-danger"></span>
             </div>
-            <div class="form-group">
+            <div class="form-group mb-3">
                 <label asp-for="Address" class="control-label"></label>
                 <input asp-for="Address" class="form-control" />
                 <span asp-validation-for="Address" class="text-danger"></span>
             </div>
-            <div class="form-group">
+            <div class="form-group mb-3">
                 <label asp-for="PropertyRegistryNumber" class="control-label"></label>
                 <input asp-for="PropertyRegistryNumber" class="form-control" />
                 <span asp-validation-for="PropertyRegistryNumber" class="text-danger"></span>
             </div>
-            <div class="form-group">
+            <div class="form-group mb-3">
                 <label asp-for="NumberOfUnits" class="control-label"></label>
-                <input asp-for="NumberOfUnits" class="form-control" />
+                <input asp-for="NumberOfUnits" id="numberOfUnits" class="form-control" />
                 <span asp-validation-for="NumberOfUnits" class="text-danger"></span>
             </div>
-            <div class="form-group">
+            <div class="form-group mb-3">
                 <label asp-for="ContractValue" class="control-label"></label>
-                <input asp-for="ContractValue" class="form-control" />
+                <input asp-for="ContractValue" id="contractValue" class="form-control" />
                 <span asp-validation-for="ContractValue" class="text-danger"></span>
             </div>
-            <div class="form-group">
+            <div class="form-group mb-3">
                 <label asp-for="FeePerUnit" class="control-label"></label>
-                <input asp-for="FeePerUnit" class="form-control" />
+                <input asp-for="FeePerUnit" id="feePerUnit" class="form-control" readonly />
                 <span asp-validation-for="FeePerUnit" class="text-danger"></span>
             </div>
             <div class="form-group">
-                <label asp-for="CreatedAt" class="control-label"></label>
-                <input asp-for="CreatedAt" class="form-control" />
-                <span asp-validation-for="CreatedAt" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="UpdatedAt" class="control-label"></label>
-                <input asp-for="UpdatedAt" class="form-control" />
-                <span asp-validation-for="UpdatedAt" class="text-danger"></span>
-            </div>
-            <div class="form-group form-check">
-                <label class="form-check-label">
-                    <input class="form-check-input" asp-for="IsActive" /> @Html.DisplayNameFor(model => model.IsActive)
-                </label>
-            </div>
-            <div class="form-group">
-                <label asp-for="UserCreatedId" class="control-label"></label>
-                <input asp-for="UserCreatedId" class="form-control" />
-                <span asp-validation-for="UserCreatedId" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="UserUpdatedId" class="control-label"></label>
-                <input asp-for="UserUpdatedId" class="form-control" />
-                <span asp-validation-for="UserUpdatedId" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="UserDeletedId" class="control-label"></label>
-                <input asp-for="UserDeletedId" class="form-control" />
-                <span asp-validation-for="UserDeletedId" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <input type="submit" value="Save" class="btn btn-primary" />
+                <input type="submit" value="Save Changes" class="btn btn-primary" />
             </div>
         </form>
     </div>
 </div>
 
-<div>
-    <a asp-action="Index">Back to List</a>
+<div class="mt-3">
+    <a asp-action="Index" asp-route-id="@Model.CompanyId" class="btn btn-secondary"">Back to List</a>
 </div>
 
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const contractValueInput = document.getElementById('contractValue');
+            const numberOfUnitsInput = document.getElementById('numberOfUnits');
+            const feePerUnitInput = document.getElementById('feePerUnit');
+
+            function calculateFee() {
+                const contractValue = parseFloat(contractValueInput.value) || 0;
+                const numberOfUnits = parseInt(numberOfUnitsInput.value) || 0;
+
+                if (numberOfUnits > 0 && contractValue > 0) {
+                    const fee = contractValue / numberOfUnits;
+                    feePerUnitInput.value = fee.toFixed(2);
+                } else {
+                    feePerUnitInput.value = '0.00';
+                }
+            }
+
+            contractValueInput.addEventListener('input', calculateFee);
+            numberOfUnitsInput.addEventListener('input', calculateFee);
+
+            // Run the calculation once on page load to set the initial value
+            calculateFee();
+        });
+    </script>
+}

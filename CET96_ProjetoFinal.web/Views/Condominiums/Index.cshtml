@@ -8,7 +8,9 @@
     <h1 class="display-4">Condominiums</h1>
     <p class="lead">Manage the condominiums for this company from the cards below.</p>
     <p>
+        <a asp-controller="Home" asp-action="Index" class="btn btn-secondary">Back to Company Dashboard</a>
         <a asp-action="Create" asp-route-id="@ViewBag.CompanyId" class="btn btn-primary">Create New Condominium</a>
+        <a asp-action="InactiveCondominiums" asp-route-id="@ViewBag.CompanyId" class="btn btn-outline-secondary">View Inactive</a>
     </p>
 </div>
 <hr />

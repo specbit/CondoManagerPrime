@@ -7,18 +7,31 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CET96_ProjetoFinal.web.Controllers
 {
+    /// <summary>
+    /// Manages platform-wide administrative actions, such as user management.
+    /// Restricted to users in the 'Platform Administrator' role.
+    /// </summary>
     [Authorize(Roles = "Platform Administrator")]
     public class PlatformAdminController : Controller
     {
         private readonly IApplicationUserRepository _userRepository;
         private readonly UserManager<ApplicationUser> _userManager;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="PlatformAdminController"/> class.
+        /// </summary>
+        /// <param name="userRepository">The repository for user data operations.</param>
+        /// <param name="userManager">The ASP.NET Core Identity user manager.</param>
         public PlatformAdminController(IApplicationUserRepository userRepository, UserManager<ApplicationUser> userManager)
         {
             _userRepository = userRepository;
             _userManager = userManager;
         }
 
+        /// <summary>
+        /// Displays the main user management dashboard with a list of all system users.
+        /// </summary>
+        /// <returns>The user management view populated with all users.</returns>
         public async Task<IActionResult> UserManager()
         {
             var allUsers = await _userRepository.GetAllUsersAsync();
@@ -46,6 +59,11 @@ namespace CET96_ProjetoFinal.web.Controllers
             return View(model); // This will return the new Views/PlatformAdmin/UserManager.cshtml
         }
 
+        /// <summary>
+        /// Displays the confirmation page before deactivating a user's account.
+        /// </summary>
+        /// <param name="id">The ID of the user to deactivate.</param>
+        /// <returns>The confirmation view, or a redirect if the action is not permitted.</returns>
         public async Task<IActionResult> DeactivateUser(string id)
         {
             var userToDeactivate = await _userRepository.GetUserByIdAsync(id);
@@ -66,49 +84,10 @@ namespace CET96_ProjetoFinal.web.Controllers
         }
 
         /// <summary>
-        /// Handles the deactivation of a Company Administrator and all their associated active companies.
+        /// Handles the POST request to confirm and perform the deactivation of a user account.
         /// </summary>
-        /// <param name="userIdToDeactivate">The ID of the user being deactivated.</param>
-        //[HttpPost]
-        //[ValidateAntiForgeryToken]
-        //public async Task<IActionResult> DeactivateUserConfirm(string userIdToDeactivate)
-        //{
-        //    var platformAdmin = await _userRepository.GetUserByEmailasync(User.Identity.Name);
-
-        //    // CHECK: Add the same check here as a final security measure
-        //    if (platformAdmin.Id == userIdToDeactivate)
-        //    {
-        //        TempData["StatusMessage"] = "Error: You cannot deactivate your own account.";
-        //        return RedirectToAction("UserManager");
-        //    }
-
-        //    var userToDeactivate = await _userRepository.GetUserByIdAsync(userIdToDeactivate);
-
-        //    if (userToDeactivate == null) return NotFound();
-
-        //    //// 1. Deactivate all companies owned by this user
-        //    //var companies = await _companyRepository.GetCompaniesByUserIdAsync(userToDeactivate.Id);
-        //    //foreach (var company in companies)
-        //    //{
-        //    //    company.IsActive = false;
-        //    //    company.DeletedAt = DateTime.UtcNow;
-        //    //    company.UserDeletedId = platformAdmin.Id;
-        //    //    _companyRepository.Update(company);
-        //    //}
-
-        //    // 2. Lock the user's account permanently and update audit fields
-        //    userToDeactivate.DeactivatedAt = DateTime.UtcNow;
-        //    userToDeactivate.DeactivatedByUserId = platformAdmin.Id;
-        //    await _userRepository.UpdateUserAsync(userToDeactivate);
-        //    await _userRepository.SetLockoutEndDateAsync(userToDeactivate, DateTimeOffset.MaxValue);
-
-        //    //// 3. Save all changes to the company database
-        //    //await _companyRepository.SaveAllAsync();
-
-        //    TempData["StatusMessage"] = $"User {userToDeactivate.Email} has been deactivated.";
-
-        //    return RedirectToAction("HomePlatformAdmin", "Home");
-        //}
+        /// <param name="id">The ID of the user to be deactivated.</param>
+        /// <returns>A redirect to the user management page.</returns>
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeactivateUserConfirm(string id)
@@ -137,6 +116,11 @@ namespace CET96_ProjetoFinal.web.Controllers
             return RedirectToAction("UserManager");
         }
 
+        /// <summary>
+        /// Activates a previously deactivated user account.
+        /// </summary>
+        /// <param name="id">The ID of the user to activate.</param>
+        /// <returns>A redirect to the user management page.</returns>
         public async Task<IActionResult> ActivateUser(string id)
         {
             var platformAdmin = await _userRepository.GetUserByEmailasync(User.Identity.Name);
@@ -156,6 +140,5 @@ namespace CET96_ProjetoFinal.web.Controllers
 
             return RedirectToAction("UserManager");
         }
-
     }
 }
