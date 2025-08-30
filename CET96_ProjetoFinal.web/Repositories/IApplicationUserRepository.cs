@@ -28,7 +28,8 @@ namespace CET96_ProjetoFinal.web.Repositories
         Task<IEnumerable<ApplicationUser>> GetAllUsersAsync();
         Task<SelectList> GetUsersForSelectListAsync(object? selectedValue = null);
         Task<bool> IsInRoleAsync(ApplicationUser user, string roleName);
-
         Task<IList<string>> GetUserRolesAsync(ApplicationUser user);
+
+        Task<List<ApplicationUser>> GetAllUsersByCompanyIdAsync(string userId);
     }
 }

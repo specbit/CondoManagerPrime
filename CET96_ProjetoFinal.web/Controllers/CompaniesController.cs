@@ -40,14 +40,6 @@ namespace CET96_ProjetoFinal.web.Controllers
         }
 
         // GET: /Companies/Create
-        //public async Task<IActionResult> Create()
-        //{
-        //    var user = await _userHelper.GetUserByEmailasync(User.Identity.Name);
-        //    if (user == null) return NotFound();
-        //    var model = new CompanyViewModel { Name = user.CompanyName };
-        //    return View(model);
-        //}
-
         /// <summary>
         /// Prepares and displays the company creation form. The form will be
         /// pre-filled with a company name if one is provided via the companyName parameter,

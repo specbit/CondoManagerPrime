@@ -54,5 +54,21 @@ namespace CET96_ProjetoFinal.web.Repositories
         {
             return await _userManager.GetRolesAsync(user);
         }
+
+        public async Task<List<ApplicationUser>> GetAllUsersByCompanyIdAsync(string userId)
+        {
+            var user = await GetUserByIdAsync(userId);
+
+            if (user == null)
+            {
+                return new List<ApplicationUser>();
+            }
+
+            var result = await _context.Users
+                .Where(u => u.UserCreatedId != null && u.UserCreatedId == user.Id)
+                .ToListAsync();
+
+            return result;
+        }
     }
 }
