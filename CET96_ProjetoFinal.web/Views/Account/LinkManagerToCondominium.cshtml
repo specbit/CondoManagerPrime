@@ -1,0 +1,46 @@
+﻿@model CET96_ProjetoFinal.web.Models.LinkManagerToCondominiumViewModel
+
+@{
+    ViewData["Title"] = "Link Manager to Condominium";
+}
+
+<h1>@ViewData["Title"]</h1>
+<h4>Select a condominium to be managed by <strong>@Model.FullName</strong>.</h4>
+<hr />
+
+<div class="row">
+    <div class="col-md-6">
+        <form asp-action="LinkManagerToCondominium" method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            @* This hidden field is crucial to send back the manager's ID *@
+            <input type="hidden" asp-for="UserId" />
+
+            <div class="form-group mb-3">
+                <label for="SelectedCondominiumId" class="control-label">Condominium to Manage</label>
+                @if (Model.CondominiumsList.Any())
+                {
+                    @* Create a dropdown list from the condominiums passed in the model *@
+                    <select name="SelectedCondominiumId" class="form-control" asp-items="@(new SelectList(Model.CondominiumsList, "Id", "Name"))">
+                        <option value="">-- Please select a condominium --</option>
+                    </select>
+                }
+                else
+                {
+                    <div class="alert alert-warning mt-2">
+                        There are no available condominiums to assign. Please create one first.
+                    </div>
+                }
+            </div>
+
+            <div class="form-group mt-4">
+                @if (Model.CondominiumsList.Any())
+                {
+                    <button type="submit" class="btn btn-primary">Save Link</button>
+                }
+                @* This Cancel button needs a way to get back to the manager list. You may need to pass the CompanyId via the ViewModel. *@
+                <a asp-controller="CondominiumManagers" asp-action="Index" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>

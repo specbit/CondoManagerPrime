@@ -19,19 +19,22 @@ namespace CET96_ProjetoFinal.web.Controllers
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly IEmailSender _emailSender;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly ICondominiumRepository _condominiumRepository;
 
         public AccountController(
             IApplicationUserRepository userRepository,
             ICompanyRepository companyRepository,
             SignInManager<ApplicationUser> signInManager,
             IEmailSender emailSender,
-            UserManager<ApplicationUser> userManager)
+            UserManager<ApplicationUser> userManager,
+            ICondominiumRepository condominiumRepository)
         {
             _userRepository = userRepository;
             _companyRepository = companyRepository;
             _signInManager = signInManager;
             _emailSender = emailSender;
             _userManager = userManager;
+            _condominiumRepository = condominiumRepository;
         }
 
         // GET: /Account/Login
@@ -144,6 +147,77 @@ namespace CET96_ProjetoFinal.web.Controllers
 
                         // Show a page telling the user to check their email. NO company is created here.
                         return View("RegistrationConfirmation", modelForView);
+                    }
+                    foreach (var error in result.Errors)
+                    {
+                        ModelState.AddModelError(string.Empty, error.Description);
+                    }
+                }
+                else
+                {
+                    ModelState.AddModelError(string.Empty, "This email is already in use.");
+                }
+            }
+            return View(model);
+        }
+
+        public IActionResult RegisterNewCompanyManager(int companyId)
+        {
+            return View("RegisterNewCondominiumManager");
+        }
+
+        // POST: /Account/Register
+        [ValidateAntiForgeryToken]
+        [HttpPost]
+        public async Task<IActionResult> RegisterNewCompanyManager(RegisterCondominiumManagerViewModel model)
+        {
+            var loggedUser = User.Identity.Name;
+            var loggedInUser = await _userRepository.GetUserByEmailasync(loggedUser);
+
+            if (loggedInUser == null) return RedirectToAction("Index", "Home");
+
+            if (ModelState.IsValid)
+            {
+                var user = await _userRepository.GetUserByEmailasync(model.Username);
+
+                if (user == null)
+                {
+                    user = new ApplicationUser
+                    {
+                        FirstName = model.FirstName,
+                        LastName = model.LastName,
+                        UserName = model.Username,
+                        Email = model.Username,
+                        IdentificationDocument = model.IdentificationDocument,
+                        DocumentType = model.DocumentType,
+                        PhoneNumber = model.PhoneNumber,
+                        UserCreatedId = loggedInUser.Id,
+                        CompanyId = loggedInUser.CompanyId
+                    };
+
+                    var result = await _userRepository.AddUserAsync(user, model.Password);
+
+                    if (result.Succeeded)
+                    {
+                        await _userRepository.AddUserToRoleAsync(user, "Condominium Manager"); // Add the user to the "Condominium Manager" role
+
+                        //// --- EMAIL CONFIRMATION LOGIC ---
+                        //var token = await _userRepository.GenerateEmailConfirmationTokenAsync(user);
+                        //var confirmationLink = Url.Action("ConfirmEmail", "Account",
+                        //    new { userId = user.Id, token }, Request.Scheme);
+
+                        //await _emailSender.SendEmailAsync(model.Username,
+                        //    "Confirm your email for CondoManagerPrime",
+                        //    $"Please confirm your account by clicking this link: <a href='{confirmationLink}'>link</a>");
+                        //// --- END EMAIL CONFIRMATION LOGIC ---
+
+                        //var modelForView = new RegistrationConfirmationViewModel
+                        //{
+                        //    ConfirmationLink = confirmationLink
+                        //};
+
+                        // Show a page telling the user to check their email. 
+                        return RedirectToAction("AllUsersByCompany", "Account");
                     }
                     foreach (var error in result.Errors)
                     {
@@ -299,6 +373,186 @@ namespace CET96_ProjetoFinal.web.Controllers
             if (user == null) return NotFound();
 
             return View(user);
+        }
+
+        // GET: All Users By Company Administrator
+        [Authorize]
+        public async Task<IActionResult> AllUsersByCompany()
+        {
+            var loggedUser = User.Identity.Name;
+            var loggedInUser = await _userRepository.GetUserByEmailasync(loggedUser);
+            if (loggedInUser == null) return RedirectToAction("Index", "Home");
+            var users = await _userRepository.GetAllUsersByCompanyIdAsync(loggedInUser.Id);
+
+            var userViewModelList = new List<ApplicationUserViewModel>();
+
+            foreach (var user in users)
+            {
+                var roles = await _userRepository.GetUserRolesAsync(user);
+
+                userViewModelList.Add(new ApplicationUserViewModel
+                {
+                    Id = user.Id,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    UserName = user.UserName,
+                    IsDeactivated = user.DeactivatedAt.HasValue,
+                    Roles = roles
+                });
+            }
+
+            var model = new CondominiumManagerViewModel
+            {
+                AllUsers = userViewModelList
+            };
+
+            return View(model);
+        }
+
+        // Add these two new methods inside your AccountController class.
+
+        /// <summary>
+        /// Displays the page for a user to edit their own account details.
+        /// </summary>
+        [Authorize]
+        public async Task<IActionResult> EditAccount(string id)
+        {
+            var user = await _userRepository.GetUserByIdAsync(id);
+
+            if (user == null)
+            {
+                return NotFound();
+            }
+
+            var model = new EditAccountViewModel
+            {
+                Id = user.Id,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                PhoneNumber = user.PhoneNumber
+            };
+
+            return View(model);
+        }
+
+        /// <summary>
+        /// Handles the submission of the edit account form.
+        /// </summary>
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditAccount(EditAccountViewModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                var user = await _userRepository.GetUserByIdAsync(model.Id);
+                if (user == null)
+                {
+                    return NotFound();
+                }
+
+                // Update the user's properties
+                user.FirstName = model.FirstName;
+                user.LastName = model.LastName;
+                user.PhoneNumber = model.PhoneNumber;
+
+                var result = await _userManager.UpdateAsync(user);
+
+                if (result.Succeeded)
+                {
+                    TempData["StatusMessage"] = "Your profile has been updated successfully.";
+                    return RedirectToAction("AllUsersByCompany", "Account");
+                }
+
+                foreach (var error in result.Errors)
+                {
+                    ModelState.AddModelError(string.Empty, error.Description);
+                }
+            }
+
+            // If we got this far, something failed, redisplay form
+            return View(model);
+        }
+
+        // GET: Link Condominuim Manager to Condominium
+        public async Task<IActionResult> LinkManagerToCondominium(string id)
+        {
+            var condominiumManager = await _userRepository.GetUserByIdAsync(id);
+
+            if (condominiumManager == null) 
+            {
+                TempData["StatusMessage"] = "Error: Condomonium Manager not found.";
+
+                return NotFound(); 
+            }
+
+            //TODO: One Manager can only have one condominium linked. Enforce this rule.
+            //TODO: Add in LinkManagerToCondominiumViewModel a property to show the currently linked condominium, if any.
+
+            var loggedUser = User.Identity.Name;
+            var loggedInUser = await _userRepository.GetUserByEmailasync(loggedUser);
+
+            // Fetch the list of condominiums for the select list
+            var condominiums = await _condominiumRepository.GetCondominiumsByAdminAsync(loggedInUser.Id);
+
+            var model = new LinkManagerToCondominiumViewModel
+            {
+                UserId = condominiumManager.Id,
+                FullName = $"{condominiumManager.FirstName} {condominiumManager.LastName}",
+                CondominiumsList = condominiums
+            };
+
+            return View(model);
+        }
+
+        // This action handles the form submission for linking a manager.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> LinkManagerToCondominium(string userId, int selectedCondominiumId)
+        {
+            // 1. Validate the input.
+            var condominiumManager = await _userRepository.GetUserByIdAsync(userId);
+            if (selectedCondominiumId == 0)
+            {
+                // If no condominium was selected, add an error and return to the form.
+                ModelState.AddModelError(string.Empty, "You must select a condominium.");
+
+                // We need to reload the data for the view, just like in the GET method.
+                var loggedInUser = await _userRepository.GetUserByEmailasync(User.Identity.Name);
+                var condominiums = await _condominiumRepository.GetCondominiumsByAdminAsync(loggedInUser.Id);
+
+                var model = new LinkManagerToCondominiumViewModel
+                {
+                    UserId = condominiumManager.Id,
+                    FullName = $"{condominiumManager.FirstName} {condominiumManager.LastName}",
+                    CondominiumsList = condominiums
+                };
+
+                return View(model);
+            }
+
+            // 2. Fetch the condominium to be updated from the database.
+            var condominiumToUpdate = await _condominiumRepository.GetByIdAsync(selectedCondominiumId);
+            if (condominiumToUpdate == null)
+            {
+                return NotFound();
+            }
+
+            // 3. Assign the manager's ID to the condominium.
+            condominiumToUpdate.CondominiumManagerId = userId;
+
+            // 4. Save the changes.
+            _condominiumRepository.Update(condominiumToUpdate);
+            await _condominiumRepository.SaveAllAsync();
+
+            condominiumManager.CompanyId = condominiumToUpdate.CompanyId;
+
+            await _userRepository.UpdateUserAsync(condominiumManager); 
+
+            TempData["StatusMessage"] = $"Manager has been successfully linked to condominium '{condominiumToUpdate.Name}'.";
+
+            // 5. Redirect back to the list of managers.
+            return RedirectToAction("AllUsersByCompany"); 
         }
 
         ///// <summary>

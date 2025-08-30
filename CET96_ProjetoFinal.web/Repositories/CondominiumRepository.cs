@@ -13,10 +13,12 @@ namespace CET96_ProjetoFinal.web.Repositories
     public class CondominiumRepository : GenericRepository<Condominium, CondominiumDataContext>, ICondominiumRepository
     {
         private readonly CondominiumDataContext _context;
+        private readonly ApplicationUserDataContext _userContext;
 
-        public CondominiumRepository(CondominiumDataContext context) : base(context)
+        public CondominiumRepository(CondominiumDataContext condominiumDataContext, ApplicationUserDataContext userContext) : base(condominiumDataContext)
         {
-            //_context = context;
+            _userContext = userContext;
+            _context = condominiumDataContext;
         }
 
         /// <summary>
@@ -40,6 +42,19 @@ namespace CET96_ProjetoFinal.web.Repositories
         public async Task<Condominium> GetByIdWithDetailsAsync(int id)
         {
             return await _context.Condominiums.FirstOrDefaultAsync(c => c.Id == id);
+        }
+
+        public async Task<List<Condominium>> GetCondominiumsByAdminAsync(string companyAdminId)
+        {
+            var companyList = await _userContext.Companies
+                                            .Where(c => c.UserCreatedId == companyAdminId && c.IsActive)
+                                            .Select(c => c.Id)
+                                            .ToListAsync();
+
+            return await _context.Condominiums
+                                 .Where(c => companyList.Contains(c.CompanyId) && c.CondominiumManagerId == null) // Only unassigned
+                                 .OrderBy(c => c.Name)
+                                 .ToListAsync();
         }
     }
 }

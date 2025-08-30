@@ -21,5 +21,7 @@ namespace CET96_ProjetoFinal.web.Repositories
         /// <param name="id">The ID of the condominium to find.</param>
         /// <returns>The Condominium entity, or null if not found.</returns>
         Task<Condominium> GetByIdWithDetailsAsync(int id);
+
+        Task<List<Condominium>> GetCondominiumsByAdminAsync(string condominiumManagerId);
     }
 }

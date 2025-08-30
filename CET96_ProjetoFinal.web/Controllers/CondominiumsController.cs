@@ -60,44 +60,24 @@ namespace CET96_ProjetoFinal.web.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        //public async Task<IActionResult> Create(CondominiumViewModel condominium)
-        //{
-        //    // The `ModelState` will now correctly reflect validation errors for fields present in the form.
-        //    // The `CompanyId` from the hidden field will be automatically bound.
-        //    if (ModelState.IsValid)
-        //    {
-        //        var loggedInUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-        //        var newCondominium = new Condominium
-
-        //        {
-        //            CompanyId = condominium.CompanyId,
-        //            CondominiumManagerId = condominium.CondominiumManagerId,
-        //            Name = condominium.Name,
-        //            Address = condominium.Address,
-        //            PropertyRegistryNumber = condominium.PropertyRegistryNumber,
-        //            NumberOfUnits = condominium.NumberOfUnits,
-        //            ContractValue = condominium.ContractValue,
-        //            FeePerUnit = condominium.ContractValue / condominium.NumberOfUnits, // Calculate FeePerUnit
-        //            CreatedAt = DateTime.UtcNow,
-        //            IsActive = true,
-        //            UserCreatedId = loggedInUserId
-        //        };
-
-        //        // 2. Add the Condominium to the database.
-        //        _context.Add(newCondominium);
-        //        await _context.SaveChangesAsync();
-
-        //        // 3. Redirect back to the index page for the correct company.
-        //        return RedirectToAction(nameof(Index), new { id = condominium.CompanyId });
-        //    }
-
-        //    // If ModelState is not valid, the form is re-displayed, and
-        //    // asp-validation-summary="ModelOnly" will show the errors.
-        //    return View(condominium);
-        //}
         public async Task<IActionResult> Create(CondominiumViewModel model)
         {
+            // Check if the address is already in use for this company.
+            bool addressExists = await _context.Condominiums
+                .AnyAsync(c => c.Address == model.Address && c.CompanyId == model.CompanyId);
+            if (addressExists)
+            {
+                ModelState.AddModelError("Address", "This address is already registered for another condominium in your company.");
+            }
+
+            // Check if the Property Registry Number is already in use for this company.
+            bool registryNumberExists = await _context.Condominiums
+                .AnyAsync(c => c.PropertyRegistryNumber == model.PropertyRegistryNumber && c.CompanyId == model.CompanyId);
+            if (registryNumberExists)
+            {
+                ModelState.AddModelError("PropertyRegistryNumber", "This Property Registry Number is already in use.");
+            }
+
             if (ModelState.IsValid)
             {
                 // Server-side check for division by zero
@@ -130,6 +110,8 @@ namespace CET96_ProjetoFinal.web.Controllers
                 TempData["StatusMessage"] = "Condominium created successfully.";
                 return RedirectToAction(nameof(Index), new { id = model.CompanyId });
             }
+
+            ViewData["CompanyId"] = model.CompanyId;
 
             return View(model);
         }
@@ -171,6 +153,22 @@ namespace CET96_ProjetoFinal.web.Controllers
         public async Task<IActionResult> Edit(int id, CondominiumViewModel model)
         {
             if (id != model.Id) return NotFound();
+
+            // Check if address exists for another condominium in this company.
+            bool addressExists = await _context.Condominiums
+                .AnyAsync(c => c.Address == model.Address && c.CompanyId == model.CompanyId && c.Id != model.Id); // Exclude self
+            if (addressExists)
+            {
+                ModelState.AddModelError("Address", "This address is already registered for another condominium in your company.");
+            }
+
+            // Check if registry number exists for another condominium in this company.
+            bool registryNumberExists = await _context.Condominiums
+                .AnyAsync(c => c.PropertyRegistryNumber == model.PropertyRegistryNumber && c.CompanyId == model.CompanyId && c.Id != model.Id); // Exclude self
+            if (registryNumberExists)
+            {
+                ModelState.AddModelError("PropertyRegistryNumber", "This Property Registry Number is already in use.");
+            }
 
             if (ModelState.IsValid)
             {

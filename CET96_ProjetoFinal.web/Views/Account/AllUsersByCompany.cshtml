@@ -1,0 +1,69 @@
+﻿@model CET96_ProjetoFinal.web.Models.CondominiumManagerViewModel
+
+@{
+    ViewData["Title"] = "Condominium Managers";
+}
+
+<div class="container mb-4">
+    <h1 class="display-4">Condominium Managers</h1>
+    <p class="lead">Manage all condominium manager accounts for this company.</p>
+
+    <div class="mt-3">
+        @* This button now correctly points to the Create action in this controller *@
+        <a asp-controller="Account"
+           asp-action="RegisterNewCompanyManager"
+           class="btn btn-primary">Create New Manager</a>
+
+        @* This button provides easy navigation back to the condominiums list *@
+        <a asp-controller="Home"
+           asp-action="Index"
+           class="btn btn-secondary">Back to Condominiums</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><h5 class="mb-0">Company Managers</h5></div>
+    <div class="card-body">
+        <table class="table table-hover mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Roles</th>
+                    <th>Status</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var user in Model.AllUsers)
+                {
+                    <tr>
+                        <td>@user.FirstName @user.LastName</td>
+                        <td>@user.UserName</td>
+                        <td>
+                            @foreach (var role in user.Roles)
+                            {
+                                <span class="badge bg-info me-1">@role</span>
+                            }
+                        </td>
+                        <td>
+                            @if (user.IsDeactivated)
+                            {
+                                <span class="badge bg-danger">Deactivated</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">Active</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <a asp-controller="Account" asp-action="EditAccount" asp-route-id="@user.Id" class="btn btn-sm btn-warning">Edit</a>
+                            <a asp-controller="Account" asp-action="LinkManagerToCondominium" asp-route-id="@user.Id" class="btn btn-sm btn-info">Associate</a>
+                        </td>                  
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
