@@ -12,5 +12,7 @@
 
         //Track the user's status for the badge and button
         public bool IsDeactivated { get; set; }
+
+        public string? AssignedCondominiumName { get; set; }
     }
 }

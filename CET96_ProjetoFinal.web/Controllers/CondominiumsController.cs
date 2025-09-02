@@ -1,6 +1,6 @@
-﻿using CET96_ProjetoFinal.web.Data;
-using CET96_ProjetoFinal.web.Entities;
+﻿using CET96_ProjetoFinal.web.Entities;
 using CET96_ProjetoFinal.web.Models;
+using CET96_ProjetoFinal.web.Repositories;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -9,50 +9,64 @@ namespace CET96_ProjetoFinal.web.Controllers
 {
     public class CondominiumsController : Controller
     {
-        private readonly CondominiumDataContext _context;
+        private readonly ICondominiumRepository _repository;
 
-        public CondominiumsController(CondominiumDataContext context)
+        public CondominiumsController(ICondominiumRepository repository)
         {
-            _context = context;
+            _repository = repository;
         }
 
         // GET: Condominiums for a specific Company
         public async Task<IActionResult> Index(int id) // 'id' is the CompanyId
         {
             // Fetch only the condominiums for the given company
-            var condominiums = await _context.Condominiums
-                .Where(c => c.CompanyId == id && c.IsActive == true)
-                .ToListAsync();
+            var condominiums = await _repository.GetActiveCondominiumsByCompanyIdAsync(id);
 
-            ViewBag.CompanyId = id;
+            ViewBag.CompanyId = id; // Pass the Company for use in the view
 
             return View(condominiums);
         }
 
         // GET: Condominiums/Details/5
-        public async Task<IActionResult> Details(int? id)
+        public async Task<IActionResult> Details(int? id, bool fromInactive = false)
         {
             if (id == null)
             {
                 return NotFound();
             }
 
-            var condominium = await _context.Condominiums
-                .FirstOrDefaultAsync(m => m.Id == id);
+            var condominium = await _repository.GetByIdAsync(id.Value);
+
             if (condominium == null)
             {
                 return NotFound();
             }
 
-            return View(condominium);
+            // Map the entity to our new ViewModel
+            var model = new CondominiumDetailsViewModel
+            {
+                Id = condominium.Id,
+                CompanyId = condominium.CompanyId,
+                Name = condominium.Name,
+                Address = condominium.Address,
+                PropertyRegistryNumber = condominium.PropertyRegistryNumber,
+                NumberOfUnits = condominium.NumberOfUnits,
+                ContractValue = condominium.ContractValue,
+                FeePerUnit = condominium.FeePerUnit,
+                CreatedAt = condominium.CreatedAt.ToLocalTime() // Convert from UTC for display
+            };
+
+            // Pass the flag to the view
+            ViewBag.FromInactive = fromInactive;
+
+            return View(model);
         }
 
         // GET: Condominiums/Create
         public IActionResult Create(int id) // 'id' will be the CompanyId
         {
-            // You can pass the CompanyId to the view using ViewData or a ViewModel
-            ViewData["CompanyId"] = id;
-            return View();
+            var model = new CondominiumViewModel { CompanyId = id };
+            return View(model);
         }
 
         // POST: Condominiums/Create
@@ -63,17 +77,13 @@ namespace CET96_ProjetoFinal.web.Controllers
         public async Task<IActionResult> Create(CondominiumViewModel model)
         {
             // Check if the address is already in use for this company.
-            bool addressExists = await _context.Condominiums
-                .AnyAsync(c => c.Address == model.Address && c.CompanyId == model.CompanyId);
-            if (addressExists)
+            if (await _repository.AddressExistsAsync(model.CompanyId, model.Address))
             {
-                ModelState.AddModelError("Address", "This address is already registered for another condominium in your company.");
+                ModelState.AddModelError("Address", "This address is already registered.");
             }
 
             // Check if the Property Registry Number is already in use for this company.
-            bool registryNumberExists = await _context.Condominiums
-                .AnyAsync(c => c.PropertyRegistryNumber == model.PropertyRegistryNumber && c.CompanyId == model.CompanyId);
-            if (registryNumberExists)
+            if (await _repository.RegistryNumberExistsAsync(model.CompanyId, model.PropertyRegistryNumber))
             {
                 ModelState.AddModelError("PropertyRegistryNumber", "This Property Registry Number is already in use.");
             }
@@ -104,8 +114,8 @@ namespace CET96_ProjetoFinal.web.Controllers
                     UserCreatedId = loggedInUserId
                 };
 
-                _context.Add(newCondominium);
-                await _context.SaveChangesAsync();
+                await _repository.CreateAsync(newCondominium);
+                await _repository.SaveAllAsync();
 
                 TempData["StatusMessage"] = "Condominium created successfully.";
                 return RedirectToAction(nameof(Index), new { id = model.CompanyId });
@@ -124,7 +134,8 @@ namespace CET96_ProjetoFinal.web.Controllers
                 return NotFound();
             }
 
-            var condominium = await _context.Condominiums.FindAsync(id);
+            var condominium = await _repository.GetByIdAsync(id.Value);
+
             if (condominium == null)
             {
                 return NotFound();
@@ -155,17 +166,13 @@ namespace CET96_ProjetoFinal.web.Controllers
             if (id != model.Id) return NotFound();
 
             // Check if address exists for another condominium in this company.
-            bool addressExists = await _context.Condominiums
-                .AnyAsync(c => c.Address == model.Address && c.CompanyId == model.CompanyId && c.Id != model.Id); // Exclude self
-            if (addressExists)
+            if (await _repository.AddressExistsAsync(model.CompanyId, model.Address, model.Id))
             {
-                ModelState.AddModelError("Address", "This address is already registered for another condominium in your company.");
+                ModelState.AddModelError("Address", "This address is already registered for another condominium.");
             }
 
             // Check if registry number exists for another condominium in this company.
-            bool registryNumberExists = await _context.Condominiums
-                .AnyAsync(c => c.PropertyRegistryNumber == model.PropertyRegistryNumber && c.CompanyId == model.CompanyId && c.Id != model.Id); // Exclude self
-            if (registryNumberExists)
+            if (await _repository.RegistryNumberExistsAsync(model.CompanyId, model.PropertyRegistryNumber, model.Id))
             {
                 ModelState.AddModelError("PropertyRegistryNumber", "This Property Registry Number is already in use.");
             }
@@ -180,7 +187,7 @@ namespace CET96_ProjetoFinal.web.Controllers
                 }
 
                 // 1. Fetch the original condominium from the database.
-                var condominiumToUpdate = await _context.Condominiums.FindAsync(id);
+                var condominiumToUpdate = await _repository.GetByIdAsync(id);
                 if (condominiumToUpdate == null) return NotFound();
 
                 // 2. Manually update the properties. This prevents over-posting.
@@ -199,12 +206,12 @@ namespace CET96_ProjetoFinal.web.Controllers
 
                 try
                 {
-                    _context.Update(condominiumToUpdate);
-                    await _context.SaveChangesAsync();
+                    _repository.Update(condominiumToUpdate);
+                    await _repository.SaveAllAsync();
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!CondominiumExists(model.Id)) return NotFound();
+                    if (!await _repository.ExistsAsync(model.Id)) return NotFound();
                     else throw;
                 }
 
@@ -222,8 +229,8 @@ namespace CET96_ProjetoFinal.web.Controllers
                 return NotFound();
             }
 
-            var condominium = await _context.Condominiums
-                .FirstOrDefaultAsync(m => m.Id == id);
+            var condominium = await _repository.GetByIdAsync(id.Value);
+
             if (condominium == null)
             {
                 return NotFound();
@@ -237,18 +244,20 @@ namespace CET96_ProjetoFinal.web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var condominium = await _context.Condominiums.FindAsync(id);
+            var condominium = await _repository.GetByIdAsync(id);
+
             if (condominium != null)
             {
                 // 1. Set the flag to inactive instead of removing the record.
                 condominium.IsActive = false;
 
                 // 2. Set the audit fields for the soft delete.
-                condominium.UserDeletedId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                // You might also want a 'DeletedAt' field in your entity.
+                condominium.UserDeletedId = User.FindFirstValue(ClaimTypes.NameIdentifier); // ID of the user performing the deletion
+                condominium.DeletedAt = DateTime.UtcNow;
 
-                _context.Update(condominium);
-                await _context.SaveChangesAsync();
+                _repository.Update(condominium);
+                await _repository.SaveAllAsync();
+
                 TempData["StatusMessage"] = "Condominium deactivated successfully.";
             }
 
@@ -262,12 +271,11 @@ namespace CET96_ProjetoFinal.web.Controllers
         /// <returns>A view with the list of inactive condominiums.</returns>
         public async Task<IActionResult> InactiveCondominiums(int id)
         {
-            var condominiums = await _context.Condominiums
-                .Where(c => c.CompanyId == id && !c.IsActive)
-                .ToListAsync();
+            var condominiums = await _repository.GetInactiveByCompanyIdAsync(id);
 
             ViewBag.CompanyId = id;
-            return View(condominiums); // You will need to create this new view.
+
+            return View(condominiums);
         }
 
         /// <summary>
@@ -279,23 +287,21 @@ namespace CET96_ProjetoFinal.web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Activate(int id)
         {
-            var condominium = await _context.Condominiums.FindAsync(id);
+            var condominium = await _repository.GetByIdAsync(id);
+
             if (condominium != null)
             {
                 condominium.IsActive = true;
                 condominium.UserDeletedId = null; // Clear the deleted user ID
+                condominium.DeletedAt = null; // Clear the deleted timestamp
 
-                _context.Update(condominium);
-                await _context.SaveChangesAsync();
+                _repository.Update(condominium);
+                await _repository.SaveAllAsync();
+
                 TempData["StatusMessage"] = "Condominium reactivated successfully.";
             }
 
-            return RedirectToAction(nameof(InactiveCondominiums), new { id = condominium?.CompanyId });
-        }
-
-        private bool CondominiumExists(int id)
-        {
-            return _context.Condominiums.Any(e => e.Id == id);
+            return RedirectToAction(nameof(Index), new { id = condominium?.CompanyId });
         }
     }
 }

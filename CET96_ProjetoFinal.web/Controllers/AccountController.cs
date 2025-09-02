@@ -78,7 +78,6 @@ namespace CET96_ProjetoFinal.web.Controllers
             return RedirectToAction("Index", "Home");
         }
 
-
         // GET: /Account/Register
         /// <summary>
         /// Displays the user registration page.
@@ -161,15 +160,22 @@ namespace CET96_ProjetoFinal.web.Controllers
             return View(model);
         }
 
-        public IActionResult RegisterNewCompanyManager(int companyId)
+        [Authorize(Roles = "Company Administrator")]
+        public IActionResult RegisterNewCondominiumManager(int companyId)
         {
-            return View("RegisterNewCondominiumManager");
+            var model = new RegisterCondominiumManagerViewModel
+            {
+                CompanyId = companyId
+            };
+            // Pass the CompanyId to the registration form
+            return View("RegisterNewCondominiumManager", model);
         }
 
         // POST: /Account/Register
         [ValidateAntiForgeryToken]
         [HttpPost]
-        public async Task<IActionResult> RegisterNewCompanyManager(RegisterCondominiumManagerViewModel model)
+        [Authorize(Roles = "Company Administrator")]
+        public async Task<IActionResult> RegisterNewCondominiumManager(RegisterCondominiumManagerViewModel model)
         {
             var loggedUser = User.Identity.Name;
             var loggedInUser = await _userRepository.GetUserByEmailasync(loggedUser);
@@ -192,7 +198,7 @@ namespace CET96_ProjetoFinal.web.Controllers
                         DocumentType = model.DocumentType,
                         PhoneNumber = model.PhoneNumber,
                         UserCreatedId = loggedInUser.Id,
-                        CompanyId = loggedInUser.CompanyId
+                        CompanyId = model.CompanyId
                     };
 
                     var result = await _userRepository.AddUserAsync(user, model.Password);
@@ -217,7 +223,7 @@ namespace CET96_ProjetoFinal.web.Controllers
                         //};
 
                         // Show a page telling the user to check their email. 
-                        return RedirectToAction("AllUsersByCompany", "Account");
+                        return RedirectToAction("AllUsersByCompany", "Account", new { id = model.CompanyId });
                     }
                     foreach (var error in result.Errors)
                     {
@@ -376,19 +382,40 @@ namespace CET96_ProjetoFinal.web.Controllers
         }
 
         // GET: All Users By Company Administrator
-        [Authorize]
-        public async Task<IActionResult> AllUsersByCompany()
+        [Authorize(Roles = "Company Administrator")]
+        public async Task<IActionResult> AllUsersByCompany(int id)
         {
-            var loggedUser = User.Identity.Name;
-            var loggedInUser = await _userRepository.GetUserByEmailasync(loggedUser);
+            int companyId = id;
+
+            var loggedInUser = await _userRepository.GetUserByEmailasync(User.Identity.Name);
             if (loggedInUser == null) return RedirectToAction("Index", "Home");
-            var users = await _userRepository.GetAllUsersByCompanyIdAsync(loggedInUser.Id);
+
+            var company = await _companyRepository.GetByIdAsync(companyId);
+
+            if (company == null)
+            {
+                return NotFound();
+            }
+
+            ViewBag.CompanyName = company?.Name; // Pass the company doesn't thow an exception if null
+            ViewBag.CompanyId = company.Id; // Pass the company ID to the view
+
+            var users = await _userRepository.GetUsersByCompanyIdAsync(companyId);
 
             var userViewModelList = new List<ApplicationUserViewModel>();
 
             foreach (var user in users)
             {
                 var roles = await _userRepository.GetUserRolesAsync(user);
+                string? assignedCondoName = null;
+
+                // Check ONLY for users who are in the "Condominium Manager" role
+                if (roles.Contains("Condominium Manager"))
+                {
+                    var assignment = await _condominiumRepository.GetCondominiumByManagerIdAsync(user.Id);
+                    // If an assignment is found, get its name
+                    assignedCondoName = assignment?.Name;
+                }
 
                 userViewModelList.Add(new ApplicationUserViewModel
                 {
@@ -397,7 +424,8 @@ namespace CET96_ProjetoFinal.web.Controllers
                     LastName = user.LastName,
                     UserName = user.UserName,
                     IsDeactivated = user.DeactivatedAt.HasValue,
-                    Roles = roles
+                    Roles = roles,
+                    AssignedCondominiumName = assignedCondoName
                 });
             }
 
@@ -408,8 +436,6 @@ namespace CET96_ProjetoFinal.web.Controllers
 
             return View(model);
         }
-
-        // Add these two new methods inside your AccountController class.
 
         /// <summary>
         /// Displays the page for a user to edit their own account details.
@@ -461,8 +487,12 @@ namespace CET96_ProjetoFinal.web.Controllers
                 if (result.Succeeded)
                 {
                     TempData["StatusMessage"] = "Your profile has been updated successfully.";
-                    return RedirectToAction("AllUsersByCompany", "Account");
+
+                    // Redirect back to the correct company's user list
+                    var companyId = user.CompanyId ?? 0;
+                    return RedirectToAction("AllUsersByCompany", "Account", new { id = companyId });
                 }
+
 
                 foreach (var error in result.Errors)
                 {
@@ -475,31 +505,44 @@ namespace CET96_ProjetoFinal.web.Controllers
         }
 
         // GET: Link Condominuim Manager to Condominium
+        [Authorize(Roles = "Company Administrator")]
         public async Task<IActionResult> LinkManagerToCondominium(string id)
         {
             var condominiumManager = await _userRepository.GetUserByIdAsync(id);
 
-            if (condominiumManager == null) 
+            if (condominiumManager == null)
             {
-                TempData["StatusMessage"] = "Error: Condomonium Manager not found.";
+                TempData["StatusMessage"] = "Error: Condominium Manager not found.";
 
-                return NotFound(); 
+                return NotFound();
             }
 
             //TODO: One Manager can only have one condominium linked. Enforce this rule.
             //TODO: Add in LinkManagerToCondominiumViewModel a property to show the currently linked condominium, if any.
 
+            // Check if the manager is already assigned to a condominium
+            var currentAssignment = await _condominiumRepository.GetCondominiumByManagerIdAsync(id);
+
             var loggedUser = User.Identity.Name;
             var loggedInUser = await _userRepository.GetUserByEmailasync(loggedUser);
 
             // Fetch the list of condominiums for the select list
-            var condominiums = await _condominiumRepository.GetCondominiumsByAdminAsync(loggedInUser.Id);
+            var condominiums = await _condominiumRepository.GetUnassignedCondominiumsByCompanyAdminAsync(loggedInUser.Id);
+
+            // Get the companyId from the manager
+            var companyId = condominiumManager.CompanyId;
 
             var model = new LinkManagerToCondominiumViewModel
             {
                 UserId = condominiumManager.Id,
                 FullName = $"{condominiumManager.FirstName} {condominiumManager.LastName}",
-                CondominiumsList = condominiums
+                CondominiumsList = condominiums,
+
+                // If an assignment was found, store its name in the ViewModel.
+                CurrentlyAssignedCondominiumName = currentAssignment?.Name,
+
+                // Set the CompanyId for the view
+                CompanyId = companyId.GetValueOrDefault()
             };
 
             return View(model);
@@ -508,51 +551,104 @@ namespace CET96_ProjetoFinal.web.Controllers
         // This action handles the form submission for linking a manager.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> LinkManagerToCondominium(string userId, int selectedCondominiumId)
+        [Authorize(Roles = "Company Administrator")]
+        public async Task<IActionResult> LinkManagerToCondominium(LinkManagerToCondominiumViewModel model)
         {
             // 1. Validate the input.
-            var condominiumManager = await _userRepository.GetUserByIdAsync(userId);
-            if (selectedCondominiumId == 0)
+            var condominiumManager = await _userRepository.GetUserByIdAsync(model.UserId);
+
+            if (condominiumManager == null)
+            {
+                TempData["StatusMessage"] = "Error: Condominium Manager not found.";
+                return NotFound();
+            }
+
+            if (model.SelectedCondominiumId == null || model.SelectedCondominiumId == 0)
             {
                 // If no condominium was selected, add an error and return to the form.
                 ModelState.AddModelError(string.Empty, "You must select a condominium.");
 
-                // We need to reload the data for the view, just like in the GET method.
+                // Reload the necessary data before returning to the view.
+                // Repopulate the model with the data needed to re-render the view.
                 var loggedInUser = await _userRepository.GetUserByEmailasync(User.Identity.Name);
-                var condominiums = await _condominiumRepository.GetCondominiumsByAdminAsync(loggedInUser.Id);
+                model.CondominiumsList = await _condominiumRepository.GetUnassignedCondominiumsByCompanyAdminAsync(loggedInUser.Id);
+                model.FullName = $"{condominiumManager.FirstName} {condominiumManager.LastName}";
 
-                var model = new LinkManagerToCondominiumViewModel
-                {
-                    UserId = condominiumManager.Id,
-                    FullName = $"{condominiumManager.FirstName} {condominiumManager.LastName}",
-                    CondominiumsList = condominiums
-                };
+                model.CompanyId = condominiumManager.CompanyId ?? 0;
+
+                var existing = await _condominiumRepository.GetCondominiumByManagerIdAsync(model.UserId);
+                model.CurrentlyAssignedCondominiumName = existing?.Name;
 
                 return View(model);
             }
 
-            // 2. Fetch the condominium to be updated from the database.
-            var condominiumToUpdate = await _condominiumRepository.GetByIdAsync(selectedCondominiumId);
+            // 2. Find the manager's CURRENT assignment.
+            var currentAssignment = await _condominiumRepository.GetCondominiumByManagerIdAsync(model.UserId);
+
+            // 3. If they are currently assigned somewhere else, un-assign them.
+            if (currentAssignment != null && currentAssignment.Id != model.SelectedCondominiumId.Value)
+            {
+                currentAssignment.CondominiumManagerId = null;
+                _condominiumRepository.Update(currentAssignment);
+            }
+
+            // 4. Fetch the condominium to be updated from the database.
+            var condominiumToUpdate = await _condominiumRepository.GetByIdAsync(model.SelectedCondominiumId.Value);
+
             if (condominiumToUpdate == null)
             {
                 return NotFound();
             }
 
-            // 3. Assign the manager's ID to the condominium.
-            condominiumToUpdate.CondominiumManagerId = userId;
+            // 5. Assign the manager's ID to the condominium.
+            condominiumToUpdate.CondominiumManagerId = model.UserId;
 
-            // 4. Save the changes.
+            // 6. Save the changes.
             _condominiumRepository.Update(condominiumToUpdate);
             await _condominiumRepository.SaveAllAsync();
 
             condominiumManager.CompanyId = condominiumToUpdate.CompanyId;
 
-            await _userRepository.UpdateUserAsync(condominiumManager); 
+            await _userRepository.UpdateUserAsync(condominiumManager);
+
+            // IMPORTANT: Get the companyId to pass it back to the AllUsersByCompany action
+            var companyId = condominiumToUpdate.CompanyId;
 
             TempData["StatusMessage"] = $"Manager has been successfully linked to condominium '{condominiumToUpdate.Name}'.";
 
-            // 5. Redirect back to the list of managers.
-            return RedirectToAction("AllUsersByCompany"); 
+            // 7. Redirect back to the list of managers.
+            return RedirectToAction("AllUsersByCompany", new { id = condominiumToUpdate.CompanyId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Company Administrator")]
+        public async Task<IActionResult> DismissManager(string userId)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                TempData["StatusMessage"] = "Error: Invalid manager id.";
+                return RedirectToAction("Index", "Home");
+            }
+
+            // Find current assignment for this manager
+            var currentAssignment = await _condominiumRepository.GetCondominiumByManagerIdAsync(userId);
+            if (currentAssignment == null)
+            {
+                TempData["StatusMessage"] = "No assignment found for this manager.";
+                // Back to the linking page for this manager
+                return RedirectToAction(nameof(LinkManagerToCondominium), new { id = userId });
+            }
+
+            // Unassign
+            currentAssignment.CondominiumManagerId = null;
+            _condominiumRepository.Update(currentAssignment);
+            await _condominiumRepository.SaveAllAsync();
+
+            TempData["StatusMessage"] = $"Manager has been dismissed from '{currentAssignment.Name}'.";
+
+            // Return to the users list for the company
+            return RedirectToAction("AllUsersByCompany", new { id = currentAssignment.CompanyId });
         }
 
         ///// <summary>

@@ -5,12 +5,34 @@
 }
 
 <h1>@ViewData["Title"]</h1>
-<h4>Select a condominium to be managed by <strong>@Model.FullName</strong>.</h4>
+<h4>Manage the condominium assignment for <strong>@Model.FullName</strong>.</h4>
 <hr />
+
+
+@if (!string.IsNullOrEmpty(Model.CurrentlyAssignedCondominiumName))
+{
+    <div class="alert alert-info mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <span>
+                This manager is currently assigned to: <strong>@Model.CurrentlyAssignedCondominiumName</strong>
+            </span>
+
+            @* This is a separate form for the "Dismiss" action *@
+            <form asp-action="DismissManager" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="userId" value="@Model.UserId" />
+                <button type="submit" class="btn btn-danger btn-sm">Dismiss Assignment</button>
+            </form>
+        </div>
+    </div>
+}
 
 <div class="row">
     <div class="col-md-6">
         <form asp-action="LinkManagerToCondominium" method="post">
+
+            @Html.AntiForgeryToken()
+
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
             @* This hidden field is crucial to send back the manager's ID *@
@@ -39,7 +61,8 @@
                     <button type="submit" class="btn btn-primary">Save Link</button>
                 }
                 @* This Cancel button needs a way to get back to the manager list. You may need to pass the CompanyId via the ViewModel. *@
-                <a asp-controller="CondominiumManagers" asp-action="Index" class="btn btn-secondary">Cancel</a>
+                @* <a asp-controller="CondominiumManagers" asp-action="Index" class="btn btn-secondary">Cancel</a> *@
+                <a asp-controller="Account" asp-action="AllUsersByCompany" asp-route-id="@Model.CompanyId" class="btn btn-secondary">Cancel</a>
             </div>
         </form>
     </div>

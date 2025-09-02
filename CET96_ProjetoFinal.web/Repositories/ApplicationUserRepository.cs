@@ -16,7 +16,6 @@ namespace CET96_ProjetoFinal.web.Repositories
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly SignInManager<ApplicationUser> _signInManager;
 
-        // The constructor now correctly injects all the services we need.
         public ApplicationUserRepository(
             ApplicationUserDataContext context,
             UserManager<ApplicationUser> userManager,
@@ -55,20 +54,28 @@ namespace CET96_ProjetoFinal.web.Repositories
             return await _userManager.GetRolesAsync(user);
         }
 
-        public async Task<List<ApplicationUser>> GetAllUsersByCompanyIdAsync(string userId)
+        //public async Task<List<ApplicationUser>> GetAllUsersByCompanyIdAsync(string userId)
+        //{
+        //    var user = await GetUserByIdAsync(userId);
+
+        //    if (user == null)
+        //    {
+        //        return new List<ApplicationUser>();
+        //    }
+
+        //    var result = await _context.Users
+        //        .Where(u => u.UserCreatedId != null && u.UserCreatedId == user.Id)
+        //        .ToListAsync();
+
+        //    return result;
+        //}
+        public async Task<IEnumerable<ApplicationUser>> GetUsersByCompanyIdAsync(int companyId)
         {
-            var user = await GetUserByIdAsync(userId);
-
-            if (user == null)
-            {
-                return new List<ApplicationUser>();
-            }
-
-            var result = await _context.Users
-                .Where(u => u.UserCreatedId != null && u.UserCreatedId == user.Id)
-                .ToListAsync();
-
-            return result;
+            return await _context.Users
+                                 .Where(u => u.CompanyId == companyId)
+                                 .OrderBy(u => u.FirstName)
+                                 .ThenBy(u => u.LastName)
+                                 .ToListAsync();
         }
     }
 }

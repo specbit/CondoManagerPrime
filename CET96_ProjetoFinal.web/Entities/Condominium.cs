@@ -52,6 +52,7 @@ namespace CET96_ProjetoFinal.web.Entities
         // --- Audit Fields ---
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
+        public DateTime? DeletedAt { get; set; }
         public bool IsActive { get; set; } = true;
         public string UserCreatedId { get; set; }
         public string? UserUpdatedId { get; set; }
