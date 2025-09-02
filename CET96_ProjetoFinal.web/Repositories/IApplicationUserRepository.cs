@@ -30,6 +30,7 @@ namespace CET96_ProjetoFinal.web.Repositories
         Task<bool> IsInRoleAsync(ApplicationUser user, string roleName);
         Task<IList<string>> GetUserRolesAsync(ApplicationUser user);
 
-        Task<List<ApplicationUser>> GetAllUsersByCompanyIdAsync(string userId);
+        //Task<List<ApplicationUser>> GetAllUsersByCompanyIdAsync(string userId);
+        Task<IEnumerable<ApplicationUser>> GetUsersByCompanyIdAsync(int companyId);
     }
 }

@@ -13,7 +13,6 @@ namespace CET96_ProjetoFinal.web.Controllers
         private readonly IApplicationUserRepository _userRepository;
         private readonly ICompanyRepository _companiesRepository; 
 
-        // Update the constructor to accept the repository
         public CompaniesController(IApplicationUserRepository userHelper, ICompanyRepository companiesRepository)
         {
             _userRepository = userHelper;
@@ -174,7 +173,7 @@ namespace CET96_ProjetoFinal.web.Controllers
         {
             if (id != model.Id) return NotFound();
 
-            //// Note: We pass model.Id to exclude the current company from the check
+            // Note: We pass model.Id to exclude the current company from the check
             if (await _companiesRepository.IsNameInUseAsync(model.Name, model.Id))
             {
                 ModelState.AddModelError("Name", "This Company Name is already registered.");
