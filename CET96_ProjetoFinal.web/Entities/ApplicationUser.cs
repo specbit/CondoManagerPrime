@@ -38,6 +38,14 @@ namespace CET96_ProjetoFinal.web.Entities
         [MaxLength(100)]
         public string? CompanyName { get; set; }
 
+        // This is the link to the condominium. It is nullable because not all users are staff.
+        public int? CondominiumId { get; set; }
+        public Condominium? Condominium { get; set; }
+
+        // This will store the profession for a Condominium Staff member.
+        [MaxLength(50)]
+        public string? Profession { get; set; }
+
         // --- Full Audit Trail ---
         public DateTime? DeactivatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
