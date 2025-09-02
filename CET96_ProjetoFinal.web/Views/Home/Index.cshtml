@@ -63,6 +63,18 @@
             }
         </div>
     }
+    @* === CONDOMINIUM mANAGER DASHBOARD === *@
+    else if (User.IsInRole("Condominium Manager"))
+    {
+        <div class="container mb-4">
+            <h1 class="display-4">Condominium Manager Dashboard</h1>
+            <p class="lead">Welcome! Use the button below to manage your condominium.</p>
+            <hr />
+            <p>
+                <a asp-controller="Home" asp-action="CondominiumManagerDashboard" class="btn btn-primary btn-lg">Go to My Dashboard</a>
+            </p>
+        </div>
+    }
     @* === DEFAULT LOGGED-IN USER DASHBOARD === *@
     else
     {

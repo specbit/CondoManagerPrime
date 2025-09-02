@@ -27,28 +27,106 @@ namespace CET96_ProjetoFinal.web.Repositories
         }
 
         // --- Identity Methods ---
+        /// <summary>
+        /// Creates a new user with the specified password.
+        /// </summary>
+        /// <param name="user">The ApplicationUser entity to create.</param>
+        /// <param name="password">The user's password.</param>
+        /// <returns>An IdentityResult indicating the success or failure of the operation.</returns>
         public async Task<IdentityResult> AddUserAsync(ApplicationUser user, string password) => await _userManager.CreateAsync(user, password);
+        /// <summary>
+        /// Assigns a user to a specific role.
+        /// </summary>
+        /// <param name="user">The user to add to the role.</param>
+        /// <param name="roleName">The name of the role to add the user to.</param>
+        /// <returns>A Task that represents the asynchronous operation.</returns>
         public async Task AddUserToRoleAsync(ApplicationUser user, string roleName) => await _userManager.AddToRoleAsync(user, roleName);
+        /// <summary>
+        /// Changes a user's password.
+        /// </summary>
+        /// <param name="user">The user whose password will be changed.</param>
+        /// <param name="oldPassword">The user's current password.</param>
+        /// <param name="newPassword">The new password for the user.</param>
+        /// <returns>An IdentityResult indicating the success or failure of the password change.</returns>
         public async Task<IdentityResult> ChangePasswordAsync(ApplicationUser user, string oldPassword, string newPassword) => await _userManager.ChangePasswordAsync(user, oldPassword, newPassword);
+        /// <summary>
+        /// Confirms a user's email address.
+        /// </summary>
+        /// <param name="user">The user to confirm the email for.</param>
+        /// <param name="token">The email confirmation token.</param>
+        /// <returns>An IdentityResult indicating the success or failure of the email confirmation.</returns>
         public async Task<IdentityResult> ConfirmEmailAsync(ApplicationUser user, string token) => await _userManager.ConfirmEmailAsync(user, token);
+        /// <summary>
+        /// Generates a token for email confirmation.
+        /// </summary>
+        /// <param name="user">The user to generate the token for.</param>
+        /// <returns>The generated email confirmation token.</returns>
         public async Task<string> GenerateEmailConfirmationTokenAsync(ApplicationUser user) => await _userManager.GenerateEmailConfirmationTokenAsync(user);
+        /// <summary>
+        /// Attempts to sign in the user with the specified username and password.
+        /// </summary>
+        /// <param name="model">The LoginViewModel containing the user's credentials.</param>
+        /// <returns>A SignInResult indicating the result of the sign-in attempt.</returns>
         public async Task<SignInResult> LoginAsync(LoginViewModel model) => await _signInManager.PasswordSignInAsync(model.Username, model.Password, model.RememberMe, false);
+        /// <summary>
+        /// Signs out the current user.
+        /// </summary>
+        /// <returns>A Task that represents the asynchronous operation.</returns>
         public async Task LogoutAsync() => await _signInManager.SignOutAsync();
+        /// <summary>
+        /// Updates the user's details.
+        /// </summary>
+        /// <param name="user">The ApplicationUser entity to update.</param>
+        /// <returns>An IdentityResult indicating the success or failure of the update.</returns>
         public async Task<IdentityResult> UpdateUserAsync(ApplicationUser user) => await _userManager.UpdateAsync(user);
+        /// <summary>
+        /// Sets a user's lockout end date.
+        /// </summary>
+        /// <param name="user">The user to set the lockout for.</param>
+        /// <param name="lockoutEnd">The date and time the lockout will end.</param>
+        /// <returns>An IdentityResult indicating the success or failure of the lockout operation.</returns>
         public async Task<IdentityResult> SetLockoutEndDateAsync(ApplicationUser user, DateTimeOffset? lockoutEnd) => await _userManager.SetLockoutEndDateAsync(user, lockoutEnd);
+        /// <summary>
+        /// Checks if a user is in a specific role.
+        /// </summary>
+        /// <param name="user">The user to check.</param>
+        /// <param name="roleName">The name of the role.</param>
+        /// <returns>True if the user is in the role; otherwise, false.</returns>
         public async Task<bool> IsInRoleAsync(ApplicationUser user, string roleName) => await _userManager.IsInRoleAsync(user, roleName);
 
         // --- Data Query Methods ---
+        /// <summary>
+        /// Finds a user by their email address.
+        /// </summary>
+        /// <param name="email">The email address of the user.</param>
+        /// <returns>The ApplicationUser if found; otherwise, null.</returns>
         public async Task<ApplicationUser> GetUserByEmailasync(string email) => await _userManager.FindByEmailAsync(email);
+        /// <summary>
+        /// Finds a user by their user ID.
+        /// </summary>
+        /// <param name="userId">The ID of the user.</param>
+        /// <returns>The ApplicationUser if found; otherwise, null.</returns>
         public async Task<ApplicationUser> GetUserByIdAsync(string userId) => await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        /// <summary>
+        /// Gets a list of all users.
+        /// </summary>
+        /// <returns>A collection of all ApplicationUsers.</returns>
         public async Task<IEnumerable<ApplicationUser>> GetAllUsersAsync() => await _context.Users.OrderBy(u => u.FirstName).ThenBy(u => u.LastName).ToListAsync();
-
+        /// <summary>
+        /// Gets a SelectList of users, typically for use in dropdown menus.
+        /// </summary>
+        /// <param name="selectedValue">The selected value for the list.</param>
+        /// <returns>A SelectList of users.</returns>
         public async Task<SelectList> GetUsersForSelectListAsync(object? selectedValue = null)
         {
             var users = await _context.Users.OrderBy(u => u.UserName).ToListAsync();
             return new SelectList(users, "Id", "UserName", selectedValue);
         }
-
+        /// <summary>
+        /// Gets the roles assigned to a specific user.
+        /// </summary>
+        /// <param name="user">The user to retrieve the roles for.</param>
+        /// <returns>A list of role names.</returns>
         public async Task<IList<string>> GetUserRolesAsync(ApplicationUser user)
         {
             return await _userManager.GetRolesAsync(user);
@@ -69,6 +147,12 @@ namespace CET96_ProjetoFinal.web.Repositories
 
         //    return result;
         //}
+
+        /// <summary>
+        /// Gets all users belonging to a specific company.
+        /// </summary>
+        /// <param name="companyId">The ID of the company.</param>
+        /// <returns>A collection of ApplicationUsers for that company.</returns>
         public async Task<IEnumerable<ApplicationUser>> GetUsersByCompanyIdAsync(int companyId)
         {
             return await _context.Users
@@ -76,6 +160,18 @@ namespace CET96_ProjetoFinal.web.Repositories
                                  .OrderBy(u => u.FirstName)
                                  .ThenBy(u => u.LastName)
                                  .ToListAsync();
+        }
+
+        /// Gets all staff users for a specific condominium.
+        /// </summary>
+        /// <param name="condominiumId">The ID of the condominium.</param>
+        /// <returns>A collection of ApplicationUsers who are staff for that condominium.</returns>
+        public async Task<IEnumerable<ApplicationUser>> GetStaffByCondominiumIdAsync(int condominiumId)
+        {
+            var usersInRole = await _userManager.GetUsersInRoleAsync("Condominium Staff");
+
+            // Filter the users from that role by the CondominiumId.
+            return usersInRole.Where(u => u.CondominiumId == condominiumId).ToList();
         }
     }
 }
