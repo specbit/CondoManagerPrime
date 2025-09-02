@@ -21,5 +21,7 @@ namespace CET96_ProjetoFinal.web.Models
         [MaxLength(20)]
         [Display(Name = "Phone Number")]
         public string PhoneNumber { get; set; }
+
+        public int CompanyId { get; set; } 
     }
 }
