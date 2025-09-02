@@ -455,7 +455,8 @@ namespace CET96_ProjetoFinal.web.Controllers
                 Id = user.Id,
                 FirstName = user.FirstName,
                 LastName = user.LastName,
-                PhoneNumber = user.PhoneNumber
+                PhoneNumber = user.PhoneNumber,
+                CompanyId = user.CompanyId ?? 0 // Pass the CompanyId to the view
             };
 
             return View(model);
@@ -517,9 +518,6 @@ namespace CET96_ProjetoFinal.web.Controllers
                 return NotFound();
             }
 
-            //TODO: One Manager can only have one condominium linked. Enforce this rule.
-            //TODO: Add in LinkManagerToCondominiumViewModel a property to show the currently linked condominium, if any.
-
             // Check if the manager is already assigned to a condominium
             var currentAssignment = await _condominiumRepository.GetCondominiumByManagerIdAsync(id);
 
@@ -556,11 +554,21 @@ namespace CET96_ProjetoFinal.web.Controllers
         {
             // 1. Validate the input.
             var condominiumManager = await _userRepository.GetUserByIdAsync(model.UserId);
+            int companyId = condominiumManager?.CompanyId ?? 0;
 
             if (condominiumManager == null)
             {
                 TempData["StatusMessage"] = "Error: Condominium Manager not found.";
                 return NotFound();
+            }
+
+            // Check if the user is deactivated before allowing the assignment.
+            if (condominiumManager.DeactivatedAt.HasValue)
+            {
+                TempData["StatusMessage"] = $"Error: Cannot assign a condominium to a deactivated user. Please activate the account first.";
+
+                // Get the companyId to return to the correct view
+                return RedirectToAction(nameof(AllUsersByCompany), new { id = companyId });
             }
 
             if (model.SelectedCondominiumId == null || model.SelectedCondominiumId == 0)
@@ -612,7 +620,6 @@ namespace CET96_ProjetoFinal.web.Controllers
             await _userRepository.UpdateUserAsync(condominiumManager);
 
             // IMPORTANT: Get the companyId to pass it back to the AllUsersByCompany action
-            var companyId = condominiumToUpdate.CompanyId;
 
             TempData["StatusMessage"] = $"Manager has been successfully linked to condominium '{condominiumToUpdate.Name}'.";
 
@@ -649,6 +656,119 @@ namespace CET96_ProjetoFinal.web.Controllers
 
             // Return to the users list for the company
             return RedirectToAction("AllUsersByCompany", new { id = currentAssignment.CompanyId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Company Administrator")]
+        public async Task<IActionResult> ActivateCondominiumManager(string id)
+        {
+            var user = await _userRepository.GetUserByIdAsync(id);
+
+            if (user == null)
+            {
+                TempData["StatusMessage"] = "Error: User not found.";
+                return NotFound();
+            }
+
+            // Check if the user is a Condominium Manager
+            if (!await _userManager.IsInRoleAsync(user, "Condominium Manager"))
+            {
+                TempData["StatusMessage"] = "Error: This user is not a Condominium Manager.";
+                return RedirectToAction(nameof(AllUsersByCompany), new { id = user.CompanyId });
+            }
+
+            // You can't activate the currently logged-in user from this view
+            if (user.Id == _userManager.GetUserId(User))
+            {
+                TempData["StatusMessage"] = "Error: You cannot activate your own account from this panel.";
+
+                return RedirectToAction(nameof(AllUsersByCompany), new { id = user.CompanyId });
+            }
+
+            // Reactivate the user
+            user.DeactivatedAt = null;
+            user.DeactivatedByUserId = null;
+            user.UpdatedAt = DateTime.UtcNow;
+            user.UserUpdatedId = _userManager.GetUserId(User);
+
+            // Update the user in the database
+            var result = await _userRepository.UpdateUserAsync(user);
+            if (!result.Succeeded)
+            {
+                TempData["StatusMessage"] = "Error activating user.";
+                return RedirectToAction(nameof(AllUsersByCompany), new { id = user.CompanyId });
+            }
+
+            // Remove any lockout on the user
+            await _userRepository.SetLockoutEndDateAsync(user, null);
+
+            TempData["StatusMessage"] = $"Manager '{user.FirstName} {user.LastName}' has been successfully activated.";
+
+            return RedirectToAction(nameof(AllUsersByCompany), new { id = user.CompanyId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Company Administrator")]
+        public async Task<IActionResult> DeactivateCondominiumManager(string id)
+        {
+            var user = await _userRepository.GetUserByIdAsync(id);
+
+            if (user == null)
+            {
+                TempData["StatusMessage"] = "Error: User not found.";
+
+                return NotFound();
+            }
+
+            // Check if the user is a Condominium Manager
+            if (!await _userManager.IsInRoleAsync(user, "Condominium Manager"))
+            {
+                TempData["StatusMessage"] = "Error: This user is not a Condominium Manager.";
+
+                return RedirectToAction(nameof(AllUsersByCompany), new { id = user.CompanyId });
+            }
+
+            // Check if the manager is currently assigned to a condominium.
+            var currentAssignment = await _condominiumRepository.GetCondominiumByManagerIdAsync(id);
+
+            if (currentAssignment != null)
+            {
+                TempData["StatusMessage"] = $"Error: The manager must be dismissed from '{currentAssignment.Name}' Condominium, before deactivation.";
+                return RedirectToAction(nameof(AllUsersByCompany), new { id = user.CompanyId });
+            }
+
+            // You can't deactivate the currently logged-in user from this view
+            if (user.Id == _userManager.GetUserId(User))
+            {
+                TempData["StatusMessage"] = "Error: You cannot deactivate your own account from this panel.";
+
+                return RedirectToAction(nameof(AllUsersByCompany), new { id = user.CompanyId });
+            }
+
+            // Proceed with deactivation as the manager is not assigned
+            user.DeactivatedAt = DateTime.UtcNow;
+            user.DeactivatedByUserId = _userManager.GetUserId(User);
+            user.UpdatedAt = DateTime.UtcNow;
+            user.UserUpdatedId = _userManager.GetUserId(User);
+
+            // Update the user in the database
+            var result = await _userRepository.UpdateUserAsync(user);
+
+            if (!result.Succeeded)
+            {
+                TempData["StatusMessage"] = "Error deactivating user.";
+
+                return RedirectToAction(nameof(AllUsersByCompany), new { id = user.CompanyId });
+            }
+
+            // Lock the user out indefinitely
+            await _userRepository.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
+
+            TempData["StatusMessage"] = $"Manager '{user.FirstName} {user.LastName}' has been successfully deactivated.";
+
+            return RedirectToAction(nameof(AllUsersByCompany), new { id = user.CompanyId });
         }
 
         ///// <summary>

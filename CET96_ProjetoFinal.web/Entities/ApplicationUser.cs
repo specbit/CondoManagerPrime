@@ -41,6 +41,7 @@ namespace CET96_ProjetoFinal.web.Entities
         // --- Full Audit Trail ---
         public DateTime? DeactivatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public string? DeactivatedByUserId { get; set; }
         public string? UserUpdatedId { get; set; }
         public string? UserCreatedId { get; set; }
