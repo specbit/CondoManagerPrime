@@ -28,7 +28,7 @@
                     <h5 class="card-title">@condominium.Name</h5>
                     <p class="card-text">
                         <strong>Address:</strong> @condominium.Address<br />
-                        <strong>Units:</strong> @condominium.NumberOfUnits<br />
+                        <strong>Units:</strong> @condominium.Units.Count()<br />
                         <strong>Status:</strong>
                         @if (condominium.IsActive)
                         {

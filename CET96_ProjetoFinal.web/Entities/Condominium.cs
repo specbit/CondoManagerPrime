@@ -35,9 +35,9 @@ namespace CET96_ProjetoFinal.web.Entities
         [Display(Name = "Property Registry Number")]
         public string PropertyRegistryNumber { get; set; }
 
-        [Required(ErrorMessage = "The Number of Units is required.")]
-        [Display(Name = "Number of Units")]
-        public int NumberOfUnits { get; set; }
+        //[Required(ErrorMessage = "The Number of Units is required.")]
+        //[Display(Name = "Number of Units")]
+        //public int NumberOfUnits { get; set; }
 
         [Required(ErrorMessage = "The Contract Value is required.")]
         [Column(TypeName = "decimal(18,2)")]
@@ -56,6 +56,9 @@ namespace CET96_ProjetoFinal.web.Entities
         public bool IsActive { get; set; } = true;
         public string UserCreatedId { get; set; }
         public string? UserUpdatedId { get; set; }
-        public string? UserDeletedId { get; set; } 
+        public string? UserDeletedId { get; set; }
+
+        // Navigation property - One Condominium has many Units
+        public ICollection<Unit> Units { get; set; } = new List<Unit>();
     }
 }

@@ -162,16 +162,53 @@ namespace CET96_ProjetoFinal.web.Repositories
                                  .ToListAsync();
         }
 
-        /// Gets all staff users for a specific condominium.
+        /// <summary>
+        /// Asynchronously retrieves all active staff members assigned to a specific condominium.
         /// </summary>
-        /// <param name="condominiumId">The ID of the condominium.</param>
-        /// <returns>A collection of ApplicationUsers who are staff for that condominium.</returns>
+        /// <param name="condominiumId">The unique identifier for the condominium.</param>
+        /// <returns>
+        /// A task that represents the asynchronous operation. 
+        /// The task result contains an IEnumerable of ApplicationUser objects who are staff.
+        /// </returns>
         public async Task<IEnumerable<ApplicationUser>> GetStaffByCondominiumIdAsync(int condominiumId)
         {
-            var usersInRole = await _userManager.GetUsersInRoleAsync("Condominium Staff");
+            return await _context.Users
+                .Where(u => u.CondominiumId == condominiumId && u.DeactivatedAt == null)
+                .ToListAsync();
+        }
 
-            // Filter the users from that role by the CondominiumId.
-            return usersInRole.Where(u => u.CondominiumId == condominiumId).ToList();
+        /// <summary>
+        /// Asynchronously retrieves all active users associated with a specific company ID.
+        /// An active user is one whose DeactivatedAt property is null.
+        /// </summary>
+        /// <param name="companyId">The unique identifier for the company.</param>
+        /// <returns>
+        /// A task that represents the asynchronous operation. 
+        /// The task result contains an IEnumerable of ApplicationUser objects who are active.
+        /// </returns>
+        public async Task<IEnumerable<ApplicationUser>> GetActiveUsersByCompanyIdAsync(int companyId)
+        {
+            // Returns users from the specified company where DeactivatedAt is NULL (they are active)
+            return await _context.Users
+                .Where(u => u.CompanyId == companyId && u.DeactivatedAt == null)
+                .ToListAsync();
+        }
+
+        /// <summary>
+        /// Asynchronously retrieves all inactive users associated with a specific company ID.
+        /// An inactive user is one whose DeactivatedAt property has a value.
+        /// </summary>
+        /// <param name="companyId">The unique identifier for the company.</param>
+        /// <returns>
+        /// A task that represents the asynchronous operation. 
+        /// The task result contains an IEnumerable of ApplicationUser objects who are inactive.
+        /// </returns>
+        public async Task<IEnumerable<ApplicationUser>> GetInactiveUsersByCompanyIdAsync(int companyId)
+        {
+            // Returns users from the specified company where DeactivatedAt has a value (they are inactive)
+            return await _context.Users
+                .Where(u => u.CompanyId == companyId && u.DeactivatedAt != null)
+                .ToListAsync();
         }
     }
 }

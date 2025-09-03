@@ -63,16 +63,73 @@
             }
         </div>
     }
-    @* === CONDOMINIUM mANAGER DASHBOARD === *@
+    @* === CONDOMINIUM MANAGER DASHBOARD === *@
     else if (User.IsInRole("Condominium Manager"))
     {
         <div class="container mb-4">
             <h1 class="display-4">Condominium Manager Dashboard</h1>
-            <p class="lead">Welcome! Use the button below to manage your condominium.</p>
+            <p class="lead">Welcome! From here you can manage all aspects of your assigned condominium.</p>
             <hr />
-            <p>
-                <a asp-controller="Home" asp-action="CondominiumManagerDashboard" class="btn btn-primary btn-lg">Go to My Dashboard</a>
-            </p>
+
+            @if (Model.IsManagerAssignedToCondominium)
+            {
+                <p>
+                    <span style="font-size: 1.5rem; font-weight: bold;">Condominium Name:</span>
+                    <span style="font-size: 1.2rem; vertical-align: baseline;">@Model.CondominiumName</span>
+                </p>
+                <p><strong>Address:</strong> @Model.CondominiumAddress</p>
+                <p><strong>Number of Units:</strong> @Model.UnitsCount</p>
+
+                <a asp-controller="CondominiumStaff" asp-action="Index" class="btn btn-primary">Manage Staff</a>
+
+                <br />
+
+                <br />
+
+                <h4>Condominium Staff</h4>
+                <table class="table">
+                    @* ... table head ... *@
+                    <tbody>
+                        @if (Model.CondominiumStaff != null && Model.CondominiumStaff.Any())
+                        {
+                            @foreach (var staff in Model.CondominiumStaff)
+                            {
+                                <tr>
+                                    <td>@staff.FirstName @staff.LastName</td>
+                                    <td>@staff.Email</td>
+                                    <td>@staff.Profession</td>
+                                    <td>
+                                        @if (staff.DeactivatedAt.HasValue)
+                                        {
+                                            <span class="badge bg-danger">Deactivated</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-success">Active</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <a class="btn btn-sm btn-warning">Edit</a>
+                                        <a class="btn btn-sm btn-danger">Deactivate</a>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="5" class="text-center">No staff members have been added yet.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            else
+            {
+                <div class="alert alert-warning">
+                    You are not currently assigned to a condominium.
+                </div>
+            }
         </div>
     }
     @* === DEFAULT LOGGED-IN USER DASHBOARD === *@

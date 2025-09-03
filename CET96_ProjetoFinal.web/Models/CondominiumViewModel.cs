@@ -39,10 +39,10 @@ namespace CET96_ProjetoFinal.web.Models
         [Display(Name = "Property Registry Number")]
         public string PropertyRegistryNumber { get; set; }
 
-        [Required(ErrorMessage = "The Number of Units is required.")]
-        [Range(1, int.MaxValue, ErrorMessage = "Number of Units must be at least 1.")]
-        [Display(Name = "Number of Units")]
-        public int NumberOfUnits { get; set; }
+        //[Required(ErrorMessage = "The Number of Units is required.")]
+        //[Range(1, int.MaxValue, ErrorMessage = "Number of Units must be at least 1.")]
+        //[Display(Name = "Number of Units")]
+        //public int NumberOfUnits { get; set; }
 
         [Required(ErrorMessage = "The Contract Value is required.")]
         [Column(TypeName = "decimal(18,2)")]

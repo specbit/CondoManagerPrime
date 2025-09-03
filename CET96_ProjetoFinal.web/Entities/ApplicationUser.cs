@@ -1,6 +1,7 @@
 ﻿using CET96_ProjetoFinal.web.Enums;
 using Microsoft.AspNetCore.Identity;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace CET96_ProjetoFinal.web.Entities
 {
@@ -40,6 +41,7 @@ namespace CET96_ProjetoFinal.web.Entities
 
         // This is the link to the condominium. It is nullable because not all users are staff.
         public int? CondominiumId { get; set; }
+        [NotMapped] // Tell EF Core to ignore this relationship at the database level.
         public Condominium? Condominium { get; set; }
 
         // This will store the profession for a Condominium Staff member.

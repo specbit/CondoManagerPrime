@@ -54,5 +54,13 @@ namespace CET96_ProjetoFinal.web.Repositories
         /// <param name="managerId">The ID of the Condominium Manager.</param>
         /// <returns>The Condominium entity if an assignment is found; otherwise, null.</returns>
         Task<Condominium?> GetCondominiumByManagerIdAsync(string managerId);
+
+        /// <summary>
+        /// Overrides the base GetByIdAsync method to specifically include the Units collection
+        /// when retrieving a single Condominium. This is crucial for displaying the unit count.
+        /// </summary>
+        /// <param name="id">The ID of the condominium to retrieve.</param>
+        /// <returns>The Condominium entity with its Units collection loaded, or null if not found.</returns>
+        Task<Condominium?> GetByIdAsync(int id);
     }
 }
