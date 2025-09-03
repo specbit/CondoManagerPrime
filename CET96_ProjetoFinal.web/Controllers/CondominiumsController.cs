@@ -50,7 +50,7 @@ namespace CET96_ProjetoFinal.web.Controllers
                 Name = condominium.Name,
                 Address = condominium.Address,
                 PropertyRegistryNumber = condominium.PropertyRegistryNumber,
-                NumberOfUnits = condominium.NumberOfUnits,
+                UnitsCount = condominium.Units.Count(),
                 ContractValue = condominium.ContractValue,
                 FeePerUnit = condominium.FeePerUnit,
                 CreatedAt = condominium.CreatedAt.ToLocalTime() // Convert from UTC for display
@@ -90,12 +90,12 @@ namespace CET96_ProjetoFinal.web.Controllers
 
             if (ModelState.IsValid)
             {
-                // Server-side check for division by zero
-                if (model.NumberOfUnits <= 0)
-                {
-                    ModelState.AddModelError("NumberOfUnits", "Number of Units must be greater than zero.");
-                    return View(model);
-                }
+                //// Server-side check for division by zero
+                //if (model.NumberOfUnits <= 0)
+                //{
+                //    ModelState.AddModelError("NumberOfUnits", "Number of Units must be greater than zero.");
+                //    return View(model);
+                //}
 
                 var loggedInUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -105,10 +105,9 @@ namespace CET96_ProjetoFinal.web.Controllers
                     Name = model.Name,
                     Address = model.Address,
                     PropertyRegistryNumber = model.PropertyRegistryNumber,
-                    NumberOfUnits = model.NumberOfUnits,
                     ContractValue = model.ContractValue,
                     // Secure server-side calculation
-                    FeePerUnit = model.ContractValue / model.NumberOfUnits,
+                    FeePerUnit = 0,
                     CreatedAt = DateTime.UtcNow,
                     IsActive = true,
                     UserCreatedId = loggedInUserId
@@ -148,7 +147,6 @@ namespace CET96_ProjetoFinal.web.Controllers
                 Name = condominium.Name,
                 Address = condominium.Address,
                 PropertyRegistryNumber = condominium.PropertyRegistryNumber,
-                NumberOfUnits = condominium.NumberOfUnits,
                 ContractValue = condominium.ContractValue,
                 FeePerUnit = condominium.FeePerUnit
             };
@@ -179,12 +177,12 @@ namespace CET96_ProjetoFinal.web.Controllers
 
             if (ModelState.IsValid)
             {
-                // Server-side check for division by zero
-                if (model.NumberOfUnits <= 0)
-                {
-                    ModelState.AddModelError("NumberOfUnits", "Number of Units must be greater than zero.");
-                    return View(model);
-                }
+                //// Server-side check for division by zero
+                //if (model.NumberOfUnits <= 0)
+                //{
+                //    ModelState.AddModelError("NumberOfUnits", "Number of Units must be greater than zero.");
+                //    return View(model);
+                //}
 
                 // 1. Fetch the original condominium from the database.
                 var condominiumToUpdate = await _repository.GetByIdAsync(id);
@@ -194,11 +192,11 @@ namespace CET96_ProjetoFinal.web.Controllers
                 condominiumToUpdate.Name = model.Name;
                 condominiumToUpdate.Address = model.Address;
                 condominiumToUpdate.PropertyRegistryNumber = model.PropertyRegistryNumber;
-                condominiumToUpdate.NumberOfUnits = model.NumberOfUnits;
+                //condominiumToUpdate.NumberOfUnits = model.NumberOfUnits;
                 condominiumToUpdate.ContractValue = model.ContractValue;
 
                 // 3. Perform the secure server-side calculation.
-                condominiumToUpdate.FeePerUnit = model.ContractValue / model.NumberOfUnits;
+                //condominiumToUpdate.FeePerUnit = model.ContractValue / model.NumberOfUnits;
 
                 // 4. Update audit fields.
                 condominiumToUpdate.UpdatedAt = DateTime.UtcNow;

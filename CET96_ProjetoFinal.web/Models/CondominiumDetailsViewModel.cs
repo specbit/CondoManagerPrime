@@ -21,7 +21,8 @@ namespace CET96_ProjetoFinal.web.Models
         public string PropertyRegistryNumber { get; set; }
 
         [Display(Name = "Number of Units")]
-        public int NumberOfUnits { get; set; }
+        public int UnitsCount { get; set; }
+        //public int NumberOfUnits { get; set; }
 
         [Display(Name = "Contract Value")]
         [DisplayFormat(DataFormatString = "{0:C}")] // Formats as currency

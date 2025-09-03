@@ -383,7 +383,7 @@ namespace CET96_ProjetoFinal.web.Controllers
 
         // GET: All Users By Company Administrator
         [Authorize(Roles = "Company Administrator")]
-        public async Task<IActionResult> AllUsersByCompany(int id)
+        public async Task<IActionResult> AllUsersByCompany(int id, bool showInactive = false)
         {
             int companyId = id;
 
@@ -400,7 +400,23 @@ namespace CET96_ProjetoFinal.web.Controllers
             ViewBag.CompanyName = company?.Name; // Pass the company doesn't thow an exception if null
             ViewBag.CompanyId = company.Id; // Pass the company ID to the view
 
-            var users = await _userRepository.GetUsersByCompanyIdAsync(companyId);
+            // --- NEW FILTERING LOGIC ---
+            // We declare the list here and populate it based on the showInactive flag.
+            IEnumerable<ApplicationUser> users;
+            if (showInactive)
+            {
+                users = await _userRepository.GetInactiveUsersByCompanyIdAsync(companyId);
+                ViewBag.Title = "Inactive Condominium Managers";
+                ViewBag.ShowingInactive = true;
+            }
+            else
+            {
+                users = await _userRepository.GetActiveUsersByCompanyIdAsync(companyId);
+                ViewBag.Title = "Condominium Managers";
+                ViewBag.ShowingInactive = false;
+            }
+            // --- END OF NEW LOGIC ---
+            //var users = await _userRepository.GetUsersByCompanyIdAsync(companyId);
 
             var userViewModelList = new List<ApplicationUserViewModel>();
 
@@ -415,18 +431,18 @@ namespace CET96_ProjetoFinal.web.Controllers
                     var assignment = await _condominiumRepository.GetCondominiumByManagerIdAsync(user.Id);
                     // If an assignment is found, get its name
                     assignedCondoName = assignment?.Name;
-                }
 
-                userViewModelList.Add(new ApplicationUserViewModel
-                {
-                    Id = user.Id,
-                    FirstName = user.FirstName,
-                    LastName = user.LastName,
-                    UserName = user.UserName,
-                    IsDeactivated = user.DeactivatedAt.HasValue,
-                    Roles = roles,
-                    AssignedCondominiumName = assignedCondoName
-                });
+                    userViewModelList.Add(new ApplicationUserViewModel
+                    {
+                        Id = user.Id,
+                        FirstName = user.FirstName,
+                        LastName = user.LastName,
+                        UserName = user.UserName,
+                        IsDeactivated = user.DeactivatedAt.HasValue,
+                        Roles = roles,
+                        AssignedCondominiumName = assignedCondoName
+                    });
+                }
             }
 
             var model = new CondominiumManagerViewModel

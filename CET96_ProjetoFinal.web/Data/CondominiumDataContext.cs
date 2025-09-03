@@ -17,7 +17,18 @@ namespace CET96_ProjetoFinal.web.Data
         }
 
         public DbSet<Condominium> Condominiums { get; set; }
-
+        public DbSet<Unit> Units { get; set; }
         // Later, I will add other DbSets here, like Fractions, Incidents, etc.
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            // Define the one-to-many relationship
+            modelBuilder.Entity<Condominium>()
+                .HasMany(c => c.Units) 
+                .WithOne(u => u.Condominium)
+                .HasForeignKey(u => u.CondominiumId);
+        }
     }
 }

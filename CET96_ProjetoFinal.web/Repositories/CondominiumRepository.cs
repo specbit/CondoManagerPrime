@@ -117,7 +117,21 @@ namespace CET96_ProjetoFinal.web.Repositories
         public async Task<Condominium?> GetCondominiumByManagerIdAsync(string managerId)
         {
             return await _context.Condominiums
-                                 .FirstOrDefaultAsync(c => c.CondominiumManagerId == managerId && c.IsActive);
+                .Include(c => c.Units) // <-- EAGER LOAD THE UNITS
+                .FirstOrDefaultAsync(c => c.CondominiumManagerId == managerId && c.IsActive);
+        }
+
+        /// <summary>
+        /// Overrides the base GetByIdAsync method to specifically include the Units collection
+        /// when retrieving a single Condominium. This is crucial for displaying the unit count.
+        /// </summary>
+        /// <param name="id">The ID of the condominium to retrieve.</param>
+        /// <returns>The Condominium entity with its Units collection loaded, or null if not found.</returns>
+        public new async Task<Condominium?> GetByIdAsync(int id)
+        {
+            return await _context.Condominiums
+                .Include(c => c.Units) // Eager load the Units
+                .FirstOrDefaultAsync(c => c.Id == id);
         }
     }
 }

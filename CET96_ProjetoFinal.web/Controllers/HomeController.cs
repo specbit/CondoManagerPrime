@@ -1,3 +1,4 @@
+using CET96_ProjetoFinal.web.Entities;
 using CET96_ProjetoFinal.web.Models;
 using CET96_ProjetoFinal.web.Repositories;
 using Microsoft.AspNetCore.Authorization;
@@ -25,24 +26,63 @@ namespace CET96_ProjetoFinal.web.Controllers
             _condominiumRepository = condominiumRepository;
         }
 
+        /// <summary>
+        /// Serves the main home page (dashboard), which displays dynamic content based on the 
+        /// logged-in user's role.
+        /// </summary>
+        /// <remarks>
+        /// If the user is not authenticated, a generic public welcome page is shown. 
+        /// For authenticated users, the content varies:
+        /// - Company Administrators will see a list of their managed companies.
+        /// - Condominium Managers will see details of their single assigned condominium.
+        /// - Other roles (like Platform Administrator) will see a generic logged-in page.
+        /// The method populates and returns a HomeViewModel tailored to the user's context.
+        /// </remarks>
+        /// <returns>
+        /// A Task<IActionResult> that renders the home page view, populated with a 
+        /// HomeViewModel containing role-specific data.
+        /// </returns>
         [AllowAnonymous]
         public async Task<IActionResult> Index()
         {
             var model = new HomeViewModel();
 
-            // This action now only handles the Company Administrator role.
-            if (User.Identity.IsAuthenticated && User.IsInRole("Company Administrator"))
+            // First, check if a user is logged in at all.
+            if (User.Identity.IsAuthenticated)
             {
+                // Fetch the user object once, as it's needed for multiple roles.
                 var user = await _userRepository.GetUserByEmailasync(User.Identity.Name);
+
                 if (user != null)
                 {
-                    model.Companies = await _companyRepository.GetCompaniesByUserIdAsync(user.Id);
+                    if (User.IsInRole("Company Administrator"))
+                    {
+                        model.Companies = await _companyRepository.GetCompaniesByUserIdAsync(user.Id);
+                    }
+                    else if (User.IsInRole("Condominium Manager"))
+                    {
+                        // --- LOGIC to load condominium data ---
+                        // Now 'user' is available and the code will compile correctly.
+                        var condominium = await _condominiumRepository.GetCondominiumByManagerIdAsync(user.Id);
+
+                        if (condominium != null)
+                        {
+                            model.IsManagerAssignedToCondominium = true;
+                            model.CondominiumName = condominium.Name;
+                            model.CondominiumAddress = condominium.Address;
+                            model.UnitsCount = condominium.Units.Count(); // <-- CALCULATE THE COUNT
+
+                            // Fetch the staff for this condominium.
+                            var staff = await _userRepository.GetStaffByCondominiumIdAsync(condominium.Id);
+                            // Convert the IEnumerable to a List safely using .ToList()
+                            model.CondominiumStaff = staff.ToList();
+                        }
+                    }
                 }
             }
 
-            // Platform Admins will also see this page, but without any specific data loaded here.
-            // We will provide a link on the view for them to navigate to their dedicated user manager.
-
+            // If the user is not authenticated, or is in a role without a custom dashboard (like Platform Admin),
+            // they will get the default view determined by the Index.cshtml logic.
             return View(model);
         }
 
