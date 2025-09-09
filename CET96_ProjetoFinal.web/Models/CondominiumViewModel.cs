@@ -34,6 +34,15 @@ namespace CET96_ProjetoFinal.web.Models
         [MaxLength(200, ErrorMessage = "The Address cannot exceed 200 characters.")]
         public string Address { get; set; }
 
+        [Required(ErrorMessage = "The City is required.")]
+        [MaxLength(50, ErrorMessage = "The City cannot exceed 50 characters.")]
+        public string City { get; set; }
+
+        [Required(ErrorMessage = "The Zip Code is required.")]
+        [MaxLength(20, ErrorMessage = "The Zip Code cannot exceed 20 characters.")]
+        [Display(Name = "Zip Code")]
+        public string ZipCode { get; set; }
+
         [Required(ErrorMessage = "The Property Registry Number is required.")]
         [MaxLength(50, ErrorMessage = "The Property Registry Number cannot exceed 50 characters.")]
         [Display(Name = "Property Registry Number")]
@@ -49,10 +58,10 @@ namespace CET96_ProjetoFinal.web.Models
         [Display(Name = "Contract Value")]
         public decimal ContractValue { get; set; }
 
-        // Property to display the calculated value
-        [Display(Name = "Fee Per Unit")]
-        public decimal FeePerUnit { get; set; }
+        //// Property to display the calculated value
+        //[Display(Name = "Fee Per Unit")]
+        //public decimal FeePerUnit { get; set; }
 
-        public IEnumerable<SelectListItem>? Managers { get; set; }
+        public IEnumerable<SelectListItem>? Managers { get; set; } // Dropdown list of possible managers
     }
 }

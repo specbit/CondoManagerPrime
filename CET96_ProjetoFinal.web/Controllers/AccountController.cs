@@ -787,6 +787,43 @@ namespace CET96_ProjetoFinal.web.Controllers
             return RedirectToAction(nameof(AllUsersByCompany), new { id = user.CompanyId });
         }
 
+        public async Task<IActionResult> InactiveManagers(int id) // 'id' is the CompanyId
+        {
+            var company = await _companyRepository.GetByIdAsync(id);
+            if (company == null)
+            {
+                return NotFound();
+            }
+
+            var inactiveUsers = await _userRepository.GetInactiveUsersByCompanyAndRoleAsync(id, "Condominium Manager");
+
+            // We use a foreach loop to build the list, allowing us to fetch roles for each user.
+            var userViewModelList = new List<ApplicationUserViewModel>();
+            foreach (var user in inactiveUsers)
+            {
+                userViewModelList.Add(new ApplicationUserViewModel
+                {
+                    Id = user.Id,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    UserName = user.UserName,
+                    IsDeactivated = user.DeactivatedAt.HasValue,
+                    Roles = await _userRepository.GetUserRolesAsync(user) // <-- This fetches the roles
+                });
+            }
+
+            var model = new CondominiumManagerViewModel
+            {
+                AllUsers = userViewModelList
+            };
+
+            ViewBag.CompanyId = id;
+            ViewBag.CompanyName = company.Name;
+            ViewBag.Title = "Inactive Condominium Managers";
+
+            return View(model);
+        }
+
         ///// <summary>
         ///// Displays the confirmation page for account deactivation.
         ///// </summary>

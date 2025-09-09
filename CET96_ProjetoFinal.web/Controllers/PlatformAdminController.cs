@@ -51,9 +51,12 @@ namespace CET96_ProjetoFinal.web.Controllers
                 });
             }
 
+            // This sorts the list created according to your custom role order ( GetRoleSortOrder() ).
+            var sortedUsers = userViewModelList.OrderBy(u => u.Roles.Select(GetRoleSortOrder).Min());
+
             var model = new HomeViewModel
             {
-                AllUsers = userViewModelList
+                AllUsers = sortedUsers
             };
 
             return View(model); // This will return the new Views/PlatformAdmin/UserManager.cshtml
@@ -139,6 +142,19 @@ namespace CET96_ProjetoFinal.web.Controllers
             TempData["StatusMessage"] = $"User {userToActivate.Email} has been activated.";
 
             return RedirectToAction("UserManager");
+        }
+
+        private int GetRoleSortOrder(string roleName)
+        {
+            switch (roleName)
+            {
+                case "Platform Administrator": return 1;
+                case "Company Administrator": return 2;
+                case "Condominium Manager": return 3;
+                case "Condominium Staff": return 4;
+                case "Unit Owner": return 5;
+                default: return 99; // Other roles go to the bottom
+            }
         }
     }
 }

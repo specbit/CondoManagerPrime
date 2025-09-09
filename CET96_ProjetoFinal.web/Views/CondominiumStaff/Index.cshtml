@@ -1,0 +1,70 @@
+﻿@model IEnumerable<CET96_ProjetoFinal.web.Entities.ApplicationUser>
+
+@{
+    ViewData["Title"] = $"Manage Staff for {ViewBag.CondominiumName}";
+}
+
+<h1>Manage Staff for <strong>@ViewBag.CondominiumName</strong></h1>
+<p>From here, you can add, edit, or deactivate staff members.</p>
+
+<p>
+    <a asp-action="Create" asp-route-condominiumId="@ViewBag.CondominiumId" class="btn btn-primary">Create New Staff Member</a>
+</p>
+
+<table class="table">
+    <!-- Table headers (Name, Email, etc.) -->
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Profession</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (Model.Any())
+        {
+            @foreach (var staff in Model)
+            {
+                <tr>
+                    <td>@staff.FirstName @staff.LastName</td>
+                    <td>@staff.Email</td>
+                    <td>@staff.Profession</td>
+                    <td>
+                        @if (staff.DeactivatedAt.HasValue)
+                        {
+                            <span class="badge bg-danger">Deactivated</span>
+                        }
+                        else
+                        {
+
+                            <span class="badge bg-success">Active</span>
+                        }
+                    </td>
+                    <td>
+                        <a asp-action="Edit" asp-route-id="@staff.Id" class="btn btn-sm btn-warning">Edit</a>
+                        @if (staff.DeactivatedAt.HasValue)
+                        {
+                            <form asp-action="Activate" asp-route-id="@staff.Id" method="post" class="d-inline">@Html.AntiForgeryToken()<button type="submit" class="btn btn-sm btn-success">Activate</button></form>
+                        }
+                        else
+                        {
+                            <form asp-action="Deactivate" asp-route-id="@staff.Id" method="post" class="d-inline">@Html.AntiForgeryToken()<button type="submit" class="btn btn-sm btn-danger">Deactivate</button></form>
+                        }
+                    </td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr>
+                <td colspan="5" class="text-center">No staff members have been added yet.</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<div>
+    <a asp-controller="Home" asp-action="Index" class="btn btn-secondary">Back to Dashboard</a>
+</div>

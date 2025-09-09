@@ -67,7 +67,7 @@ namespace CET96_ProjetoFinal.web.Repositories
         /// </summary>
         /// <param name="model">The LoginViewModel containing the user's credentials.</param>
         /// <returns>A SignInResult indicating the result of the sign-in attempt.</returns>
-        public async Task<SignInResult> LoginAsync(LoginViewModel model) => await _signInManager.PasswordSignInAsync(model.Username, model.Password, model.RememberMe, false);
+        public async Task<SignInResult> LoginAsync(LoginViewModel model) => await _signInManager.PasswordSignInAsync(model.Username, model.Password, model.RememberMe, true);
         /// <summary>
         /// Signs out the current user.
         /// </summary>
@@ -209,6 +209,23 @@ namespace CET96_ProjetoFinal.web.Repositories
             return await _context.Users
                 .Where(u => u.CompanyId == companyId && u.DeactivatedAt != null)
                 .ToListAsync();
+        }
+
+        /// <summary>
+        /// Asynchronously retrieves all inactive users of a specific role for a given company.
+        /// </summary>
+        /// <param name="companyId">The unique identifier for the company.</param>
+        /// <param name="roleName">The name of the role to filter by.</param>
+        /// <returns>A collection of inactive ApplicationUser objects matching the criteria.</returns>
+        public async Task<IEnumerable<ApplicationUser>> GetInactiveUsersByCompanyAndRoleAsync(int companyId, string roleName)
+        {
+            // 1. Get all users who are in the specified role.
+            var usersInRole = await _userManager.GetUsersInRoleAsync(roleName);
+
+            // 2. Filter that list to find users who belong to the specified company AND are inactive.
+            var inactiveUsers = usersInRole.Where(u => u.CompanyId == companyId && u.DeactivatedAt.HasValue);
+
+            return inactiveUsers.ToList();
         }
     }
 }

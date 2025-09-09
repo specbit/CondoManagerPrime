@@ -24,8 +24,26 @@ namespace CET96_ProjetoFinal.web.Controllers
             _condominiumRepository = condominiumRepository;
         }
 
+        // GET: CondominiumStaff?condominiumId=5
+        public async Task<IActionResult> Index(int condominiumId)
+        {
+            var staffList = await _userRepository.GetStaffByCondominiumIdAsync(condominiumId);
+
+            // Fetch the condominium to display its name in the view title
+            var condominium = await _condominiumRepository.GetByIdAsync(condominiumId);
+            if (condominium == null)
+            {
+                return NotFound();
+            }
+
+            ViewBag.CondominiumId = condominiumId;
+            ViewBag.CondominiumName = condominium.Name;
+
+            return View(staffList);
+        }
+
         // GET: CondominiumStaff/Create
-        public async Task<IActionResult> Create()
+        public async Task<IActionResult> Create(int condominiumId)
         {
             var loggedInUser = await _userRepository.GetUserByEmailasync(User.Identity.Name);
             var managedCondominium = await _condominiumRepository.GetCondominiumByManagerIdAsync(loggedInUser.Id);
@@ -79,7 +97,7 @@ namespace CET96_ProjetoFinal.web.Controllers
                     {
                         await _userRepository.AddUserToRoleAsync(user, "Condominium Staff");
                         TempData["StatusMessage"] = $"Condominium staff member '{user.FirstName} {user.LastName}' created successfully.";
-                        return RedirectToAction("CondominiumManagerDashboard", "Home");
+                        return RedirectToAction(nameof(Index), new { condominiumId = user.CondominiumId });
                     }
 
                     foreach (var error in result.Errors)

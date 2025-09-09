@@ -62,14 +62,16 @@ namespace CET96_ProjetoFinal.web.Controllers
                     else if (User.IsInRole("Condominium Manager"))
                     {
                         // --- LOGIC to load condominium data ---
-                        // Now 'user' is available and the code will compile correctly.
+                        // Now 'user' is available.
                         var condominium = await _condominiumRepository.GetCondominiumByManagerIdAsync(user.Id);
 
                         if (condominium != null)
                         {
                             model.IsManagerAssignedToCondominium = true;
+                            model.CondominiumId = condominium.Id;
                             model.CondominiumName = condominium.Name;
                             model.CondominiumAddress = condominium.Address;
+                            model.ZipCode = condominium.ZipCode;
                             model.UnitsCount = condominium.Units.Count(); // <-- CALCULATE THE COUNT
 
                             // Fetch the staff for this condominium.
