@@ -86,7 +86,7 @@ namespace CET96_ProjetoFinal.web
             builder.Services.AddScoped<IApplicationUserRepository, ApplicationUserRepository>();
             builder.Services.AddScoped<ICompanyRepository, CompanyRepository>();
             builder.Services.AddScoped<ICondominiumRepository, CondominiumRepository>();
-
+            builder.Services.AddScoped<IUnitRepository, UnitRepository>();
 
             // Register SeedDb service to seed the database
             builder.Services.AddTransient<SeedDb>(); // Register the Seeder

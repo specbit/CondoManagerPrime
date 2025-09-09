@@ -30,7 +30,14 @@
                         <td>
                             @foreach (var role in user.Roles)
                             {
-                                <span class="badge bg-info me-1">@role</span>
+                                var badgeClass = "bg-secondary"; // A default color
+                                if (role == "Platform Administrator") { badgeClass = "bg-danger text-white"; }
+                                else if (role == "Company Administrator") { badgeClass = "bg-primary text-white"; }
+                                else if (role == "Condominium Manager") { badgeClass = "bg-success text-white"; }
+                                else if (role == "Condominium Staff") { badgeClass = "bg-info text-dark"; }
+                                else if (role == "Unit Owner") { badgeClass = "bg-warning text-dark"; } // Added this line
+
+                                <span class="badge @badgeClass me-1">@role</span>
                             }
                         </td>
                         <td>

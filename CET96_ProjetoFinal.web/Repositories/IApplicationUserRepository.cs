@@ -162,5 +162,13 @@ namespace CET96_ProjetoFinal.web.Repositories
         /// The task result contains an IEnumerable of ApplicationUser objects who are inactive.
         /// </returns>
         Task<IEnumerable<ApplicationUser>> GetInactiveUsersByCompanyIdAsync(int companyId);
+
+        /// <summary>
+        /// Asynchronously retrieves all inactive users of a specific role for a given company.
+        /// </summary>
+        /// <param name="companyId">The unique identifier for the company.</param>
+        /// <param name="roleName">The name of the role to filter by.</param>
+        /// <returns>A collection of inactive ApplicationUser objects matching the criteria.</returns>
+        Task<IEnumerable<ApplicationUser>> GetInactiveUsersByCompanyAndRoleAsync(int companyId, string roleName);
     }
 }

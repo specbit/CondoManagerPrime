@@ -34,7 +34,15 @@
 
             <div class="form-group mt-4">
                 <button type="submit" class="btn btn-primary">Save Changes</button>
-                <a asp-controller="Account" asp-action="AllUsersByCompany" asp-route-id="@Model.CompanyId" class="btn btn-secondary">Cancel</a>
+                @if (User.IsInRole("Platform Administrator"))
+                {
+                    <a asp-controller="PlatformAdmin" asp-action="UserManager" class="btn btn-secondary">Cancel</a>
+                }
+                else
+                {
+                    @* This is the old link, for other roles like Company Administrator *@
+                    <a asp-controller="Account" asp-action="AllUsersByCompany" asp-route-id="@Model.CompanyId" class="btn btn-secondary">Cancel</a>
+                }
             </div>
         </form>
     </div>

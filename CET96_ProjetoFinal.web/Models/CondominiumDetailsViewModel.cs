@@ -16,6 +16,8 @@ namespace CET96_ProjetoFinal.web.Models
         public string Name { get; set; }
 
         public string Address { get; set; }
+        public string ZipCode { get; set; }
+        public string City { get; set; }
 
         [Display(Name = "Property Registry Number")]
         public string PropertyRegistryNumber { get; set; }
@@ -35,5 +37,6 @@ namespace CET96_ProjetoFinal.web.Models
         [Display(Name = "Date Created")]
         [DisplayFormat(DataFormatString = "{0:yyyy-MM-dd HH:mm}")] // Formats the date
         public DateTime CreatedAt { get; set; }
+        public bool IsActive { get; set; }
     }
 }

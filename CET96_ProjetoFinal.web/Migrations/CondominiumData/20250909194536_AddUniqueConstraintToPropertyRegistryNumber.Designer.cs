@@ -4,6 +4,7 @@ using CET96_ProjetoFinal.web.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CET96_ProjetoFinal.web.Migrations.CondominiumData
 {
     [DbContext(typeof(CondominiumDataContext))]
-    partial class CondominiumDataContextModelSnapshot : ModelSnapshot
+    [Migration("20250909194536_AddUniqueConstraintToPropertyRegistryNumber")]
+    partial class AddUniqueConstraintToPropertyRegistryNumber
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -34,11 +37,6 @@ namespace CET96_ProjetoFinal.web.Migrations.CondominiumData
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("City")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
 
                     b.Property<int>("CompanyId")
                         .HasColumnType("int");

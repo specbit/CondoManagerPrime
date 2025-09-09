@@ -30,6 +30,15 @@ namespace CET96_ProjetoFinal.web.Entities
         [MaxLength(200)]
         public string Address { get; set; }
 
+        [Required(ErrorMessage = "The Zip Code is required.")]
+        [MaxLength(20)]
+        [Display(Name = "Zip Code")]
+
+        public string ZipCode { get; set; }
+        [Required(ErrorMessage = "The City is required.")]
+        [MaxLength(100)]
+        public string City { get; set; }
+
         [Required(ErrorMessage = "The Property Registry Number is required.")]
         [MaxLength(50)]
         [Display(Name = "Property Registry Number")]

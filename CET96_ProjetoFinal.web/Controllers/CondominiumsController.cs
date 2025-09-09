@@ -49,11 +49,14 @@ namespace CET96_ProjetoFinal.web.Controllers
                 CompanyId = condominium.CompanyId,
                 Name = condominium.Name,
                 Address = condominium.Address,
+                City = condominium.City,
+                ZipCode = condominium.ZipCode,
                 PropertyRegistryNumber = condominium.PropertyRegistryNumber,
                 UnitsCount = condominium.Units.Count(),
                 ContractValue = condominium.ContractValue,
                 FeePerUnit = condominium.FeePerUnit,
-                CreatedAt = condominium.CreatedAt.ToLocalTime() // Convert from UTC for display
+                CreatedAt = condominium.CreatedAt.ToLocalTime(), // Convert from UTC for display
+                IsActive = condominium.IsActive // Include the active status for smarter UI decisions
             };
 
             // Pass the flag to the view
@@ -104,6 +107,8 @@ namespace CET96_ProjetoFinal.web.Controllers
                     CompanyId = model.CompanyId,
                     Name = model.Name,
                     Address = model.Address,
+                    City = model.City,
+                    ZipCode = model.ZipCode,
                     PropertyRegistryNumber = model.PropertyRegistryNumber,
                     ContractValue = model.ContractValue,
                     // Secure server-side calculation
@@ -146,9 +151,11 @@ namespace CET96_ProjetoFinal.web.Controllers
                 CompanyId = condominium.CompanyId,
                 Name = condominium.Name,
                 Address = condominium.Address,
+                City = condominium.City,
+                ZipCode = condominium.ZipCode,
                 PropertyRegistryNumber = condominium.PropertyRegistryNumber,
                 ContractValue = condominium.ContractValue,
-                FeePerUnit = condominium.FeePerUnit
+                //FeePerUnit = condominium.FeePerUnit
             };
 
             return View(model);
@@ -191,6 +198,8 @@ namespace CET96_ProjetoFinal.web.Controllers
                 // 2. Manually update the properties. This prevents over-posting.
                 condominiumToUpdate.Name = model.Name;
                 condominiumToUpdate.Address = model.Address;
+                condominiumToUpdate.City = model.City;
+                condominiumToUpdate.ZipCode = model.ZipCode;
                 condominiumToUpdate.PropertyRegistryNumber = model.PropertyRegistryNumber;
                 //condominiumToUpdate.NumberOfUnits = model.NumberOfUnits;
                 condominiumToUpdate.ContractValue = model.ContractValue;

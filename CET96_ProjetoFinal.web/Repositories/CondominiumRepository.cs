@@ -31,10 +31,11 @@ namespace CET96_ProjetoFinal.web.Repositories
         public async Task<IEnumerable<Condominium>> GetActiveCondominiumsByCompanyIdAsync(int companyId)
         {
             return await _context.Condominiums
-                                 .Where(c => c.CompanyId == companyId && c.IsActive)
-                                 .OrderBy(c => c.Name)
-                                 .AsNoTracking() // Read-only operation
-                                 .ToListAsync();
+                                .Include(c => c.Units) // Include units
+                                .Where(c => c.CompanyId == companyId && c.IsActive)
+                                .OrderBy(c => c.Name)
+                                .AsNoTracking() // Read-only operation
+                                .ToListAsync();
         }
 
         /// <summary>

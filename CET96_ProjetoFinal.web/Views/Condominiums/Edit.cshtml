@@ -24,6 +24,16 @@
                 <span asp-validation-for="Address" class="text-danger"></span>
             </div>
             <div class="form-group mb-3">
+                <label asp-for="City" class="control-label"></label>
+                <input asp-for="City" class="form-control" />
+                <span asp-validation-for="City" class="text-danger"></span>
+            </div>
+            <div class="form-group mb-3">
+                <label asp-for="ZipCode" class="control-label"></label>
+                <input asp-for="ZipCode" class="form-control" />
+                <span asp-validation-for="ZipCode" class="text-danger"></span>
+            </div>
+            <div class="form-group mb-3">
                 <label asp-for="PropertyRegistryNumber" class="control-label"></label>
                 <input asp-for="PropertyRegistryNumber" class="form-control" />
                 <span asp-validation-for="PropertyRegistryNumber" class="text-danger"></span>
@@ -37,11 +47,6 @@
                 <label asp-for="ContractValue" class="control-label"></label>
                 <input asp-for="ContractValue" id="contractValue" class="form-control" />
                 <span asp-validation-for="ContractValue" class="text-danger"></span>
-            </div>
-            <div class="form-group mb-3">
-                <label asp-for="FeePerUnit" class="control-label"></label>
-                <input asp-for="FeePerUnit" id="feePerUnit" class="form-control" readonly />
-                <span asp-validation-for="FeePerUnit" class="text-danger"></span>
             </div>
             <div class="form-group">
                 <input type="submit" value="Save Changes" class="btn btn-primary" />

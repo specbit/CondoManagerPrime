@@ -78,11 +78,15 @@
                     <span style="font-size: 1.2rem; vertical-align: baseline;">@Model.CondominiumName</span>
                 </p>
                 <p><strong>Address:</strong> @Model.CondominiumAddress</p>
+                <p><strong>Zip Code:</strong> @Model.ZipCode</p>
+                <p><strong>City:</strong> @Model.City</p>
+                <p><strong>Zip Code:</strong> @Model.ZipCode</p>
                 <p><strong>Number of Units:</strong> @Model.UnitsCount</p>
 
-                <a asp-controller="CondominiumStaff" asp-action="Index" class="btn btn-primary">Manage Staff</a>
-
-                <br />
+                <div class="mt-3">
+                    <a asp-controller="Units" asp-action="Index" asp-route-condominiumId="@Model.CondominiumId" class="btn btn-success">Manage Units</a>
+                    <a asp-controller="CondominiumStaff" asp-action="Index" asp-route-condominiumId="@Model.CondominiumId" class="btn btn-primary">Manage Staff</a>
+                </div>
 
                 <br />
 
