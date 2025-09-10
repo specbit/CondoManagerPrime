@@ -84,7 +84,7 @@ namespace CET96_ProjetoFinal.web.Controllers
         /// </summary>
         /// <returns>The registration view.</returns>
         [AllowAnonymous]
-        public IActionResult Register()
+        public IActionResult RegisterCompanyAndAdmin()
         {
             return View();
         }
@@ -99,10 +99,11 @@ namespace CET96_ProjetoFinal.web.Controllers
         /// <returns>
         /// The RegistrationConfirmation view on success.
         /// Returns the Register view with validation errors if the model is invalid or the email is already in use.
-        /// </returns>        [HttpPost]
+        /// </returns>
+        [HttpPost]
         [AllowAnonymous]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Register(RegisterCompanyAdminViewModel model)
+        public async Task<IActionResult> RegisterCompanyAndAdmin(RegisterCompanyAdminViewModel model)
         {
             if (ModelState.IsValid)
             {
@@ -154,7 +155,7 @@ namespace CET96_ProjetoFinal.web.Controllers
                 }
                 else
                 {
-                    ModelState.AddModelError(string.Empty, "This email is already in use.");
+                    ModelState.AddModelError("Username", "An account with this email already exists. Please log in instead.");
                 }
             }
             return View(model);
@@ -207,20 +208,20 @@ namespace CET96_ProjetoFinal.web.Controllers
                     {
                         await _userRepository.AddUserToRoleAsync(user, "Condominium Manager"); // Add the user to the "Condominium Manager" role
 
-                        //// --- EMAIL CONFIRMATION LOGIC ---
-                        //var token = await _userRepository.GenerateEmailConfirmationTokenAsync(user);
-                        //var confirmationLink = Url.Action("ConfirmEmail", "Account",
-                        //    new { userId = user.Id, token }, Request.Scheme);
+                        // --- EMAIL CONFIRMATION LOGIC ---
+                        var token = await _userRepository.GenerateEmailConfirmationTokenAsync(user);
+                        var confirmationLink = Url.Action("ConfirmEmail", "Account",
+                            new { userId = user.Id, token }, Request.Scheme);
 
-                        //await _emailSender.SendEmailAsync(model.Username,
-                        //    "Confirm your email for CondoManagerPrime",
-                        //    $"Please confirm your account by clicking this link: <a href='{confirmationLink}'>link</a>");
-                        //// --- END EMAIL CONFIRMATION LOGIC ---
+                        await _emailSender.SendEmailAsync(model.Username,
+                            "Confirm your email for CondoManagerPrime",
+                            $"Please confirm your account by clicking this link: <a href='{confirmationLink}'>link</a>");
+                        // --- END EMAIL CONFIRMATION LOGIC ---
 
-                        //var modelForView = new RegistrationConfirmationViewModel
-                        //{
-                        //    ConfirmationLink = confirmationLink
-                        //};
+                        var modelForView = new RegistrationConfirmationViewModel
+                        {
+                            ConfirmationLink = confirmationLink
+                        };
 
                         // Show a page telling the user to check their email. 
                         return RedirectToAction("AllUsersByCompany", "Account", new { id = model.CompanyId });
