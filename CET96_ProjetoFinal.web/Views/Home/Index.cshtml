@@ -5,11 +5,6 @@
     ViewData["Title"] = "Home Page";
 }
 
-@* @if (TempData["SuccessMessage"] != null)
-{
-    <div class="alert alert-success">@TempData["SuccessMessage"]</div>
-}
- *@
 @if (User.Identity.IsAuthenticated)
 {
     @* === PLATFORM ADMINISTRATOR DASHBOARD LINK === *@
@@ -29,40 +24,48 @@
     @* === COMPANY ADMINISTRATOR DASHBOARD === *@
     else if (User.IsInRole("Company Administrator"))
     {
-        @if (TempData["StatusMessage"] != null)
-        {
-            <div class="alert alert-success">@TempData["StatusMessage"]</div>
-        }
-
         <div class="container">
             <h1 class="display-4">Administrator Dashboard</h1>
             <p class="lead">Manage your companies from the cards below.</p>
             <p>
                 <a asp-controller="Companies" asp-action="Create" class="btn btn-primary">Create New Company</a>
                 <a asp-controller="Companies" asp-action="InactiveCompanies" class="btn btn-secondary">View Inactive Companies</a>
-                @* <a asp-controller="Account" asp-action="AllUsersByCompany" class="btn btn-outline-secondary">Manage Condominium Manager</a> *@
             </p>
         </div>
         <hr />
-        <div class="row">
-            @foreach (var company in Model.Companies ?? new List<CET96_ProjetoFinal.web.Entities.Company>())
-            {
-                <div class="col-md-4 mb-4">
-                    <a href="@Url.Action("Index", "Condominiums", new { id = company.Id })" class="card-link" style="text-decoration:none; color:inherit;">
-                        <div class="card">
-                            <div class="card-body">
-                                <h5 class="card-title">@company.Name</h5>
-                                <p class="card-text">@company.Address</p>
-                                <a asp-controller="Companies" asp-action="Details" asp-route-id="@company.Id" class="btn btn-info">Details</a>
-                                <a asp-controller="Companies" asp-action="Edit" asp-route-id="@company.Id" class="btn btn-warning">Edit</a>
-                                <a asp-controller="Companies" asp-action="Delete" asp-route-id="@company.Id" class="btn btn-danger">Deactivate</a>
+
+        @if (Model.Companies != null && Model.Companies.Any())
+        {
+            <div class="row">
+                @foreach (var company in Model.Companies)
+                {
+                    <div class="col-md-4 mb-4">
+                        <a href="@Url.Action("Index", "Condominiums", new { id = company.Id })" class="card-link" style="text-decoration:none; color:inherit;">
+                            <div class="card position-relative">
+                                <div class="card-body">
+
+                                    <span class="position-absolute top-0 end-0 m-2 badge bg-success">Active</span>
+
+                                    <h5 class="card-title">@company.Name</h5>
+                                    <p class="card-text">@company.Address</p>
+                                    <a asp-controller="Companies" asp-action="Details" asp-route-id="@company.Id" class="btn btn-info">Details</a>
+                                    <a asp-controller="Companies" asp-action="Edit" asp-route-id="@company.Id" class="btn btn-warning">Edit</a>
+                                    <a asp-controller="Companies" asp-action="Delete" asp-route-id="@company.Id" class="btn btn-danger">Deactivate</a>
+                                </div>
                             </div>
-                        </div>
-                    </a>
-                </div>
-            }
-        </div>
+                        </a>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-info">
+                You have no active companies. Click "Create New Company" to get started.
+            </div>
+        }
     }
+
     @* === CONDOMINIUM MANAGER DASHBOARD === *@
     else if (User.IsInRole("Condominium Manager"))
     {
@@ -151,7 +154,7 @@ else
     <div class="text-center">
         <h1 class="display-4">Welcome to CondoManagerPrime</h1>
         <p>Your premium solution for condominium management.</p>
-        <p>Register your companies and manage your condominiums.</p>
+        <p>Register your companies and manage your condominiums or Login to your account.</p>
     </div>
 }
 
