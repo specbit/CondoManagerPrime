@@ -1,6 +1,7 @@
 ﻿using CET96_ProjetoFinal.web.Entities;
 using CET96_ProjetoFinal.web.Models;
 using CET96_ProjetoFinal.web.Repositories;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -309,6 +310,19 @@ namespace CET96_ProjetoFinal.web.Controllers
             }
 
             return RedirectToAction(nameof(Index), new { id = condominium?.CompanyId });
+        }
+
+        [Authorize(Roles = "Company Administrator")]
+        public async Task<IActionResult> CondominiumDashboard(int id)
+        {
+            // Fetch the condominium and its units
+            var condominium = await _repository.GetByIdAsync(id);
+            if (condominium == null)
+            {
+                return NotFound();
+            }
+
+            return View(condominium);
         }
     }
 }
