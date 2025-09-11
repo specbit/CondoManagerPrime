@@ -23,28 +23,30 @@
     @foreach (var condominium in Model)
     {
         <div class="col-md-4 mb-4">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title text-center">@condominium.Name</h5>
-                    <p class="card-text">
-                        <strong>Condominium Name:</strong> @condominium.Name<br />
-                        <strong>Address:</strong> @condominium.Address<br />
-                        <strong>Units:</strong> @condominium.Units.Count()<br />
-                        <strong>Status:</strong>
-                        @if (condominium.IsActive)
-                        {
-                            <span class="badge bg-success">Active</span>
-                        }
-                        else
-                        {
-                            <span class="badge bg-danger">Inactive</span>
-                        }
-                    </p>
-                    <a asp-action="Details" asp-route-id="@condominium.Id" class="btn btn-sm btn-info">Details</a>
-                    <a asp-action="Edit" asp-route-id="@condominium.Id" class="btn btn-sm btn-warning">Edit</a>
-                    <a asp-action="Delete" asp-route-id="@condominium.Id" class="btn btn-sm btn-danger">Deactivate</a>
+            @* This link wraps the entire card, making it clickable *@
+            <a href="@Url.Action("CondominiumDashboard", "Condominiums", new { id = condominium.Id })" class="card-link" style="text-decoration:none; color:inherit;">
+                <div class="card">
+                    <div class="card-body">
+                        <p class="card-text">
+                            <strong>Condominium:</strong> @condominium.Name<br />
+                            <strong>Address:</strong> @condominium.Address<br />
+                            <strong>Units:</strong> @condominium.Units.Count()<br />
+                            <strong>Status:</strong>
+                            @if (condominium.IsActive)
+                            {
+                                <span class="badge bg-success">Active</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-danger">Inactive</span>
+                            }
+                        </p>
+                        <a asp-action="Details" asp-route-id="@condominium.Id" class="btn btn-sm btn-info">Details</a>
+                        <a asp-action="Edit" asp-route-id="@condominium.Id" class="btn btn-sm btn-warning">Edit</a>
+                        <a asp-action="Delete" asp-route-id="@condominium.Id" class="btn btn-sm btn-danger">Deactivate</a>
+                    </div>
                 </div>
-            </div>
+            </a>
         </div>
     }
 </div>

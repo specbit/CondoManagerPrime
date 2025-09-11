@@ -5,6 +5,7 @@ using CET96_ProjetoFinal.web.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using System.Diagnostics;
 
 namespace CET96_ProjetoFinal.web.Controllers
 {
@@ -317,18 +318,74 @@ namespace CET96_ProjetoFinal.web.Controllers
             return RedirectToAction("ChangePassword");
         }
 
+        ///// <summary>
+        ///// Handles the link clicked by a user from their email to confirm their account.
+        ///// It validates the user and token, confirms the email, signs the user in, and
+        ///// redirects them to the company creation flow.
+        ///// </summary>
+        ///// <param name="userId">The ID of the user to confirm.</param>
+        ///// <param name="token">The confirmation token.</param>
+        ///// <returns>A redirect to the company creation page on success, or an er
+        //[HttpGet]
+        //[AllowAnonymous]
+        //public async Task<IActionResult> ConfirmEmail(string userId, string token)
+        //{
+        //    if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(token))
+        //    {
+        //        return RedirectToAction("Index", "Home");
+        //    }
+
+        //    var user = await _userRepository.GetUserByIdAsync(userId);
+        //    if (user == null)
+        //    {
+        //        return View("Error");
+        //    }
+
+        //    var result = await _userRepository.ConfirmEmailAsync(user, token);
+
+        //    if (result.Succeeded)
+        //    {
+        //        // 1. Sign the user in to create a session.
+        //        await _signInManager.SignInAsync(user, isPersistent: false);
+
+        //        // 2. CRUCIAL STEP: Refresh the sign-in session. This forces the user's
+        //        // roles and claims to be reloaded into the cookie immediately.
+        //        await _signInManager.RefreshSignInAsync(user);
+
+        //        // 3. Now that the session is guaranteed to be valid and have the correct roles,
+        //        // check if they have a company.
+        //        var companyExists = await _companyRepository.DoesCompanyExistForUserAsync(user.Id);
+
+        //        if (!companyExists)
+        //        {
+        //            // The redirect will now succeed because the user is properly authenticated WITH their roles.
+        //            //return RedirectToAction("Create", "Companies");
+        //            return RedirectToAction("Create", "Companies", new { companyName = user.CompanyName });
+        //        }
+
+        //        // If for some reason they already have a company, send them home.
+        //        return RedirectToAction("Index", "Home");
+        //    }
+
+        //    // If confirmation fails, show an error.
+        //    return View("Error");
+        //}
+
         /// <summary>
-        /// Handles the link clicked by a user from their email to confirm their account.
-        /// It validates the user and token, confirms the email, signs the user in, and
-        /// redirects them to the company creation flow.
+        /// Handles the email confirmation link clicked by a user, regardless of their role.
         /// </summary>
+        /// <remarks>
+        /// This action performs common validation and the core email confirmation. It then dispatches 
+        /// to role-specific private helper methods to handle the unique follow-up logic for each role.
+        /// </remarks>
         /// <param name="userId">The ID of the user to confirm.</param>
-        /// <param name="token">The confirmation token.</param>
-        /// <returns>A redirect to the company creation page on success, or an er
+        /// <param name="token">The confirmation token from the email link.</param>
+        /// <returns>The appropriate action result based on the user's role and confirmation success.</returns>
         [HttpGet]
         [AllowAnonymous]
         public async Task<IActionResult> ConfirmEmail(string userId, string token)
         {
+            // --- Step 1: Common Logic (Handles validation for ALL roles) ---
             if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(token))
             {
                 return RedirectToAction("Index", "Home");
@@ -337,37 +394,76 @@ namespace CET96_ProjetoFinal.web.Controllers
             var user = await _userRepository.GetUserByIdAsync(userId);
             if (user == null)
             {
-                return View("Error");
+                // Pass a valid ErrorViewModel to the Error view
+                return View("Error", new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
             }
 
             var result = await _userRepository.ConfirmEmailAsync(user, token);
-
-            if (result.Succeeded)
+            if (!result.Succeeded)
             {
-                // 1. Sign the user in to create a session.
-                await _signInManager.SignInAsync(user, isPersistent: false);
-
-                // 2. CRUCIAL STEP: Refresh the sign-in session. This forces the user's
-                // roles and claims to be reloaded into the cookie immediately.
-                await _signInManager.RefreshSignInAsync(user);
-
-                // 3. Now that the session is guaranteed to be valid and have the correct roles,
-                // check if they have a company.
-                var companyExists = await _companyRepository.DoesCompanyExistForUserAsync(user.Id);
-
-                if (!companyExists)
-                {
-                    // The redirect will now succeed because the user is properly authenticated WITH their roles.
-                    //return RedirectToAction("Create", "Companies");
-                    return RedirectToAction("Create", "Companies", new { companyName = user.CompanyName });
-                }
-
-                // If for some reason they already have a company, send them home.
-                return RedirectToAction("Index", "Home");
+                // Also pass a valid ErrorViewModel here
+                return View("Error", new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
             }
 
-            // If confirmation fails, show an error.
-            return View("Error");
+            // --- Step 2: Dispatch to the correct helper based on the user's role ---
+            if (await _userManager.IsInRoleAsync(user, "Company Administrator"))
+            {
+                return await HandleCompanyAdminConfirmation(user);
+            }
+            else if (await _userManager.IsInRoleAsync(user, "Condominium Manager") || await _userManager.IsInRoleAsync(user, "Condominium Staff"))
+            {
+                return await HandleStaffOrManagerConfirmation(user);
+            }
+
+            // Default fallback for other potential roles (like Unit Owner in the future)
+            return View("ConfirmationSuccess");
+        }
+
+        // --- Private Helper Methods for ConfirmEmail => Dispatchers ---
+
+        /// <summary>
+        /// Handles the specific follow-up actions for a newly confirmed Company Administrator.
+        /// </summary>
+        /// <param name="user">The confirmed Company Administrator user.</param>
+        /// <returns>A redirect to the company creation page or the main dashboard.</returns>
+        private async Task<IActionResult> HandleCompanyAdminConfirmation(ApplicationUser user)
+        {
+            await _signInManager.SignInAsync(user, isPersistent: false);
+            await _signInManager.RefreshSignInAsync(user);
+
+            var companyExists = await _companyRepository.DoesCompanyExistForUserAsync(user.Id);
+            if (!companyExists)
+            {
+                return RedirectToAction("Create", "Companies", new { companyName = user.CompanyName });
+            }
+
+            return RedirectToAction("Index", "Home");
+        }
+
+        /// <summary>
+        /// Handles the specific follow-up actions for a newly confirmed Manager or Staff member.
+        /// </summary>
+        /// <param name="user">The confirmed Condominium Manager or Staff user.</param>
+        /// <returns>A redirect to the user's main dashboard.</returns>
+        private async Task<IActionResult> HandleStaffOrManagerConfirmation(ApplicationUser user)
+        {
+            // Send a notification email to the Company Admin who created this user.
+            if (!string.IsNullOrEmpty(user.UserCreatedId))
+            {
+                var creatingAdmin = await _userRepository.GetUserByIdAsync(user.UserCreatedId);
+                if (creatingAdmin != null)
+                {
+                    await _emailSender.SendEmailAsync(
+                        creatingAdmin.Email,
+                        $"Account Confirmed: {user.FirstName} {user.LastName}",
+                        $"This is a notification that the user {user.Email} has successfully confirmed their account and can now log in."
+                    );
+                }
+            }
+
+            // Automatically sign in the new user and send them to their dashboard.
+            await _signInManager.SignInAsync(user, isPersistent: false);
+            return RedirectToAction("Index", "Home");
         }
 
         /// <summary>
@@ -564,6 +660,17 @@ namespace CET96_ProjetoFinal.web.Controllers
         }
 
         // This action handles the form submission for linking a manager.
+        /// <summary>
+        /// Handles the form submission for linking a Condominium Manager to a specific Condominium.
+        /// </summary>
+        /// <remarks>
+        /// This action validates the input, updates the condominium with the new manager ID,
+        /// ensures the manager's CompanyId is consistent, sends notifications to the manager, 
+        /// the administrator, and the company's official email, and redirects the administrator 
+        /// back to the user list.
+        /// </remarks>
+        /// <param name="model">The view model containing the user ID and the selected condominium ID.</param>
+        /// <returns>A redirect to the user list for the company.</returns>
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Company Administrator")]
@@ -571,11 +678,8 @@ namespace CET96_ProjetoFinal.web.Controllers
         {
             // 1. Validate the input.
             var condominiumManager = await _userRepository.GetUserByIdAsync(model.UserId);
-            int companyId = condominiumManager?.CompanyId ?? 0;
-
             if (condominiumManager == null)
             {
-                TempData["StatusMessage"] = "Error: Condominium Manager not found.";
                 return NotFound();
             }
 
@@ -583,27 +687,20 @@ namespace CET96_ProjetoFinal.web.Controllers
             if (condominiumManager.DeactivatedAt.HasValue)
             {
                 TempData["StatusMessage"] = $"Error: Cannot assign a condominium to a deactivated user. Please activate the account first.";
-
-                // Get the companyId to return to the correct view
-                return RedirectToAction(nameof(AllUsersByCompany), new { id = companyId });
+                return RedirectToAction(nameof(AllUsersByCompany), new { id = condominiumManager.CompanyId });
             }
 
             if (model.SelectedCondominiumId == null || model.SelectedCondominiumId == 0)
             {
                 // If no condominium was selected, add an error and return to the form.
                 ModelState.AddModelError(string.Empty, "You must select a condominium.");
-
                 // Reload the necessary data before returning to the view.
-                // Repopulate the model with the data needed to re-render the view.
                 var loggedInUser = await _userRepository.GetUserByEmailasync(User.Identity.Name);
                 model.CondominiumsList = await _condominiumRepository.GetUnassignedCondominiumsByCompanyAdminAsync(loggedInUser.Id);
                 model.FullName = $"{condominiumManager.FirstName} {condominiumManager.LastName}";
-
                 model.CompanyId = condominiumManager.CompanyId ?? 0;
-
                 var existing = await _condominiumRepository.GetCondominiumByManagerIdAsync(model.UserId);
                 model.CurrentlyAssignedCondominiumName = existing?.Name;
-
                 return View(model);
             }
 
@@ -619,7 +716,6 @@ namespace CET96_ProjetoFinal.web.Controllers
 
             // 4. Fetch the condominium to be updated from the database.
             var condominiumToUpdate = await _condominiumRepository.GetByIdAsync(model.SelectedCondominiumId.Value);
-
             if (condominiumToUpdate == null)
             {
                 return NotFound();
@@ -628,19 +724,46 @@ namespace CET96_ProjetoFinal.web.Controllers
             // 5. Assign the manager's ID to the condominium.
             condominiumToUpdate.CondominiumManagerId = model.UserId;
 
-            // 6. Save the changes.
+            // 6. Save the condominium changes.
             _condominiumRepository.Update(condominiumToUpdate);
             await _condominiumRepository.SaveAllAsync();
 
+            // 7. Ensure the user's CompanyId matches.
             condominiumManager.CompanyId = condominiumToUpdate.CompanyId;
-
             await _userRepository.UpdateUserAsync(condominiumManager);
 
-            // IMPORTANT: Get the companyId to pass it back to the AllUsersByCompany action
+            // 8. Send email notification to the Condo Manager
+            await _emailSender.SendEmailAsync(
+                condominiumManager.Email,
+                "New Condominium Assignment",
+                $"Hello {condominiumManager.FirstName},<br><br>You have been assigned to manage the condominium: <strong>{condominiumToUpdate.Name}</strong>."
+            );
+
+            // 9. Send a confirmation record to the logged-in Company Admin
+            var loggedInAdmin = await _userRepository.GetUserByEmailasync(User.Identity.Name);
+            if (loggedInAdmin != null)
+            {
+                await _emailSender.SendEmailAsync(
+                    loggedInAdmin.Email,
+                    "Record of Manager Assignment",
+                    $"This is a confirmation that you have successfully assigned the manager <strong>{condominiumManager.FirstName} {condominiumManager.LastName}</strong> to the condominium <strong>{condominiumToUpdate.Name}</strong>."
+                );
+            }
+
+            // 10. Send a notification to the Company's official email address
+            var company = await _companyRepository.GetByIdAsync(condominiumToUpdate.CompanyId);
+            if (company != null && !string.IsNullOrEmpty(company.Email))
+            {
+                await _emailSender.SendEmailAsync(
+                    company.Email,
+                    $"Manager Assigned for {condominiumToUpdate.Name}",
+                    $"This is an official notification that the user {condominiumManager.FirstName} {condominiumManager.LastName} has been assigned as the manager for the condominium '{condominiumToUpdate.Name}'."
+                );
+            }
 
             TempData["StatusMessage"] = $"Manager has been successfully linked to condominium '{condominiumToUpdate.Name}'.";
 
-            // 7. Redirect back to the list of managers.
+            // 11. Redirect back to the list of managers.
             return RedirectToAction("AllUsersByCompany", new { id = condominiumToUpdate.CompanyId });
         }
 

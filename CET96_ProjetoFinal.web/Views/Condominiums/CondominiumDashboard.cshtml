@@ -1,0 +1,24 @@
+﻿@model CET96_ProjetoFinal.web.Entities.Condominium
+
+@{
+    ViewData["Title"] = Model.Name;
+}
+
+<h1>@Model.Name</h1>
+<p class="lead">Dashboard for managing this condominium.</p>
+<hr />
+
+<div class="card">
+    <div class="card-body">
+        <p><strong>Address:</strong> @Model.Address</p>
+        <p><strong>City:</strong> @Model.City</p>
+        <p><strong>Zip Code:</strong> @Model.ZipCode</p>
+        <p><strong>Number of Units:</strong> @Model.Units.Count()</p>
+    </div>
+</div>
+
+<div class="mt-3">
+    <a asp-controller="Units" asp-action="Index" asp-route-condominiumId="@Model.Id" class="btn btn-success">Manage Units</a>
+    <a asp-controller="Account" asp-action="AllUsersByCompany" asp-route-id="@Model.CompanyId" class="btn btn-dark">Manage Staff & Managers</a>
+    <a asp-action="Index" asp-route-id="@Model.CompanyId" class="btn btn-secondary">Back to Condominium List</a>
+</div>

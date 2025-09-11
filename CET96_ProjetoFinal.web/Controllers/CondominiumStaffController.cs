@@ -7,6 +7,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CET96_ProjetoFinal.web.Controllers
 {
+    /// <summary>
+    /// Manages CRUD operations for Condominium Staff users. Access is restricted to Condominium Managers.
+    /// </summary>
     [Authorize(Roles = "Condominium Manager")]
     public class CondominiumStaffController : Controller
     {
@@ -25,12 +28,18 @@ namespace CET96_ProjetoFinal.web.Controllers
         }
 
         // GET: CondominiumStaff?condominiumId=5
+        /// <summary>
+        /// Displays a list of all staff members for a specific condominium.
+        /// </summary>
+        /// <param name="condominiumId">The ID of the condominium.</param>
+        /// <returns>A view with the list of staff members.</returns>
         public async Task<IActionResult> Index(int condominiumId)
         {
             var staffList = await _userRepository.GetStaffByCondominiumIdAsync(condominiumId);
 
             // Fetch the condominium to display its name in the view title
             var condominium = await _condominiumRepository.GetByIdAsync(condominiumId);
+
             if (condominium == null)
             {
                 return NotFound();
@@ -43,6 +52,10 @@ namespace CET96_ProjetoFinal.web.Controllers
         }
 
         // GET: CondominiumStaff/Create
+        /// <summary>
+        /// Displays the form to create a new staff member.
+        /// </summary>
+        /// <returns>The create staff member view.</returns>
         public async Task<IActionResult> Create(int condominiumId)
         {
             var loggedInUser = await _userRepository.GetUserByEmailasync(User.Identity.Name);
@@ -63,6 +76,11 @@ namespace CET96_ProjetoFinal.web.Controllers
         }
 
         // POST: CondominiumStaff/Create
+        /// <summary>
+        /// Handles the submission of the new staff member form.
+        /// </summary>
+        /// <param name="model">The view model with the new staff member's details.</param>
+        /// <returns>A redirect to the staff list on success.</returns>
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(RegisterCondominiumStaffViewModel model)
@@ -110,6 +128,11 @@ namespace CET96_ProjetoFinal.web.Controllers
         }
 
         // GET: CondominiumStaff/Edit/5
+        /// <summary>
+        /// Displays the form to edit an existing staff member's details.
+        /// </summary>
+        /// <param name="id">The ID of the staff member to edit.</param>
+        /// <returns>The edit staff member view.</returns>
         public async Task<IActionResult> Edit(string id)
         {
             var loggedInUser = await _userRepository.GetUserByEmailasync(User.Identity.Name);
@@ -147,6 +170,11 @@ namespace CET96_ProjetoFinal.web.Controllers
         }
 
         // POST: CondominiumStaff/Edit/5
+        /// <summary>
+        /// Handles the submission of the edit staff member form.
+        /// </summary>
+        /// <param name="model">The view model with the updated staff member's details.</param>
+        /// <returns>A redirect to the staff list on success.</returns>
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(EditAccountViewModel model)
@@ -198,6 +226,11 @@ namespace CET96_ProjetoFinal.web.Controllers
         }
 
         // POST: CondominiumStaff/Deactivate/5
+        /// <summary>
+        /// Deactivates a staff member's account.
+        /// </summary>
+        /// <param name="id">The ID of the staff member to deactivate.</param>
+        /// <returns>A redirect to the staff list.</returns>
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Deactivate(string id)
@@ -247,6 +280,11 @@ namespace CET96_ProjetoFinal.web.Controllers
         }
 
         // POST: CondominiumStaff/Activate/5
+        /// <summary>
+        /// Activates a staff member's account.
+        /// </summary>
+        /// <param name="id">The ID of the staff member to activate.</param>
+        /// <returns>A redirect to the staff list.</returns>
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Activate(string id)
