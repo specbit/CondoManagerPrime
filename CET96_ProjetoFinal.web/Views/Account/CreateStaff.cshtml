@@ -1,0 +1,39 @@
+﻿@model CET96_ProjetoFinal.web.Models.RegisterStaffByCompanyAdminViewModel
+@{
+    ViewData["Title"] = "Create Staff";
+}
+
+<h1>Create New Staff Member</h1>
+<p>Create a new staff account and assign them to a condominium.</p>
+<hr />
+
+<div class="row">
+    <div class="col-md-6">
+        <form asp-action="CreateStaff">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <input type="hidden" asp-for="CompanyId" />
+
+            @* Include all your input fields for FirstName, LastName, Email, Password etc. *@
+            @* Example: *@
+            <div class="form-group mb-3">
+                <label asp-for="FirstName" class="control-label"></label>
+                <input asp-for="FirstName" class="form-control" />
+                <span asp-validation-for="FirstName" class="text-danger"></span>
+            </div>
+
+            @* --- The important new field --- *@
+            <div class="form-group mb-3">
+                <label asp-for="CondominiumId" class="control-label">Assign to Condominium</label>
+                <select asp-for="CondominiumId" asp-items="Model.CondominiumsList" class="form-control">
+                    <option value="">-- Select a Condominium --</option>
+                </select>
+                <span asp-validation-for="CondominiumId" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <input type="submit" value="Create Staff Member" class="btn btn-primary" />
+                <a asp-action="AllUsersByCompany" asp-route-id="@Model.CompanyId" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>

@@ -32,9 +32,10 @@ namespace CET96_ProjetoFinal.web.Entities
 
         [Required(ErrorMessage = "The Zip Code is required.")]
         [MaxLength(20)]
+        [RegularExpression(@"^[a-zA-Z0-9\s-]+$", ErrorMessage = "Zip Code contains invalid characters.")]
         [Display(Name = "Zip Code")]
-
         public string ZipCode { get; set; }
+
         [Required(ErrorMessage = "The City is required.")]
         [MaxLength(100)]
         public string City { get; set; }

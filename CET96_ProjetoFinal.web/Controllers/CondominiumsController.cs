@@ -11,10 +11,12 @@ namespace CET96_ProjetoFinal.web.Controllers
     public class CondominiumsController : Controller
     {
         private readonly ICondominiumRepository _repository;
+        private readonly IApplicationUserRepository _userRepository;
 
-        public CondominiumsController(ICondominiumRepository repository)
+        public CondominiumsController(ICondominiumRepository repository, IApplicationUserRepository userRepository)
         {
             _repository = repository;
+            _userRepository = userRepository;
         }
 
         // GET: Condominiums for a specific Company
@@ -23,9 +25,41 @@ namespace CET96_ProjetoFinal.web.Controllers
             // Fetch only the condominiums for the given company
             var condominiums = await _repository.GetActiveCondominiumsByCompanyIdAsync(id);
 
+            // A list to hold our ViewModel instances
+            var viewModelList = new List<CondominiumDetailsViewModel>();
+
+            foreach (var condo in condominiums)
+            {
+                var viewModel = new CondominiumDetailsViewModel
+                {
+                    Id = condo.Id,
+                    Name = condo.Name,
+                    Address = condo.Address,
+                    City = condo.City,
+                    ZipCode = condo.ZipCode,
+                    UnitsCount = condo.Units.Count(),
+                    IsActive = condo.IsActive,
+                    ManagerFullName = "Not Assigned", // Default value
+                    ManagerEmail = ""
+                };
+
+                if (!string.IsNullOrEmpty(condo.CondominiumManagerId))
+                {
+                    // Fetch the manager details
+                    var manager = await _userRepository.GetUserByIdAsync(condo.CondominiumManagerId);
+
+                    if (manager != null)
+                    {
+                        viewModel.ManagerFullName = $"{manager.FirstName} {manager.LastName}"; // Concatenate first and last name
+                        viewModel.ManagerEmail = manager.Email;
+                    }
+                }
+                viewModelList.Add(viewModel);
+            }
+
             ViewBag.CompanyId = id; // Pass the Company for use in the view
 
-            return View(condominiums);
+            return View(viewModelList);
         }
 
         // GET: Condominiums/Details/5
@@ -57,6 +91,8 @@ namespace CET96_ProjetoFinal.web.Controllers
                 ContractValue = condominium.ContractValue,
                 FeePerUnit = condominium.FeePerUnit,
                 CreatedAt = condominium.CreatedAt.ToLocalTime(), // Convert from UTC for display
+                UpdatedAt = condominium.UpdatedAt?.ToLocalTime(), 
+                DeletedAt = condominium.DeletedAt?.ToLocalTime(),
                 IsActive = condominium.IsActive // Include the active status for smarter UI decisions
             };
 

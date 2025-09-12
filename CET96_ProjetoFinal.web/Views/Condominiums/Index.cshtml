@@ -1,5 +1,4 @@
-﻿@model IEnumerable<CET96_ProjetoFinal.web.Entities.Condominium>
-
+﻿@model IEnumerable<CET96_ProjetoFinal.web.Models.CondominiumDetailsViewModel>
 @{
     ViewData["Title"] = "Condominiums";
 }
@@ -14,7 +13,7 @@
         <a asp-controller="Account"
            asp-action="AllUsersByCompany"
            asp-route-id="@ViewBag.CompanyId"
-           class="btn btn-dark">Condominium Manager</a>
+           class="btn btn-dark">Manage Staff & Managers</a>
     </p>
 </div>
 <hr />
@@ -25,20 +24,28 @@
         <div class="col-md-4 mb-4">
             @* This link wraps the entire card, making it clickable *@
             <a href="@Url.Action("CondominiumDashboard", "Condominiums", new { id = condominium.Id })" class="card-link" style="text-decoration:none; color:inherit;">
-                <div class="card">
+                <div class="card position-relative">
+                    @* <-- Add position-relative *@
                     <div class="card-body">
-                        <p class="card-text">
+
+                        @if (condominium.IsActive)
+                        {
+                            <span class="position-absolute top-0 end-0 m-2 badge bg-success">Active</span>
+                        }
+                        else
+                        {
+                            <span class="position-absolute top-0 end-0 m-2 badge bg-danger">Inactive</span>
+                        }
+
+                        <p class="card-text pt-2">
+                            @* Added padding-top to make space for the badge *@
                             <strong>Condominium:</strong> @condominium.Name<br />
                             <strong>Address:</strong> @condominium.Address<br />
-                            <strong>Units:</strong> @condominium.Units.Count()<br />
-                            <strong>Status:</strong>
-                            @if (condominium.IsActive)
+                            <strong>Units:</strong> @condominium.UnitsCount<br />
+                            <strong>Manager:</strong> @condominium.ManagerFullName
+                            @if (!string.IsNullOrEmpty(condominium.ManagerEmail))
                             {
-                                <span class="badge bg-success">Active</span>
-                            }
-                            else
-                            {
-                                <span class="badge bg-danger">Inactive</span>
+                                <small class="text-muted">(@condominium.ManagerEmail)</small>
                             }
                         </p>
                         <a asp-action="Details" asp-route-id="@condominium.Id" class="btn btn-sm btn-info">Details</a>

@@ -40,6 +40,7 @@ namespace CET96_ProjetoFinal.web.Models
 
         [Required(ErrorMessage = "The Zip Code is required.")]
         [MaxLength(20, ErrorMessage = "The Zip Code cannot exceed 20 characters.")]
+        [RegularExpression(@"^[a-zA-Z0-9\s-]+$", ErrorMessage = "Zip Code contains invalid characters.")]
         [Display(Name = "Zip Code")]
         public string ZipCode { get; set; }
 

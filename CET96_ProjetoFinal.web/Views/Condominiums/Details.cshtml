@@ -36,6 +36,17 @@
 
             <dt class="col-sm-4">@Html.DisplayNameFor(model => model.CreatedAt)</dt>
             <dd class="col-sm-8">@Html.DisplayFor(model => model.CreatedAt)</dd>
+
+            @if (Model.UpdatedAt.HasValue)
+            {
+                <dt class="col-sm-4">@Html.DisplayNameFor(model => model.UpdatedAt)</dt>
+                <dd class="col-sm-8">@Html.DisplayFor(model => model.UpdatedAt)</dd>
+            }
+            @if (Model.DeletedAt.HasValue)
+            {
+                <dt class="col-sm-4">@Html.DisplayNameFor(model => model.DeletedAt)</dt>
+                <dd class="col-sm-8">@Html.DisplayFor(model => model.DeletedAt)</dd>
+            }
         </dl>
     </div>
 </div>
