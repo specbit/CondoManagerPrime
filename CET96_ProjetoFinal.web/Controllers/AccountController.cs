@@ -540,7 +540,7 @@ namespace CET96_ProjetoFinal.web.Controllers
                 }
             }
 
-            var model = new CondominiumManagerViewModel
+            var model = new ManagersListViewModel
             {
                 AllUsers = userViewModelList
             };
@@ -958,7 +958,7 @@ namespace CET96_ProjetoFinal.web.Controllers
                 });
             }
 
-            var model = new CondominiumManagerViewModel
+            var model = new ManagersListViewModel
             {
                 AllUsers = userViewModelList
             };

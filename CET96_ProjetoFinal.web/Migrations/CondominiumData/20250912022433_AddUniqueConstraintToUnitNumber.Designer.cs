@@ -4,6 +4,7 @@ using CET96_ProjetoFinal.web.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CET96_ProjetoFinal.web.Migrations.CondominiumData
 {
     [DbContext(typeof(CondominiumDataContext))]
-    partial class CondominiumDataContextModelSnapshot : ModelSnapshot
+    [Migration("20250912022433_AddUniqueConstraintToUnitNumber")]
+    partial class AddUniqueConstraintToUnitNumber
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -108,15 +111,6 @@ namespace CET96_ProjetoFinal.web.Migrations.CondominiumData
                     b.Property<int>("CondominiumId")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
                     b.Property<string>("OwnerId")
                         .HasColumnType("nvarchar(max)");
 
@@ -124,9 +118,6 @@ namespace CET96_ProjetoFinal.web.Migrations.CondominiumData
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 

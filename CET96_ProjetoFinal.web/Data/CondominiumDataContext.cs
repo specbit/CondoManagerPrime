@@ -30,9 +30,14 @@ namespace CET96_ProjetoFinal.web.Data
                 .WithOne(u => u.Condominium)
                 .HasForeignKey(u => u.CondominiumId);
 
-            // ADD THIS BLOCK to create a composite unique index
+            // Create a composite unique index
             modelBuilder.Entity<Condominium>()
                 .HasIndex(c => new { c.CompanyId, c.PropertyRegistryNumber })
+                .IsUnique();
+
+            // Create the composite unique index
+            modelBuilder.Entity<Unit>()
+                .HasIndex(u => new { u.CondominiumId, u.UnitNumber })
                 .IsUnique();
         }
     }

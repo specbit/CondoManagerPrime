@@ -8,6 +8,7 @@
 
 <p>
     <a asp-action="Create" asp-route-condominiumId="@ViewBag.CondominiumId" class="btn btn-primary">Create New Unit</a>
+    <a asp-action="InactiveUnits" asp-route-condominiumId="@ViewBag.CondominiumId" class="btn btn-warning">View Inactive Units</a>
 </p>
 
 <table class="table">
@@ -15,6 +16,7 @@
         <tr>
             <th>Unit Number</th>
             <th>Owner</th>
+            <th>Status</th>
             <th>Actions</th>
         </tr>
     </thead>
@@ -27,9 +29,23 @@
                     <td>@unit.UnitNumber</td>
                     <td>(Not Assigned)</td>
                     <td>
-                        <a class="btn btn-sm btn-warning">Edit</a>
-                        <a class="btn btn-sm btn-info">Assign Owner</a>
-                        <a class="btn btn-sm btn-danger">Delete</a>
+                        @if (unit.IsActive)
+                        {
+                            <span class="badge bg-success">Active</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-danger">Inactive</span>
+                        }
+                    </td>
+                    <td>
+                        <a asp-action="Edit" asp-route-id="@unit.Id" class="btn btn-sm btn-warning">Edit</a>
+                        <a class="btn btn-sm btn-info disabled">Assign Owner</a> @* Disabled for now *@
+                        @* Changed the delete to a form for security reasons *@
+                        <form asp-action="Delete" asp-route-id="@unit.Id" method="post" style="display:inline;">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-sm btn-danger">Deactivate</button>
+                        </form>
                     </td>
                 </tr>
             }

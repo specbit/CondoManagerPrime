@@ -1,0 +1,46 @@
+﻿@model IEnumerable<CET96_ProjetoFinal.web.Entities.Unit>
+
+@{
+    ViewData["Title"] = $"Inactive Units for {ViewBag.CondominiumName}";
+}
+
+<h1>Inactive Units for <strong>@ViewBag.CondominiumName</strong></h1>
+<p>The following units have been deactivated and can be reactivated here.</p>
+
+<p>
+    <a asp-action="Index" asp-route-condominiumId="@ViewBag.CondominiumId" class="btn btn-secondary">Back to Active List</a>
+</p>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Unit Number</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (Model.Any())
+        {
+            @foreach (var unit in Model)
+            {
+                <tr>
+                    <td>@unit.UnitNumber</td>
+                    <td><span class="badge bg-danger">Inactive</span></td>
+                    <td>
+                        <form asp-action="Reactivate" asp-route-id="@unit.Id" method="post">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-sm btn-success">Reactivate</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr>
+                <td colspan="3" class="text-center">There are no inactive units for this condominium.</td>
+            </tr>
+        }
+    </tbody>
+</table>
