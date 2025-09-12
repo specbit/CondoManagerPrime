@@ -13,7 +13,6 @@ namespace CET96_ProjetoFinal.web.Controllers
             _applicationUserHelper = applicationUserHelper;
         }
 
-        // This action will be at /ApplicationUsers/AllUsers
         public async Task<IActionResult> AllUsers()
         {
             var allUsers = await _applicationUserHelper.GetAllUsersAsync();

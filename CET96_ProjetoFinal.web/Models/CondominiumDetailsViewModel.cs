@@ -34,9 +34,26 @@ namespace CET96_ProjetoFinal.web.Models
         [DisplayFormat(DataFormatString = "{0:C}")] // Formats as currency
         public decimal FeePerUnit { get; set; }
 
+        // --------- Audit Fields ---------
         [Display(Name = "Date Created")]
         [DisplayFormat(DataFormatString = "{0:yyyy-MM-dd HH:mm}")] // Formats the date
         public DateTime CreatedAt { get; set; }
+
+        [Display(Name = "Last Updated")]
+        [DisplayFormat(DataFormatString = "{0:yyyy-MM-dd HH:mm}")]
+        public DateTime? UpdatedAt { get; set; }
+
+        [Display(Name = "Deactivated On")]
+        [DisplayFormat(DataFormatString = "{0:yyyy-MM-dd HH:mm}")]
+        public DateTime? DeletedAt { get; set; }
+
         public bool IsActive { get; set; }
+        // --------- Audit Fields ---------
+
+        [Display(Name = "Manager")]
+        public string ManagerFullName { get; set; }
+
+        [Display(Name = "Manager Email")]
+        public string ManagerEmail { get; set; }
     }
 }

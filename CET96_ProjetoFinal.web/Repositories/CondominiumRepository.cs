@@ -65,7 +65,7 @@ namespace CET96_ProjetoFinal.web.Repositories
 
             // 2. Use those IDs to find unassigned condominiums in the Condominiums database (_context)
             return await _context.Condominiums
-                                 .Where(c => companyIds.Contains(c.CompanyId) && c.CondominiumManagerId == null)
+                                 .Where(c => companyIds.Contains(c.CompanyId) && c.CondominiumManagerId == null && c.IsActive)
                                  .OrderBy(c => c.Name)
                                  .AsNoTracking() // Read-only operation
                                  .ToListAsync();

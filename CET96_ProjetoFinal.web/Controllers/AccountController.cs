@@ -5,6 +5,7 @@ using CET96_ProjetoFinal.web.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using System.Diagnostics;
 
 namespace CET96_ProjetoFinal.web.Controllers
@@ -497,7 +498,6 @@ namespace CET96_ProjetoFinal.web.Controllers
             ViewBag.CompanyName = company?.Name; // Pass the company doesn't thow an exception if null
             ViewBag.CompanyId = company.Id; // Pass the company ID to the view
 
-            // --- NEW FILTERING LOGIC ---
             // We declare the list here and populate it based on the showInactive flag.
             IEnumerable<ApplicationUser> users;
             if (showInactive)
@@ -512,8 +512,6 @@ namespace CET96_ProjetoFinal.web.Controllers
                 ViewBag.Title = "Condominium Managers";
                 ViewBag.ShowingInactive = false;
             }
-            // --- END OF NEW LOGIC ---
-            //var users = await _userRepository.GetUsersByCompanyIdAsync(companyId);
 
             var userViewModelList = new List<ApplicationUserViewModel>();
 
@@ -767,6 +765,11 @@ namespace CET96_ProjetoFinal.web.Controllers
             return RedirectToAction("AllUsersByCompany", new { id = condominiumToUpdate.CompanyId });
         }
 
+        /// <summary>
+        /// Un-assigns a Condominium Manager from their currently assigned condominium.
+        /// </summary>
+        /// <param name="userId">The ID of the manager to dismiss.</param>
+        /// <returns>A redirect to the company's user list.</returns>
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Company Administrator")]
@@ -798,6 +801,11 @@ namespace CET96_ProjetoFinal.web.Controllers
             return RedirectToAction("AllUsersByCompany", new { id = currentAssignment.CompanyId });
         }
 
+        /// <summary>
+        /// Activates a previously deactivated Condominium Manager's account.
+        /// </summary>
+        /// <param name="id">The ID of the user to activate.</param>
+        /// <returns>A redirect to the company's user list.</returns>
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Company Administrator")]
@@ -848,6 +856,14 @@ namespace CET96_ProjetoFinal.web.Controllers
             return RedirectToAction(nameof(AllUsersByCompany), new { id = user.CompanyId });
         }
 
+        /// <summary>
+        /// Deactivates a Condominium Manager's account, preventing them from logging in.
+        /// </summary>
+        /// <remarks>
+        /// This action includes a business rule that prevents deactivation if the manager is still assigned to a condominium.
+        /// </remarks>
+        /// <param name="id">The ID of the user to deactivate.</param>
+        /// <returns>A redirect to the company's user list.</returns>
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Company Administrator")]
@@ -911,6 +927,12 @@ namespace CET96_ProjetoFinal.web.Controllers
             return RedirectToAction(nameof(AllUsersByCompany), new { id = user.CompanyId });
         }
 
+        /// <summary>
+        /// Displays a dedicated page listing all inactive Condominium Managers for a specific company.
+        /// </summary>
+        /// <param name="id">The ID of the company.</param>
+        /// <returns>A view populated with a list of inactive manager accounts.</returns>
+        [Authorize(Roles = "Company Administrator")]
         public async Task<IActionResult> InactiveManagers(int id) // 'id' is the CompanyId
         {
             var company = await _companyRepository.GetByIdAsync(id);
@@ -945,6 +967,68 @@ namespace CET96_ProjetoFinal.web.Controllers
             ViewBag.CompanyName = company.Name;
             ViewBag.Title = "Inactive Condominium Managers";
 
+            return View(model);
+        }
+
+        /// <summary>
+        /// Displays the form for a Company Administrator to create a new Condominium Staff member.
+        /// </summary>
+        /// <param name="companyId">The ID of the company the new staff member will belong to.</param>
+        /// <returns>The view for creating a new staff member, pre-populated with a list of condominiums.</returns>
+        [Authorize(Roles = "Company Administrator")]
+        public async Task<IActionResult> CreateStaff(int companyId)
+        {
+            // Get all condominiums for this company to populate the dropdown
+            var condominiums = await _condominiumRepository.GetActiveCondominiumsByCompanyIdAsync(companyId);
+
+            var model = new RegisterStaffByCompanyAdminViewModel
+            {
+                CompanyId = companyId,
+                CondominiumsList = new SelectList(condominiums, "Id", "Name")
+            };
+            return View(model);
+        }
+
+        /// <summary>
+        /// Handles the submission of the new staff member form created by a Company Administrator.
+        /// </summary>
+        /// <param name="model">The view model containing the new staff member's details and selected condominium.</param>
+        /// <returns>A redirect to the company's user list on success, or the view with errors on failure.</returns>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Company Administrator")]
+        public async Task<IActionResult> CreateStaff(RegisterStaffByCompanyAdminViewModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                var user = new ApplicationUser
+                {
+                    FirstName = model.FirstName,
+                    LastName = model.LastName,
+                    UserName = model.Username,
+                    Email = model.Username,
+                    Profession = model.Profession,
+                    CondominiumId = model.CondominiumId, // This is selected from the dropdown
+                    CompanyId = model.CompanyId
+                    // You will need to map any other required fields from your ViewModel here
+                };
+                var result = await _userRepository.AddUserAsync(user, model.Password);
+
+                if (result.Succeeded)
+                {
+                    await _userRepository.AddUserToRoleAsync(user, "Condominium Staff");
+                    TempData["StatusMessage"] = "Staff member created successfully.";
+                    return RedirectToAction(nameof(AllUsersByCompany), new { id = model.CompanyId });
+                }
+                foreach (var error in result.Errors)
+                {
+                    ModelState.AddModelError(string.Empty, error.Description);
+                }
+            }
+
+            // If something fails, re-populate the dropdown and return to the view
+            var condominiums = await _condominiumRepository.GetActiveCondominiumsByCompanyIdAsync(model.CompanyId);
+            model.CondominiumsList = new SelectList(condominiums, "Id", "Name", model.CondominiumId);
             return View(model);
         }
 
