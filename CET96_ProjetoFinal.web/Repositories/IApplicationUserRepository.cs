@@ -170,5 +170,14 @@ namespace CET96_ProjetoFinal.web.Repositories
         /// <param name="roleName">The name of the role to filter by.</param>
         /// <returns>A collection of inactive ApplicationUser objects matching the criteria.</returns>
         Task<IEnumerable<ApplicationUser>> GetInactiveUsersByCompanyAndRoleAsync(int companyId, string roleName);
+
+        /// <summary>
+        /// Returns active (non-deactivated) users by company and role.
+        /// </summary>
+        /// <param name="companyId">Company identifier.</param>
+        /// <param name="role">Target role name (e.g., "Condominium Staff").</param>
+        /// <returns>Collection of active users in the given role.</returns>
+        Task<IEnumerable<ApplicationUser>> GetActiveUsersByCompanyAndRoleAsync(int companyId, string role);
+
     }
 }

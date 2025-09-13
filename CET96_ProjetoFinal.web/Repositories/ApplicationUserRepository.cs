@@ -227,5 +227,28 @@ namespace CET96_ProjetoFinal.web.Repositories
 
             return inactiveUsers.ToList();
         }
+
+        /// <inheritdoc />
+        public async Task<IEnumerable<ApplicationUser>> GetActiveUsersByCompanyAndRoleAsync(int companyId, string role)
+        {
+            // NOTE: Filtering by role requires checking UserManager roles per user;
+            // this two-step (fetch + filter) avoids heavy joins and keeps it readable.
+            var activeUsersWithRole = await _userManager.Users
+                .Where(u => u.CompanyId == companyId && u.DeactivatedAt == null)
+                .ToListAsync();
+
+            var result = new List<ApplicationUser>();
+
+            foreach (var user in activeUsersWithRole)
+            {
+                // Uncommon op: role check per user (async), avoids eager loading claims tables
+                if (await _userManager.IsInRoleAsync(user, role))
+                {
+                    result.Add(user);
+                }
+            }
+
+            return result;
+        }
     }
 }

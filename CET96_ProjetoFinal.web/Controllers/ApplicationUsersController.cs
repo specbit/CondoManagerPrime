@@ -36,3 +36,5 @@ namespace CET96_ProjetoFinal.web.Controllers
         }
     }
 }
+
+// TODO: why di I have this controller? It is not referenced anywhere.

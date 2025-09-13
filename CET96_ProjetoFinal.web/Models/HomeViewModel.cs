@@ -25,7 +25,13 @@ namespace CET96_ProjetoFinal.web.Models
 
         public int UnitsCount { get; set; }
         public int CondominiumId { get; set; }
-        // We'll add this later:
+
+        // TODO: We'll add this later:
         // public int NumberOfOwners { get; set; }
+
+        /// <summary>
+        /// Company context for route generation (e.g., Create Staff). 
+        /// </summary>
+        public int CompanyId { get; set; }
     }
 }

@@ -7,10 +7,17 @@
 <h1>Manage Staff for <strong>@ViewBag.CondominiumName</strong></h1>
 <p>From here, you can add, edit, or deactivate staff members.</p>
 
-<p>
-    <a asp-action="Create" asp-route-condominiumId="@ViewBag.CondominiumId" class="btn btn-primary">Create New Staff Member</a>
+@* <p>
+    <a asp-action="Create" asp-route-condominiumId="@ViewBag.CondominiumId" class="btn btn-primary">New Staff Member</a>
 </p>
+ *@
 
+<a asp-controller="Account"
+   asp-action="CreateStaff"
+   asp-route-companyId="@ViewBag.CompanyId"
+   class="btn btn-primary">
+    Create New Staff
+</a>
 <table class="table">
     <!-- Table headers (Name, Email, etc.) -->
     <thead>

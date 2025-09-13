@@ -1,0 +1,26 @@
+﻿@model CET96_ProjetoFinal.web.Models.CompanyUsersViewModel
+
+@{
+    ViewData["Title"] = "Company employees Overview";
+}
+
+<div class="container mb-4">
+    <h1 class="display-5">@ViewData["Title"]</h1>
+    <p class="lead">Overview for <strong>@Model.CompanyName</strong>.</p>
+
+    <div class="mt-3">
+        <a asp-controller="Condominiums" asp-action="Index" asp-route-id="@Model.CompanyId" class="btn btn-secondary">Back to Condominiums</a>
+        <a asp-controller="Account" asp-action="AllUsersByCompany" asp-route-id="@Model.CompanyId" class="btn btn-info">Managers</a>
+        <a asp-controller="Account" asp-action="AllCondominiumStaffByCompany" asp-route-id="@Model.CompanyId" class="btn btn-info">Staff</a>
+    </div>
+</div>
+
+@await Html.PartialAsync("_UserRoleTable", Model.Managers, new ViewDataDictionary(ViewData) {
+{ "TableTitle", "Condominium Managers" },
+  { "RoleContext", "Manager"}
+})
+
+@await Html.PartialAsync("_UserRoleTable", Model.Staff, new ViewDataDictionary(ViewData) {
+  { "TableTitle", "Condominium Staff" },
+  { "RoleContext", "Staff" },
+})
