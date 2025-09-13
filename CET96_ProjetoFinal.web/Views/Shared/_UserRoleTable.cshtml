@@ -1,0 +1,131 @@
+﻿@* This partial keeps the UI consistent, with role-specific actions (Associate/Dismiss for Managers only; Activate/Deactivate for both). *@
+@model IEnumerable<CET96_ProjetoFinal.web.Models.ApplicationUserViewModel>
+@{
+    var title = ViewData["TableTitle"] as string ?? "Users";
+    var roleContext = ViewData["RoleContext"] as string; // "Manager" or "Staff"
+    var companyId = (int?)ViewData["CompanyId"] ?? 0; // inherited from controller
+    var showNav = (bool?)ViewData["ShowNav"] ?? false;   // default: hide nav to avoid duplicates
+}
+
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">@title</h5>
+
+        @* Mini-nav is optional *@
+        @if (showNav)
+        {
+            <div class="btn-group">
+                <a asp-controller="Account" asp-action="AllUsersByCompany" asp-route-id="@companyId" class="btn btn-sm btn-outline-secondary">Managers</a>
+                <a asp-controller="Account" asp-action="AllCondominiumStaffByCompany" asp-route-id="@companyId" class="btn btn-sm btn-outline-secondary">Staff</a>
+                <a asp-controller="Account" asp-action="CompanyEmployees" asp-route-id="@companyId" class="btn btn-sm btn-outline-secondary">Overview</a>
+            </div>
+        }
+
+    </div>
+    <div class="card-body">
+        <table class="table table-hover mb-0">
+            <thead class="table-dark text-center">
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Roles</th>
+                    <th>Status</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var user in Model)
+                {
+                    <tr>
+                        <td>
+                            @user.FirstName @user.LastName
+                            @if (!string.IsNullOrEmpty(user.AssignedCondominiumName))
+                            {
+                                <span class="badge bg-success ms-2" title="Assigned to: @user.AssignedCondominiumName">
+                                    @(roleContext == "Manager" ? "Manages: " : "Staff at: ")@user.AssignedCondominiumName
+                                </span>
+                            }
+                        </td>
+                        <td>@user.UserName</td>
+                        <td>
+                            @foreach (var role in user.Roles)
+                            {
+                                <span class="badge bg-info me-1">@role</span>
+                            }
+                        </td>
+                        <td>
+                            @if (user.IsDeactivated)
+                            {
+                                <span class="badge bg-danger">Deactivated</span>
+                            }
+                            else
+                            {
+
+                                <span class="badge bg-success">Active</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <div class="d-flex gap-2 justify-content-end">
+                                <a asp-controller="Account" asp-action="EditAccount" asp-route-id="@user.Id" class="btn btn-sm btn-warning">Edit</a>
+
+                                @if (roleContext == "Manager")
+                                {
+                                    @* Managers: Associate/Dismiss + Activate/Deactivate *@
+                                    @if (string.IsNullOrEmpty(user.AssignedCondominiumName))
+                                    {
+                                        <a asp-controller="Account" asp-action="LinkManagerToCondominium" asp-route-id="@user.Id" class="btn btn-sm btn-info">Associate</a>
+                                    }
+                                    else
+                                    {
+                                        <form asp-controller="Account" asp-action="DismissManager" method="post" style="display:inline;">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="userId" value="@user.Id" />
+                                            <button type="submit" class="btn btn-sm btn-secondary">Dismiss</button>
+                                        </form>
+                                    }
+
+                                    @if (user.IsDeactivated)
+                                    {
+                                        <form asp-controller="Account" asp-action="ActivateCondominiumManager" method="post" style="display:inline;">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@user.Id" />
+                                            <button type="submit" class="btn btn-sm btn-success">Activate</button>
+                                        </form>
+                                    }
+                                    else
+                                    {
+                                        <form asp-controller="Account" asp-action="DeactivateCondominiumManager" method="post" style="display:inline;">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@user.Id" />
+                                            <button type="submit" class="btn btn-sm btn-danger">Deactivate</button>
+                                        </form>
+                                    }
+                                }
+                                else if (roleContext == "Staff")
+                                {
+                                    @* Staff: company-level Activate/Deactivate only *@
+                                    @if (user.IsDeactivated)
+                                    {
+                                        <form asp-controller="Account" asp-action="ActivateCondominiumStaff" method="post" style="display:inline;">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@user.Id" />
+                                            <button type="submit" class="btn btn-sm btn-success">Activate</button>
+                                        </form>
+                                    }
+                                    else
+                                    {
+                                        <form asp-controller="Account" asp-action="DeactivateCondominiumStaff" method="post" style="display:inline;">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@user.Id" />
+                                            <button type="submit" class="btn btn-sm btn-danger">Deactivate</button>
+                                        </form>
+                                    }
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

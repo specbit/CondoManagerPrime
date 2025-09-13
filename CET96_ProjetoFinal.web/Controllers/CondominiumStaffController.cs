@@ -47,6 +47,7 @@ namespace CET96_ProjetoFinal.web.Controllers
 
             ViewBag.CondominiumId = condominiumId;
             ViewBag.CondominiumName = condominium.Name;
+            ViewBag.CompanyId = condominium.CompanyId;
 
             return View(staffList);
         }

@@ -1,39 +1,111 @@
-﻿@model CET96_ProjetoFinal.web.Models.RegisterStaffByCompanyAdminViewModel
+﻿@model CET96_ProjetoFinal.web.Models.RegisterStaffFormViewModel
+@using CET96_ProjetoFinal.web.Enums
 @{
     ViewData["Title"] = "Create Staff";
 }
 
-<h1>Create New Staff Member</h1>
-<p>Create a new staff account and assign them to a condominium.</p>
+<h1 class="display-6 mb-2">Create New Staff Member</h1>
+<p class="text-muted">Create a staff account and (if you’re a Company Admin) assign them to a condominium.</p>
 <hr />
 
-<div class="row">
-    <div class="col-md-6">
-        <form asp-action="CreateStaff">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <input type="hidden" asp-for="CompanyId" />
+@if (TempData["StatusMessage"] != null)
+{
+    <div class="alert alert-info">@TempData["StatusMessage"]</div>
+}
 
-            @* Include all your input fields for FirstName, LastName, Email, Password etc. *@
-            @* Example: *@
-            <div class="form-group mb-3">
-                <label asp-for="FirstName" class="control-label"></label>
-                <input asp-for="FirstName" class="form-control" />
-                <span asp-validation-for="FirstName" class="text-danger"></span>
-            </div>
+<form asp-action="CreateStaff" asp-controller="Account" method="post">
+    @Html.AntiForgeryToken()
 
-            @* --- The important new field --- *@
-            <div class="form-group mb-3">
-                <label asp-for="CondominiumId" class="control-label">Assign to Condominium</label>
-                <select asp-for="CondominiumId" asp-items="Model.CondominiumsList" class="form-control">
-                    <option value="">-- Select a Condominium --</option>
+    <!-- Keep company context round-tripped -->
+    <input type="hidden" asp-for="CompanyId" />
+
+    <div class="row g-3">
+        <!-- Condominium selection: Admin sees dropdown; Manager is locked to their condo -->
+        <div class="col-12">
+            @if (Model.CanPickCondominium)
+            {
+                <label asp-for="CondominiumId" class="form-label">Condominium</label>
+                <select asp-for="CondominiumId" class="form-select"
+                        asp-items="Model.CondominiumsList">
+                    <option value="">-- Select a condominium --</option>
                 </select>
                 <span asp-validation-for="CondominiumId" class="text-danger"></span>
-            </div>
+            }
+            else
+            {
+                <!-- Manager locked: show a read-only label + hidden value for binding -->
+                <label class="form-label">Condominium</label>
+                <input type="text" class="form-control" value="@Model.SelectedCondominiumName" readonly />
+                <input type="hidden" asp-for="CondominiumId" />
+            }
+        </div>
 
-            <div class="form-group">
-                <input type="submit" value="Create Staff Member" class="btn btn-primary" />
-                <a asp-action="AllUsersByCompany" asp-route-id="@Model.CompanyId" class="btn btn-secondary">Cancel</a>
-            </div>
-        </form>
+        <div class="col-md-6">
+            <label asp-for="FirstName" class="form-label"></label>
+            <input asp-for="FirstName" class="form-control" />
+            <span asp-validation-for="FirstName" class="text-danger"></span>
+        </div>
+
+        <div class="col-md-6">
+            <label asp-for="LastName" class="form-label"></label>
+            <input asp-for="LastName" class="form-control" />
+            <span asp-validation-for="LastName" class="text-danger"></span>
+        </div>
+
+        <div class="col-md-6">
+            <label asp-for="Username" class="form-label">Email (will be username)</label>
+            <input asp-for="Username" class="form-control" />
+            <span asp-validation-for="Username" class="text-danger"></span>
+        </div>
+
+        <div class="col-md-6">
+            <label asp-for="PhoneNumber" class="form-label"></label>
+            <input asp-for="PhoneNumber" class="form-control" />
+            <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+        </div>
+
+        <div class="col-md-6">
+            <label asp-for="DocumentType" class="form-label"></label>
+            <select asp-for="DocumentType" class="form-select"
+                    asp-items="Html.GetEnumSelectList<DocumentTypeEnum>()"></select>
+            <span asp-validation-for="DocumentType" class="text-danger"></span>
+        </div>
+
+        <div class="col-md-6">
+            <label asp-for="IdentificationDocument" class="form-label"></label>
+            <input asp-for="IdentificationDocument" class="form-control" />
+            <span asp-validation-for="IdentificationDocument" class="text-danger"></span>
+        </div>
+
+        <div class="col-12">
+            <label asp-for="Profession" class="form-label"></label>
+            <input asp-for="Profession" class="form-control" />
+            <span asp-validation-for="Profession" class="text-danger"></span>
+        </div>
+
+        <div class="col-md-6">
+            <label asp-for="Password" class="form-label"></label>
+            <input asp-for="Password" class="form-control" />
+            <span asp-validation-for="Password" class="text-danger"></span>
+        </div>
+
+        <div class="col-md-6">
+            <label asp-for="ConfirmPassword" class="form-label"></label>
+            <input asp-for="ConfirmPassword" class="form-control" />
+            <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+        </div>
     </div>
-</div>
+
+    <div class="mt-4 d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Create Staff</button>
+        <a class="btn btn-secondary" href="@ViewBag.CancelUrl">Cancel</a>
+    </div>
+
+    <div class="mt-3">
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

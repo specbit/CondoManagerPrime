@@ -7,6 +7,7 @@ using System.Diagnostics;
 
 namespace CET96_ProjetoFinal.web.Controllers
 {
+    [Authorize]
     public class HomeController : Controller
     {
         private readonly ILogger<HomeController> _logger;
@@ -42,7 +43,7 @@ namespace CET96_ProjetoFinal.web.Controllers
         /// A Task<IActionResult> that renders the home page view, populated with a 
         /// HomeViewModel containing role-specific data.
         /// </returns>
-        [AllowAnonymous]
+        [Authorize]
         public async Task<IActionResult> Index()
         {
             var model = new HomeViewModel();
@@ -71,8 +72,10 @@ namespace CET96_ProjetoFinal.web.Controllers
                             model.CondominiumId = condominium.Id;
                             model.CondominiumName = condominium.Name;
                             model.CondominiumAddress = condominium.Address;
+                            model.City = condominium.City;
                             model.ZipCode = condominium.ZipCode;
                             model.UnitsCount = condominium.Units.Count(); // <-- CALCULATE THE COUNT
+                            model.CompanyId = user.CompanyId ?? 0;
 
                             // Fetch the staff for this condominium.
                             var staff = await _userRepository.GetStaffByCondominiumIdAsync(condominium.Id);
@@ -88,6 +91,21 @@ namespace CET96_ProjetoFinal.web.Controllers
             return View(model);
         }
 
+        /// <summary>
+        /// Asynchronously prepares and returns the dashboard view for administrative roles.
+        /// </summary>
+        /// <remarks>
+        /// This action is restricted to authenticated users. It dynamically populates the 
+        /// <see cref="HomeViewModel"/> based on the user's role:
+        /// - If the user is a 'Platform Administrator', it loads a list of all users in the system.
+        /// - If the user is a 'Company Administrator', it loads the list of companies associated with them.
+        /// For other authenticated users, it returns the view with an empty model.
+        /// </remarks>
+        /// <returns>
+        /// A <see cref="Task{IActionResult}"/> that renders the dashboard view, populated with a 
+        /// <see cref="HomeViewModel"/> containing data specific to the administrator's role.
+        /// </returns>
+        [Authorize]
         public async Task<IActionResult> HomePlatformAdmin()
         {
             var model = new HomeViewModel(); // Create an empty ViewModel first
@@ -132,35 +150,43 @@ namespace CET96_ProjetoFinal.web.Controllers
             return View(model);
         }
 
+        //[Authorize(Roles = "Condominium Manager")]
+        //public async Task<IActionResult> CondominiumManagerDashboard()
+        //{
+        //    var loggedInUser = await _userRepository.GetUserByEmailasync(User.Identity.Name);
+        //    if (loggedInUser == null)
+        //    {
+        //        // This should not happen for an authenticated user, but is a good safeguard.
+        //        return Unauthorized();
+        //    }
+
+        //    var managedCondominium = await _condominiumRepository.GetCondominiumByManagerIdAsync(loggedInUser.Id);
+
+        //    if (managedCondominium == null)
+        //    {
+        //        // Handle case where a manager is not assigned to a condominium.
+        //        return View("NoCondominiumAssigned");
+        //    }
+
+        //    // Now, fetch the staff for that condominium.
+        //    var staffList = await _userRepository.GetStaffByCondominiumIdAsync(managedCondominium.Id);
+
+        //    var viewModel = new CondominiumManagerDashboardViewModel
+        //    {
+        //        Condominium = managedCondominium,
+        //        Staff = staffList
+        //    };
+
+        //    return View(viewModel);
+        //}
+
         [Authorize(Roles = "Condominium Manager")]
-        public async Task<IActionResult> CondominiumManagerDashboard()
+        [HttpGet]
+        public IActionResult CondominiumManagerDashboard()
         {
-            var loggedInUser = await _userRepository.GetUserByEmailasync(User.Identity.Name);
-            if (loggedInUser == null)
-            {
-                // This should not happen for an authenticated user, but is a good safeguard.
-                return Unauthorized();
-            }
-
-            var managedCondominium = await _condominiumRepository.GetCondominiumByManagerIdAsync(loggedInUser.Id);
-
-            if (managedCondominium == null)
-            {
-                // Handle case where a manager is not assigned to a condominium.
-                return View("NoCondominiumAssigned");
-            }
-
-            // Now, fetch the staff for that condominium.
-            var staffList = await _userRepository.GetStaffByCondominiumIdAsync(managedCondominium.Id);
-
-            var viewModel = new CondominiumManagerDashboardViewModel
-            {
-                Condominium = managedCondominium,
-                Staff = staffList
-            };
-
-            return View(viewModel);
+            return RedirectToAction(nameof(Index));
         }
+
 
         public IActionResult Privacy()
         {
@@ -172,5 +198,37 @@ namespace CET96_ProjetoFinal.web.Controllers
         {
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
+
+        /// <summary>
+        /// Builds the manager dashboard portion of the home page:
+        /// loads the manager's assigned condominium and its staff.
+        /// </summary>
+        /// <param name="manager">The authenticated user in the 'Condominium Manager' role.</param>
+        /// <returns>A HomeViewModel prefilled with manager-specific data.</returns>
+        private async Task<HomeViewModel> BuildManagerDashboardAsync(ApplicationUser manager)
+        {
+            // 1:1 rule – each manager manages exactly one condo (or none yet).
+            var condo = await _condominiumRepository.GetCondominiumByManagerIdAsync(manager.Id);
+
+            // If not assigned, keep staff empty and let the view show a friendly message.
+            var staff = condo is null
+                ? new List<ApplicationUser>()
+                : (await _userRepository.GetStaffByCondominiumIdAsync(condo.Id)).ToList();
+
+            // Map to your existing HomeViewModel used by Home/Index.
+            return new HomeViewModel
+            {
+                CompanyName = manager.CompanyName,     // adjust if your user entity exposes this differently
+                IsManagerAssignedToCondominium = condo != null,
+                CondominiumName = condo?.Name,
+                CondominiumAddress = condo?.Address,
+                ZipCode = condo?.ZipCode,
+                City = condo?.City,
+                UnitsCount = condo?.Units?.Count ?? 0,
+                CondominiumId = condo?.Id ?? 0,
+                CondominiumStaff = staff
+            };
+        }
+
     }
 }

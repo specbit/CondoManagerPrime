@@ -1,0 +1,22 @@
+﻿@model CET96_ProjetoFinal.web.Models.StaffListViewModel
+
+@{
+    ViewData["Title"] = "Condominium Staff";
+}
+
+<div class="container mb-4">
+    <h1 class="display-5">@ViewData["Title"]</h1>
+    <p class="lead">Manage all condominium staff for <strong>@ViewBag.CompanyName</strong> company.</p>
+
+    <div class="mt-3">
+        <a asp-controller="Condominiums" asp-action="Index" asp-route-id="@ViewBag.CompanyId" class="btn btn-secondary">Back to Condominiums</a>
+        <a asp-controller="Account" asp-action="CreateStaff" asp-route-companyId="@ViewBag.CompanyId" class="btn btn-primary">Create New Staff</a>
+        <a asp-controller="Account" asp-action="AllUsersByCompany" asp-route-id="@ViewBag.CompanyId" class="btn btn-info">Go to Managers</a>
+        <a asp-controller="Account" asp-action="CompanyEmployees" asp-route-id="@ViewBag.CompanyId" class="btn btn-outline-dark">Overview</a>
+    </div>
+</div>
+
+@await Html.PartialAsync("_UserRoleTable", Model.AllUsers, new ViewDataDictionary(ViewData) {
+{ "TableTitle", "Condominium Staff" },
+  { "RoleContext", "Staff" }
+})
