@@ -7,6 +7,8 @@
         public string LastName { get; set; }
         public string UserName { get; set; }
 
+        public bool IsEmailConfirmed { get; set; }
+
         // List of strings to hold multiple roles
         public IList<string> Roles { get; set; }
 

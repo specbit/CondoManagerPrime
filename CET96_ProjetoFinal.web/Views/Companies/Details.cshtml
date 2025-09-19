@@ -17,8 +17,14 @@
         <dt class="col-sm-3">Phone Number</dt>
         <dd class="col-sm-9">@Model.PhoneNumber</dd>
 
-        <dt class="col-sm-3">Email</dt>
+        <dt class="col-sm-3">Company Email</dt>
         <dd class="col-sm-9">@Model.Email</dd>
+
+        <dt class="col-sm-3">Admin Name</dt>
+        <dd class="col-sm-9">@Model.ApplicationUser.FirstName @Model.ApplicationUser.LastName</dd>
+
+        <dt class="col-sm-3">Admin Email</dt>
+        <dd class="col-sm-9">@Model.ApplicationUser.Email</dd>
 
         <dt class="col-sm-3">Status</dt>
         <dd class="col-sm-9">

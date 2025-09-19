@@ -1,0 +1,57 @@
+﻿@model CET96_ProjetoFinal.web.Entities.ApplicationUser
+
+@{
+    ViewData["Title"] = "Staff Details";
+}
+
+<h1>Staff Details</h1>
+<h4>@ViewBag.CondominiumName</h4>
+<hr />
+
+<div class="card-body">
+    <dl class="row">
+        <dt class="col-sm-3">First Name</dt>
+        <dd class="col-sm-9">@Model.FirstName</dd>
+
+        <dt class="col-sm-3">Last Name</dt>
+        <dd class="col-sm-9">@Model.LastName</dd>
+
+        <dt class="col-sm-3">Email</dt>
+        <dd class="col-sm-9">@Model.Email</dd>
+
+        <dt class="col-sm-3">Phone Number</dt>
+        <dd class="col-sm-9">@Model.PhoneNumber</dd>
+
+        <dt class="col-sm-3">Profession</dt>
+        <dd class="col-sm-9">@Model.Profession</dd>
+
+        <dt class="col-sm-3">Status</dt>
+        <dd class="col-sm-9">
+            @if (Model.DeactivatedAt.HasValue)
+            {
+                <span class="badge bg-danger">Deactivated</span>
+            }
+            else if (!Model.EmailConfirmed)
+            {
+                <span class="badge bg-warning text-dark">Pending Confirmation</span>
+            }
+            else
+            {
+                <span class="badge bg-success">Active</span>
+            }
+        </dd>
+
+        <dt class="col-sm-3">Document Type</dt>
+        <dd class="col-sm-9">@Model.DocumentType</dd>
+
+        <dt class="col-sm-3">ID Number</dt>
+        <dd class="col-sm-9">@Model.IdentificationDocument</dd>
+
+        <dt class="col-sm-3">Works For Company</dt>
+        <dd class="col-sm-9">@ViewBag.CompanyName</dd>
+    </dl>
+</div>
+<div class="mt-3">
+    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning">Edit Staff</a>
+    <a asp-action="Index" asp-route-condominiumId="@Model.CondominiumId" class="btn btn-outline-secondary">Back to Staff List</a>
+</div>

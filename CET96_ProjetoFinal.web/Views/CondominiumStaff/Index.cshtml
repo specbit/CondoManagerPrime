@@ -7,19 +7,14 @@
 <h1>Manage Staff for <strong>@ViewBag.CondominiumName</strong></h1>
 <p>From here, you can add, edit, or deactivate staff members.</p>
 
-@* <p>
-    <a asp-action="Create" asp-route-condominiumId="@ViewBag.CondominiumId" class="btn btn-primary">New Staff Member</a>
-</p>
- *@
-
 <a asp-controller="Account"
    asp-action="CreateStaff"
    asp-route-companyId="@ViewBag.CompanyId"
    class="btn btn-primary">
     Create New Staff
 </a>
-<table class="table">
-    <!-- Table headers (Name, Email, etc.) -->
+
+<table class="table table-hover">
     <thead>
         <tr>
             <th>Name</th>
@@ -43,14 +38,19 @@
                         {
                             <span class="badge bg-danger">Deactivated</span>
                         }
+                        else if (!staff.EmailConfirmed)
+                        {
+                            <span class="badge bg-warning text-dark">Pending Confirmation</span>
+                        }
                         else
                         {
-
                             <span class="badge bg-success">Active</span>
                         }
                     </td>
                     <td>
+                        <a asp-action="Details" asp-route-id="@staff.Id" class="btn btn-sm btn-info">Details</a>
                         <a asp-action="Edit" asp-route-id="@staff.Id" class="btn btn-sm btn-warning">Edit</a>
+
                         @if (staff.DeactivatedAt.HasValue)
                         {
                             <form asp-action="Activate" asp-route-id="@staff.Id" method="post" class="d-inline">@Html.AntiForgeryToken()<button type="submit" class="btn btn-sm btn-success">Activate</button></form>
@@ -71,7 +71,6 @@
         }
     </tbody>
 </table>
-
 <div>
     <a asp-controller="Home" asp-action="Index" class="btn btn-secondary">Back to Dashboard</a>
 </div>

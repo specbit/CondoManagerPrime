@@ -1,0 +1,16 @@
+﻿@model CET96_ProjetoFinal.web.Models.StaffListViewModel
+@{
+    ViewData["Title"] = "Inactive Condominium Staff";
+}
+
+<div class="container mb-4">
+    <h1 class="display-5">Inactive Staff</h1>
+    <p class="lead">Showing all deactivated staff for <strong>@ViewBag.CompanyName</strong> company.</p>
+    <a asp-action="AllUsersByCompany" asp-route-id="@ViewBag.CompanyId" class="btn btn-secondary">Back to Overview</a>
+</div>
+
+@await Html.PartialAsync("_UserRoleTable", Model.AllUsers, new ViewDataDictionary(ViewData) {
+{ "TableTitle", "Inactive Condominium Staff" },
+    { "RoleContext", "Staff" },
+    { "ShowNav", false }
+})
