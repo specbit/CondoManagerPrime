@@ -429,42 +429,85 @@ namespace CET96_ProjetoFinal.web.Controllers
         /// <returns>A redirect to the company creation page or the main dashboard.</returns>
         private async Task<IActionResult> HandleCompanyAdminConfirmation(ApplicationUser user)
         {
+            // 1. Log the new admin in automatically.
             await _signInManager.SignInAsync(user, isPersistent: false);
             await _signInManager.RefreshSignInAsync(user);
 
+            // 2. Check if they need to create their company.
             var companyExists = await _companyRepository.DoesCompanyExistForUserAsync(user.Id);
             if (!companyExists)
             {
+                // 3. Send them to the "Create Company" form, passing their pre-filled company name.
                 return RedirectToAction("Create", "Companies", new { companyName = user.CompanyName });
             }
 
+            // If they already have a company, send them home.
             return RedirectToAction("Index", "Home");
         }
 
         /// <summary>
         /// Handles the specific follow-up actions for a newly confirmed Manager or Staff member.
+        /// It notifies the creator AND (if different) the assigned Condo Manager, then sends the user to the Login page.
         /// </summary>
         /// <param name="user">The confirmed Condominium Manager or Staff user.</param>
-        /// <returns>A redirect to the user's main dashboard.</returns>
+        /// <returns>A redirect to the Login page with a success message.</returns>
         private async Task<IActionResult> HandleStaffOrManagerConfirmation(ApplicationUser user)
         {
-            // Send a notification email to the Company Admin who created this user.
+            ApplicationUser creator = null; // We'll store the creator to prevent duplicate emails
+
+            // 1. Notify the Creator (This can be an Admin or a Manager)
             if (!string.IsNullOrEmpty(user.UserCreatedId))
             {
-                var creatingAdmin = await _userRepository.GetUserByIdAsync(user.UserCreatedId);
-                if (creatingAdmin != null)
+                creator = await _userRepository.GetUserByIdAsync(user.UserCreatedId);
+                if (creator != null)
                 {
                     await _emailSender.SendEmailAsync(
-                        creatingAdmin.Email,
+                        creator.Email,
                         $"Account Confirmed: {user.FirstName} {user.LastName}",
-                        $"This is a notification that the user {user.Email} has successfully confirmed their account and can now log in."
+                        $"This is a notification that the user {user.FirstName} {user.LastName} ({user.Email}) has successfully confirmed their account and can now log in."
                     );
                 }
             }
 
-            // Automatically sign in the new user and send them to their dashboard.
-            await _signInManager.SignInAsync(user, isPersistent: false);
-            return RedirectToAction("Index", "Home");
+            // 2. --- Notify Assigned Condo Manager (IF they are a different person) ---
+            bool isStaff = await _userManager.IsInRoleAsync(user, "Condominium Staff");
+
+            if (isStaff && user.CondominiumId.HasValue)
+            {
+                var condo = await _condominiumRepository.GetByIdAsync(user.CondominiumId.Value);
+
+                // Check if the condo exists AND has a manager assigned
+                if (condo != null && !string.IsNullOrEmpty(condo.CondominiumManagerId))
+                {
+                    // --- THIS IS THE DUPLICATE PREVENTION CHECK ---
+                    // Only send this email if the Condo Manager is NOT the same person who created the account
+                    if (creator == null || creator.Id != condo.CondominiumManagerId)
+                    {
+                        var condoManager = await _userRepository.GetUserByIdAsync(condo.CondominiumManagerId);
+                        if (condoManager != null)
+                        {
+                            await _emailSender.SendEmailAsync(
+                                condoManager.Email,
+                                $"New Staff Account Confirmed: {user.FirstName} {user.LastName}",
+                                $"This is a notification that your new staff member {user.FirstName} {user.LastName} ({user.Email}) " +
+                                $"for condominium '{condo.Name}' has successfully confirmed their account and is now ready to log in."
+                            );
+                        }
+                    }
+                }
+            }
+
+            // --- START: EXPLANATION COMMENT ---
+            // By not logging in the new user (e.g., await _signInManager.SignInAsync(...)),
+            // we prevent their new login cookie from overwriting the session of the
+            // Administrator or Manager who is currently logged in and testing the application.
+            //
+            // Instead, we confirm their account, send notifications, and just return
+            // a static success view. This has no effect on any other login session.
+            // --- END: EXPLANATION COMMENT ---
+
+            // 3. Show a generic success page.
+            return View("ConfirmationSuccess");
         }
 
         /// <summary>
@@ -812,11 +855,14 @@ namespace CET96_ProjetoFinal.web.Controllers
         }
 
         /// <summary>
-        /// Un-assigns a Condominium Manager from their currently assigned condominium.
+        /// Un-assigns a Condominium Manager from their currently assigned condominium by setting the
+        /// Condominium's 'CondominiumManagerId' property to null.
+        /// This action also triggers two email notifications upon success:
+        /// 1. A notification is sent to the Condominium Manager who was just dismissed.
+        /// 2. A confirmation receipt is sent to the Company Administrator who performed the action.
         /// </summary>
-        /// <param name="userId">The ID of the manager to dismiss.</param>
-        /// <returns>A redirect to the company's user list.</returns>
-        [HttpPost]
+        /// <param name="userId">The ID of the manager to dismiss from their condominium assignment.</param>
+        /// <returns>A redirect to the company's user list with a status message.</returns>        [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Company Administrator")]
         public async Task<IActionResult> DismissManager(string userId)
@@ -825,6 +871,14 @@ namespace CET96_ProjetoFinal.web.Controllers
             {
                 TempData["StatusMessage"] = "Error: Invalid manager id.";
                 return RedirectToAction("Index", "Home");
+            }
+
+            // --- Get the two user objects needed for the email logic ---
+            var companyAdmin = await _userRepository.GetUserByEmailasync(User.Identity.Name); // The admin performing the action
+            var managerToDismiss = await _userRepository.GetUserByIdAsync(userId); // The manager being dismissed
+            if (managerToDismiss == null || companyAdmin == null)
+            {
+                return NotFound();
             }
 
             // Find current assignment for this manager
@@ -843,12 +897,28 @@ namespace CET96_ProjetoFinal.web.Controllers
 
             TempData["StatusMessage"] = $"Manager has been dismissed from '{currentAssignment.Name}'.";
 
+            // --- START: EMAIL LOGIC ---
+
+            // 1. Send Email to the Manager being dismissed
+            await _emailSender.SendEmailAsync(managerToDismiss.Email,
+                "Notification: You Have Been Dismissed from Condominium",
+                $"<p>This is an automated notification to inform you that your account has been dismissed from managing the condominium '{currentAssignment.Name}' by your company administrator.</p>");
+
+            // 2. Send Confirmation Email to the Company Admin who did it
+            await _emailSender.SendEmailAsync(companyAdmin.Email,
+                $"Confirmation: Manager {managerToDismiss.FirstName} {managerToDismiss.LastName} Dismissed",
+                $"<p>You have successfully dismissed {managerToDismiss.FirstName} {managerToDismiss.LastName} from managing the condominium '{currentAssignment.Name}'.</p>");
+
+            // --- END: EMAIL LOGIC ---
+
             // Return to the users list for the company
             return RedirectToAction("AllUsersByCompany", new { id = currentAssignment.CompanyId });
         }
 
         /// <summary>
         /// Activates a previously deactivated Condominium Manager's account.
+        /// This action removes the user's lockout, clears their deactivation status,
+        /// and sends email notifications to both the activated manager and the admin who performed the action.
         /// </summary>
         /// <param name="id">The ID of the user to activate.</param>
         /// <returns>A redirect to the company's user list.</returns>
@@ -857,53 +927,69 @@ namespace CET96_ProjetoFinal.web.Controllers
         [Authorize(Roles = "Company Administrator")]
         public async Task<IActionResult> ActivateCondominiumManager(string id)
         {
-            var user = await _userRepository.GetUserByIdAsync(id);
+            // Get both users involved first
+            var companyAdmin = await _userRepository.GetUserByEmailasync(User.Identity.Name);
+            var userToActivate = await _userRepository.GetUserByIdAsync(id);
 
-            if (user == null)
+            if (userToActivate == null || companyAdmin == null)
             {
                 TempData["StatusMessage"] = "Error: User not found.";
                 return NotFound();
             }
 
             // Check if the user is a Condominium Manager
-            if (!await _userManager.IsInRoleAsync(user, "Condominium Manager"))
+            if (!await _userManager.IsInRoleAsync(userToActivate, "Condominium Manager"))
             {
                 TempData["StatusMessage"] = "Error: This user is not a Condominium Manager.";
-                return RedirectToAction(nameof(AllUsersByCompany), new { id = user.CompanyId });
+                return RedirectToAction(nameof(AllUsersByCompany), new { id = userToActivate.CompanyId });
             }
 
             // You can't activate the currently logged-in user from this view
-            if (user.Id == _userManager.GetUserId(User))
+            if (userToActivate.Id == companyAdmin.Id)
             {
                 TempData["StatusMessage"] = "Error: You cannot activate your own account from this panel.";
-
-                return RedirectToAction(nameof(AllUsersByCompany), new { id = user.CompanyId });
+                return RedirectToAction(nameof(AllUsersByCompany), new { id = userToActivate.CompanyId });
             }
 
             // Reactivate the user
-            user.DeactivatedAt = null;
-            user.DeactivatedByUserId = null;
-            user.UpdatedAt = DateTime.UtcNow;
-            user.UserUpdatedId = _userManager.GetUserId(User);
+            userToActivate.DeactivatedAt = null;
+            userToActivate.DeactivatedByUserId = null;
+            userToActivate.UpdatedAt = DateTime.UtcNow;
+            userToActivate.UserUpdatedId = companyAdmin.Id; // Log who did the activation
 
             // Update the user in the database
-            var result = await _userRepository.UpdateUserAsync(user);
+            var result = await _userRepository.UpdateUserAsync(userToActivate);
             if (!result.Succeeded)
             {
                 TempData["StatusMessage"] = "Error activating user.";
-                return RedirectToAction(nameof(AllUsersByCompany), new { id = user.CompanyId });
+                return RedirectToAction(nameof(AllUsersByCompany), new { id = userToActivate.CompanyId });
             }
 
             // Remove any lockout on the user
-            await _userRepository.SetLockoutEndDateAsync(user, null);
+            await _userRepository.SetLockoutEndDateAsync(userToActivate, null);
 
-            TempData["StatusMessage"] = $"Manager '{user.FirstName} {user.LastName}' has been successfully activated.";
+            // --- START: SEND EMAIL LOGIC ---
 
-            return RedirectToAction(nameof(AllUsersByCompany), new { id = user.CompanyId });
+            // 1. Send email to the Manager being activated
+            await _emailSender.SendEmailAsync(userToActivate.Email,
+                "Your Account Has Been Reactivated",
+                $"<p>This is an automated notification to inform you that your account ({userToActivate.Email}) has been reactivated by your Company Administrator ({companyAdmin.FirstName} {companyAdmin.LastName}).</p>");
+
+            // 2. Send confirmation email to the Company Admin
+            await _emailSender.SendEmailAsync(companyAdmin.Email,
+                $"Confirmation: User {userToActivate.FirstName} {userToActivate.LastName} Activated",
+                $"<p>You have successfully reactivated the account for manager: {userToActivate.FirstName} {userToActivate.LastName} ({userToActivate.Email}).</p>");
+
+            // --- END: Send EMAIL LOGIC ---
+
+            TempData["StatusMessage"] = $"Manager '{userToActivate.FirstName} {userToActivate.LastName}' has been successfully activated and notified via email.";
+
+            return RedirectToAction(nameof(AllUsersByCompany), new { id = userToActivate.CompanyId });
         }
 
         /// <summary>
         /// Deactivates a Condominium Manager's account, preventing them from logging in.
+        /// This action sends email notifications to both the deactivated manager and the admin who performed the action.
         /// </summary>
         /// <remarks>
         /// This action includes a business rule that prevents deactivation if the manager is still assigned to a condominium.
@@ -915,21 +1001,21 @@ namespace CET96_ProjetoFinal.web.Controllers
         [Authorize(Roles = "Company Administrator")]
         public async Task<IActionResult> DeactivateCondominiumManager(string id)
         {
-            var user = await _userRepository.GetUserByIdAsync(id);
+            // Get both users involved first
+            var companyAdmin = await _userRepository.GetUserByEmailasync(User.Identity.Name);
+            var userToDeactivate = await _userRepository.GetUserByIdAsync(id);
 
-            if (user == null)
+            if (userToDeactivate == null || companyAdmin == null)
             {
                 TempData["StatusMessage"] = "Error: User not found.";
-
                 return NotFound();
             }
 
             // Check if the user is a Condominium Manager
-            if (!await _userManager.IsInRoleAsync(user, "Condominium Manager"))
+            if (!await _userManager.IsInRoleAsync(userToDeactivate, "Condominium Manager"))
             {
                 TempData["StatusMessage"] = "Error: This user is not a Condominium Manager.";
-
-                return RedirectToAction(nameof(AllUsersByCompany), new { id = user.CompanyId });
+                return RedirectToAction(nameof(AllUsersByCompany), new { id = userToDeactivate.CompanyId });
             }
 
             // Check if the manager is currently assigned to a condominium.
@@ -938,39 +1024,51 @@ namespace CET96_ProjetoFinal.web.Controllers
             if (currentAssignment != null)
             {
                 TempData["StatusMessage"] = $"Error: The manager must be dismissed from '{currentAssignment.Name}' Condominium, before deactivation.";
-                return RedirectToAction(nameof(AllUsersByCompany), new { id = user.CompanyId });
+                return RedirectToAction(nameof(AllUsersByCompany), new { id = userToDeactivate.CompanyId });
             }
 
-            // You can't deactivate the currently logged-in user from this view
-            if (user.Id == _userManager.GetUserId(User))
+            // You can't deactivate yourself from this panel
+            if (userToDeactivate.Id == companyAdmin.Id)
             {
                 TempData["StatusMessage"] = "Error: You cannot deactivate your own account from this panel.";
-
-                return RedirectToAction(nameof(AllUsersByCompany), new { id = user.CompanyId });
+                return RedirectToAction(nameof(AllUsersByCompany), new { id = userToDeactivate.CompanyId });
             }
 
-            // Proceed with deactivation as the manager is not assigned
-            user.DeactivatedAt = DateTime.UtcNow;
-            user.DeactivatedByUserId = _userManager.GetUserId(User);
-            user.UpdatedAt = DateTime.UtcNow;
-            user.UserUpdatedId = _userManager.GetUserId(User);
+            // Proceed with deactivation
+            userToDeactivate.DeactivatedAt = DateTime.UtcNow;
+            userToDeactivate.DeactivatedByUserId = companyAdmin.Id;
+            userToDeactivate.UpdatedAt = DateTime.UtcNow;
+            userToDeactivate.UserUpdatedId = companyAdmin.Id;
 
             // Update the user in the database
-            var result = await _userRepository.UpdateUserAsync(user);
+            var result = await _userRepository.UpdateUserAsync(userToDeactivate);
 
             if (!result.Succeeded)
             {
                 TempData["StatusMessage"] = "Error deactivating user.";
-
-                return RedirectToAction(nameof(AllUsersByCompany), new { id = user.CompanyId });
+                return RedirectToAction(nameof(AllUsersByCompany), new { id = userToDeactivate.CompanyId });
             }
 
             // Lock the user out indefinitely
-            await _userRepository.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
+            await _userRepository.SetLockoutEndDateAsync(userToDeactivate, DateTimeOffset.MaxValue);
 
-            TempData["StatusMessage"] = $"Manager '{user.FirstName} {user.LastName}' has been successfully deactivated.";
+            // --- START: Send EMAIL LOGIC ---
 
-            return RedirectToAction(nameof(AllUsersByCompany), new { id = user.CompanyId });
+            // 1. Send email to the Manager being deactivated
+            await _emailSender.SendEmailAsync(userToDeactivate.Email,
+                "Your Account Has Been Deactivated",
+                $"<p>This is an automated notification to inform you that your account ({userToDeactivate.Email}) has been deactivated by your Company Administrator ({companyAdmin.FirstName} {companyAdmin.LastName}).</p>");
+
+            // 2. Send confirmation email to the Company Admin
+            await _emailSender.SendEmailAsync(companyAdmin.Email,
+                $"Confirmation: User {userToDeactivate.FirstName} {userToDeactivate.LastName} Deactivated",
+                $"<p>You have successfully deactivated the account for manager: {userToDeactivate.FirstName} {userToDeactivate.LastName} ({userToDeactivate.Email}).</p>");
+
+            // --- END: SEND EMAIL LOGIC ---
+
+            TempData["StatusMessage"] = $"Manager '{userToDeactivate.FirstName} {userToDeactivate.LastName}' has been successfully deactivated and notified via email.";
+
+            return RedirectToAction(nameof(AllUsersByCompany), new { id = userToDeactivate.CompanyId });
         }
 
         /// <summary>
@@ -1016,75 +1114,13 @@ namespace CET96_ProjetoFinal.web.Controllers
             return View(model);
         }
 
-        ///// <summary>
-        ///// Displays the form for a Company Administrator and Condominium Manager to create a new Condominium Staff member.
-        ///// </summary>
-        ///// <param name="companyId">The ID of the company the new staff member will belong to.</param>
-        ///// <returns>The view for creating a new staff member, pre-populated with a list of condominiums.</returns>
-        //[Authorize(Roles = "Company Administrator,Condominium Manager")]
-        //public async Task<IActionResult> CreateStaff(int companyId)
-        //{
-        //    // Get all condominiums for this company to populate the dropdown
-        //    var condominiums = await _condominiumRepository.GetActiveCondominiumsByCompanyIdAsync(companyId);
-
-        //    var model = new RegisterStaffFormViewModel
-        //    {
-        //        CompanyId = companyId,
-        //        CondominiumsList = new SelectList(condominiums, "Id", "Name")
-        //    };
-        //    return View(model);
-        //}
-
-        ///// <summary>
-        ///// Handles the submission of the new staff member form created by a Company Administrator or Condominium Manager.
-        ///// </summary>
-        ///// <param name="model">The view model containing the new staff member's details and selected condominium.</param>
-        ///// <returns>A redirect to the company's user list on success, or the view with errors on failure.</returns>
-        //[HttpPost]
-        //[ValidateAntiForgeryToken]
-        //[Authorize(Roles = "Company Administrator,Condominium Manager")]
-        //public async Task<IActionResult> CreateStaff(RegisterStaffFormViewModel model)
-        //{
-        //    if (ModelState.IsValid)
-        //    {
-        //        var user = new ApplicationUser
-        //        {
-        //            FirstName = model.FirstName,
-        //            LastName = model.LastName,
-        //            UserName = model.Username,
-        //            Email = model.Username,
-        //            Profession = model.Profession,
-        //            CondominiumId = model.CondominiumId, // This is selected from the dropdown
-        //            CompanyId = model.CompanyId
-        //            // You will need to map any other required fields from your ViewModel here
-        //        };
-        //        var result = await _userRepository.AddUserAsync(user, model.Password);
-
-        //        if (result.Succeeded)
-        //        {
-        //            await _userRepository.AddUserToRoleAsync(user, "Condominium Staff");
-        //            TempData["StatusMessage"] = "Staff member created successfully.";
-        //            return RedirectToAction(nameof(AllUsersByCompany), new { id = model.CompanyId });
-        //        }
-        //        foreach (var error in result.Errors)
-        //        {
-        //            ModelState.AddModelError(string.Empty, error.Description);
-        //        }
-        //    }
-
-        //    // If something fails, re-populate the dropdown and return to the view
-        //    var condominiums = await _condominiumRepository.GetActiveCondominiumsByCompanyIdAsync(model.CompanyId);
-        //    model.CondominiumsList = new SelectList(condominiums, "Id", "Name", model.CondominiumId);
-        //    return View(model);
-        //}
-
         /// <summary>
         /// Shows the Create Staff form for both Company Admins and Condominium Managers.
         /// Admins can pick any active condo in the company; Managers are locked to their assigned condo.
         /// </summary>
         /// <param name="companyId">Company the staff will belong to (required for admin path).</param>
         /// <returns>View pre-populated with proper condo choices based on the caller's role.</returns>
-        [Authorize(Roles = "Company Administrator,Condominium Manager")]
+        [Authorize(Roles = "Company Administrator, Condominium Manager")]
         [HttpGet]
         public async Task<IActionResult> CreateStaff(int companyId)
         {
@@ -1148,6 +1184,7 @@ namespace CET96_ProjetoFinal.web.Controllers
         /// Creates a Condominium Staff account respecting role scope:
         /// - Admins can select any active condo in their company.
         /// - Managers are restricted to their assigned condo.
+        /// - Sends email confirmation to new staff and notifications to managers/admins.
         /// </summary>
         /// <param name="model">Form values.</param>
         [Authorize(Roles = "Company Administrator,Condominium Manager")]
@@ -1162,23 +1199,28 @@ namespace CET96_ProjetoFinal.web.Controllers
             var isAdmin = roles.Contains("Company Administrator");
             var isManager = roles.Contains("Condominium Manager");
 
+            // --- Get Company (Needed for validation and email) ---
+            var company = await _companyRepository.GetByIdAsync(model.CompanyId);
+            if (company == null)
+            {
+                ModelState.AddModelError(string.Empty, "Company not found.");
+                // Should return here, but need xto rehydrate the VM first (which the logic below does)
+            }
+
             // —— Rehydrate condo choices and enforce role scope ——
             if (isAdmin)
             {
-                // Admin: list active condos in the chosen company and validate selection
                 var condos = await _condominiumRepository.GetActiveCondominiumsByCompanyIdAsync(model.CompanyId);
                 model.CondominiumsList = condos.Select(c => new SelectListItem { Value = c.Id.ToString(), Text = c.Name });
                 model.CanPickCondominium = true;
 
-                if (!condos.Any(c => c.Id == model.CondominiumId))
+                if (company != null && !condos.Any(c => c.Id == model.CondominiumId))
                     ModelState.AddModelError(nameof(model.CondominiumId), "Please choose a valid condominium.");
 
-                // keep Cancel working
                 ViewBag.CancelUrl = Url.Action(nameof(AllCondominiumStaffByCompany), "Account", new { id = model.CompanyId });
             }
             else if (isManager)
             {
-                // Manager: lock to assigned condo and disallow choosing others
                 var assigned = await _condominiumRepository.GetCondominiumByManagerIdAsync(currentUser.Id);
                 if (assigned == null)
                 {
@@ -1189,13 +1231,10 @@ namespace CET96_ProjetoFinal.web.Controllers
                 if (model.CondominiumId != assigned.Id)
                     ModelState.AddModelError(nameof(model.CondominiumId), "You can only assign staff to your condominium.");
 
-                // Force the model back into the manager-locked state for redisplay if needed
                 model.CompanyId = currentUser.CompanyId ?? model.CompanyId;
-                model.CondominiumsList = new[]{new SelectListItem { Value = assigned.Id.ToString(), Text = assigned.Name }};
+                model.CondominiumsList = new[] { new SelectListItem { Value = assigned.Id.ToString(), Text = assigned.Name } };
                 model.CanPickCondominium = false;
                 model.SelectedCondominiumName = assigned.Name;
-
-                // keep Cancel working
                 ViewBag.CancelUrl = Url.Action(nameof(AllCondominiumStaffByCompany), "Account", new { id = model.CompanyId });
             }
             else
@@ -1203,13 +1242,18 @@ namespace CET96_ProjetoFinal.web.Controllers
                 return Forbid();
             }
 
-            if (!ModelState.IsValid) return View(model);
-
-            // —— Optional uniqueness guard (email as username) ——
+            // —— Uniqueness guard (email as username) ——
             var existing = await _userManager.FindByNameAsync(model.Username);
             if (existing != null)
             {
                 ModelState.AddModelError(nameof(model.Username), "This email is already in use.");
+            }
+
+            if (!ModelState.IsValid)
+            {
+                // Repopulate ViewBag properties if validation fails
+                ViewBag.CompanyId = company?.Id;
+                ViewBag.CompanyName = company?.Name;
                 return View(model);
             }
 
@@ -1226,9 +1270,9 @@ namespace CET96_ProjetoFinal.web.Controllers
                 Profession = model.Profession,
                 CompanyId = model.CompanyId,
                 CondominiumId = model.CondominiumId,
-                EmailConfirmed = false, // your confirmation flow will handle this later
+                EmailConfirmed = false, // Force confirmation
                 CreatedAt = DateTime.UtcNow,
-                UserCreatedId = _userManager.GetUserId(User)
+                UserCreatedId = currentUser.Id // Use the full user object ID
             };
 
             var result = await _userRepository.AddUserAsync(user, model.Password);
@@ -1236,15 +1280,47 @@ namespace CET96_ProjetoFinal.web.Controllers
             {
                 foreach (var err in result.Errors)
                     ModelState.AddModelError(string.Empty, err.Description);
+
+                // Repopulate ViewBag properties if user creation fails
+                ViewBag.CompanyId = company.Id;
+                ViewBag.CompanyName = company.Name;
                 return View(model);
             }
 
             await _userRepository.AddUserToRoleAsync(user, "Condominium Staff");
 
-            TempData["StatusMessage"] = "Staff member created successfully.";
+
+            // --- START: EMAIL LOGIC  ---
+
+            var condo = await _condominiumRepository.GetByIdAsync(model.CondominiumId);
+
+            // 1. Send CONFIRMATION Email to the NEW STAFF member
+            var token = await _userRepository.GenerateEmailConfirmationTokenAsync(user);
+            var confirmationLink = Url.Action("ConfirmEmail", "Account", new { userId = user.Id, token }, Request.Scheme);
+            await _emailSender.SendEmailAsync(user.Email,
+                "Confirm your new CondoManagerPrime Account",
+                $"<p>An account has been created for you. Please confirm your account by clicking this link: <a href='{confirmationLink}'>link</a></p>");
+
+            // 2. Send NOTIFICATION Email to the ADMIN/MANAGER (who created the account)
+            await _emailSender.SendEmailAsync(currentUser.Email,
+                $"New Staff Created: {user.FirstName} {user.LastName}",
+                $"<p>You have successfully created a new staff account for {user.FirstName} {user.LastName} ({user.Email}) for the condominium {condo?.Name}.</p>");
+
+            // 3. Send NOTIFICATION Email to the main COMPANY ADMINISTRATOR 
+            var companyAdmin = await _userRepository.GetUserByIdAsync(company.ApplicationUserId);
+            if (companyAdmin != null)
+            {
+                await _emailSender.SendEmailAsync(companyAdmin.Email,
+                    $"New Staff Added to Company: {user.FirstName} {user.LastName}",
+                    $"<p>This is a notification that your user ({currentUser.FirstName} {currentUser.LastName}) has created a new staff account:</p>" +
+                    $"<ul><li><b>Staff:</b> {user.FirstName} {user.LastName} ({user.Email})</li><li><b>Condominium:</b> {condo?.Name}</li><li><b>Company:</b> {company.Name}</li></ul>");
+            }
+            // --- END: EMAIL LOGIC ---
+
+
+            TempData["StatusMessage"] = $"Staff member {user.FirstName} {user.LastName} created. A confirmation email has been sent.";
             return RedirectToAction(nameof(AllCondominiumStaffByCompany), new { id = model.CompanyId });
         }
-
 
         /// <summary>
         /// Lists company staff (active by default; pass <paramref name="showInactive"/> to see deactivated).
@@ -1277,46 +1353,78 @@ namespace CET96_ProjetoFinal.web.Controllers
 
         /// <summary>
         /// Activates a previously deactivated Condominium Staff account.
+        /// Sends notifications to the staff member, their assigned manager, and the company admin.
         /// </summary>
         /// <param name="id">Staff user ID.</param>
         /// <returns>Redirects back to the staff list for the user's company.</returns>
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Company Administrator")]
+        [Authorize(Roles = "Company Administrator")] // Only Admins can reactivate accounts
         public async Task<IActionResult> ActivateCondominiumStaff(string id)
         {
-            var user = await _userRepository.GetUserByIdAsync(id);
-            if (user == null) return NotFound();
+            var userToActivate = await _userRepository.GetUserByIdAsync(id);
+            if (userToActivate == null) return NotFound();
 
-            // Guard: ensure the user is actually a staff member (prevents cross-role misuse).
-            if (!await _userManager.IsInRoleAsync(user, "Condominium Staff"))
+            var companyAdmin = await _userRepository.GetUserByEmailasync(User.Identity.Name);
+            if (companyAdmin == null) return Unauthorized();
+
+            // Guard: ensure the user is actually a staff member.
+            if (!await _userManager.IsInRoleAsync(userToActivate, "Condominium Staff"))
             {
                 TempData["StatusMessage"] = "Error: This user is not Condominium Staff.";
-                return RedirectToAction(nameof(AllCondominiumStaffByCompany), new { id = user.CompanyId });
+                return RedirectToAction(nameof(AllCondominiumStaffByCompany), new { id = userToActivate.CompanyId });
             }
 
-            // Clear soft-deactivation markers and update audit info.
-            user.DeactivatedAt = null;
-            user.DeactivatedByUserId = null;
-            user.UpdatedAt = DateTime.UtcNow;
-            user.UserUpdatedId = _userManager.GetUserId(User);
+            // Reactivate the user
+            userToActivate.DeactivatedAt = null;
+            userToActivate.DeactivatedByUserId = null;
+            userToActivate.UpdatedAt = DateTime.UtcNow;
+            userToActivate.UserUpdatedId = companyAdmin.Id;
 
-            var result = await _userRepository.UpdateUserAsync(user);
+            var result = await _userRepository.UpdateUserAsync(userToActivate);
             if (!result.Succeeded)
             {
                 TempData["StatusMessage"] = "Error activating staff.";
-                return RedirectToAction(nameof(AllCondominiumStaffByCompany), new { id = user.CompanyId });
+                return RedirectToAction(nameof(AllCondominiumStaffByCompany), new { id = userToActivate.CompanyId, showInactive = true });
             }
 
-            // Remove lockout so login is immediately allowed post-activation.
-            await _userRepository.SetLockoutEndDateAsync(user, null);
+            // Remove lockout
+            await _userRepository.SetLockoutEndDateAsync(userToActivate, null);
 
-            TempData["StatusMessage"] = $"Staff '{user.FirstName} {user.LastName}' activated.";
-            return RedirectToAction(nameof(AllCondominiumStaffByCompany), new { id = user.CompanyId });
+            // --- START EMAIL LOGIC ---
+            // 1. Notify Staff
+            await _emailSender.SendEmailAsync(userToActivate.Email, "Your Account Has Been Reactivated",
+                $"<p>Your account ({userToActivate.Email}) has been reactivated by your Company Administrator.</p>");
+
+            // 2. Notify Company Admin (the one who did it)
+            await _emailSender.SendEmailAsync(companyAdmin.Email, $"Confirmation: Staff {userToActivate.FirstName} Activated",
+                $"<p>You have successfully reactivated the account for staff member: {userToActivate.FirstName} {userToActivate.LastName}.</p>");
+
+            // 3. Notify the Condo Manager (if they are assigned and are a different person)
+            if (userToActivate.CondominiumId.HasValue)
+            {
+                var condo = await _condominiumRepository.GetByIdAsync(userToActivate.CondominiumId.Value);
+                if (condo != null && !string.IsNullOrEmpty(condo.CondominiumManagerId) && condo.CondominiumManagerId != companyAdmin.Id)
+                {
+                    var condoManager = await _userRepository.GetUserByIdAsync(condo.CondominiumManagerId);
+                    if (condoManager != null)
+                    {
+                        await _emailSender.SendEmailAsync(condoManager.Email, $"Staff Account Reactivated: {userToActivate.FirstName}",
+                            $"<p>This is to notify you that the staff account for {userToActivate.FirstName} {userToActivate.LastName} (assigned to your condominium) has been reactivated by the Company Admin.</p>");
+                    }
+                }
+            }
+            // --- END EMAIL LOGIC ---
+
+            TempData["StatusMessage"] = $"Staff '{userToActivate.FirstName} {userToActivate.LastName}' activated.";
+            // Send them back to the INACTIVE list (where the user will now be gone)
+            return RedirectToAction(nameof(AllCondominiumStaffByCompany), new { id = userToActivate.CompanyId, showInactive = true });
         }
 
         /// <summary>
         /// Deactivates an active Condominium Staff account (soft lock + audit).
+        /// This action can only be performed on UNASSIGNED staff.
+        /// Sends notifications to the staff member, the admin performing the action, and the staff member's original creator.
         /// </summary>
         /// <param name="id">Staff user ID.</param>
         /// <returns>Redirects back to the staff list for the user's company.</returns>
@@ -1325,40 +1433,192 @@ namespace CET96_ProjetoFinal.web.Controllers
         [Authorize(Roles = "Company Administrator")]
         public async Task<IActionResult> DeactivateCondominiumStaff(string id)
         {
-            var user = await _userRepository.GetUserByIdAsync(id);
-            if (user == null) return NotFound();
+            var userToDeactivate = await _userRepository.GetUserByIdAsync(id);
+            if (userToDeactivate == null) return NotFound();
 
-            if (!await _userManager.IsInRoleAsync(user, "Condominium Staff"))
+            var companyAdmin = await _userRepository.GetUserByEmailasync(User.Identity.Name);
+            if (companyAdmin == null) return Unauthorized();
+
+            if (!await _userManager.IsInRoleAsync(userToDeactivate, "Condominium Staff"))
             {
                 TempData["StatusMessage"] = "Error: This user is not Condominium Staff.";
-                return RedirectToAction(nameof(AllCondominiumStaffByCompany), new { id = user.CompanyId });
+                return RedirectToAction(nameof(AllCondominiumStaffByCompany), new { id = userToDeactivate.CompanyId });
             }
 
-            // Safety: prevent the currently logged-in admin from deactivating themselves via this panel.
-            if (user.Id == _userManager.GetUserId(User))
+            if (userToDeactivate.Id == companyAdmin.Id)
             {
-                TempData["StatusMessage"] = "Error: You cannot deactivate your own account from this panel.";
-                return RedirectToAction(nameof(AllCondominiumStaffByCompany), new { id = user.CompanyId });
+                TempData["StatusMessage"] = "Error: You cannot deactivate your own account.";
+                return RedirectToAction(nameof(AllCondominiumStaffByCompany), new { id = userToDeactivate.CompanyId });
             }
 
-            // Mark as deactivated and capture audit info.
-            user.DeactivatedAt = DateTime.UtcNow;
-            user.DeactivatedByUserId = _userManager.GetUserId(User);
-            user.UpdatedAt = DateTime.UtcNow;
-            user.UserUpdatedId = _userManager.GetUserId(User);
+            // Business rule: Only allow deactivation of unassigned staff.
+            if (userToDeactivate.CondominiumId.HasValue)
+            {
+                var condo = await _condominiumRepository.GetByIdAsync(userToDeactivate.CondominiumId.Value);
+                TempData["StatusMessage"] = $"Error: Staff member must be dismissed from '{condo?.Name}' before they can be deactivated.";
+                return RedirectToAction(nameof(AllCondominiumStaffByCompany), new { id = userToDeactivate.CompanyId });
+            }
 
-            var result = await _userRepository.UpdateUserAsync(user);
+            // Proceed with deactivation
+            userToDeactivate.DeactivatedAt = DateTime.UtcNow;
+            userToDeactivate.DeactivatedByUserId = companyAdmin.Id;
+            userToDeactivate.UpdatedAt = DateTime.UtcNow;
+            userToDeactivate.UserUpdatedId = companyAdmin.Id;
+
+            var result = await _userRepository.UpdateUserAsync(userToDeactivate);
             if (!result.Succeeded)
             {
                 TempData["StatusMessage"] = "Error deactivating staff.";
-                return RedirectToAction(nameof(AllCondominiumStaffByCompany), new { id = user.CompanyId });
+                return RedirectToAction(nameof(AllCondominiumStaffByCompany), new { id = userToDeactivate.CompanyId });
             }
 
-            // Set lockout far into the future to block login while deactivated.
-            await _userRepository.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
+            await _userRepository.SetLockoutEndDateAsync(userToDeactivate, DateTimeOffset.MaxValue);
 
-            TempData["StatusMessage"] = $"Staff '{user.FirstName} {user.LastName}' deactivated.";
-            return RedirectToAction(nameof(AllCondominiumStaffByCompany), new { id = user.CompanyId });
+            // --- START: All EMAIL LOGIC ---
+
+            // 1. Notify Staff (The user being deactivated)
+            await _emailSender.SendEmailAsync(userToDeactivate.Email, "Your Account Has Been Deactivated",
+                $"<p>Your account ({userToDeactivate.Email}) has been deactivated by your Company Administrator.</p>");
+
+            // 2. Notify Company Admin (The one who performed the action)
+            await _emailSender.SendEmailAsync(companyAdmin.Email, $"Confirmation: Staff {userToDeactivate.FirstName} Deactivated",
+                $"<p>You have successfully deactivated the account for unassigned staff member: {userToDeactivate.FirstName} {userToDeactivate.LastName}.</p>");
+
+            // 3. Notify the Staff's Creator (who is likely their Manager), if they are a different person.
+            if (!string.IsNullOrEmpty(userToDeactivate.UserCreatedId) && userToDeactivate.UserCreatedId != companyAdmin.Id)
+            {
+                var creator = await _userRepository.GetUserByIdAsync(userToDeactivate.UserCreatedId);
+                if (creator != null)
+                {
+                    await _emailSender.SendEmailAsync(creator.Email,
+                        $"Account Deactivated: {userToDeactivate.FirstName}",
+                        $"<p>This is a notification that the staff account for {userToDeactivate.FirstName} {userToDeactivate.LastName} (which you created) has been deactivated by the Company Administrator.</p>");
+                }
+            }
+            // --- END: All EMAIL LOGIC ---
+
+            TempData["StatusMessage"] = $"Staff '{userToDeactivate.FirstName} {userToDeactivate.LastName}' deactivated.";
+            return RedirectToAction(nameof(AllCondominiumStaffByCompany), new { id = userToDeactivate.CompanyId });
+        }
+
+        /// <summary>
+        /// (POST) Assigns an unassigned staff member to a selected condominium.
+        /// Notifies the staff member, their new manager, and the company admin.
+        /// </summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Company Administrator")] // Only Admin can assign staff
+        public async Task<IActionResult> AssignStaffToCondominium(LinkManagerToCondominiumViewModel model)
+        {
+            var staffUser = await _userRepository.GetUserByIdAsync(model.UserId);
+            var companyAdmin = await _userRepository.GetUserByEmailasync(User.Identity.Name);
+
+            if (staffUser == null || companyAdmin == null) return NotFound();
+
+            if (model.SelectedCondominiumId == null || model.SelectedCondominiumId == 0)
+            {
+                ModelState.AddModelError(nameof(model.SelectedCondominiumId), "You must select a condominium.");
+                // Rehydrate the model and return the view
+                model.CondominiumsList = await _condominiumRepository.GetUnassignedCondominiumsByCompanyAdminAsync(companyAdmin.Id);
+                model.FullName = $"{staffUser.FirstName} {staffUser.LastName}";
+                model.CompanyId = staffUser.CompanyId ?? 0;
+                return View(model);
+            }
+
+            var condoToAssign = await _condominiumRepository.GetByIdAsync(model.SelectedCondominiumId.Value);
+            if (condoToAssign == null) return NotFound();
+
+            // --- Perform Assignment ---
+            staffUser.CondominiumId = condoToAssign.Id;
+            await _userRepository.UpdateUserAsync(staffUser);
+
+            // --- START EMAIL LOGIC ---
+            // 1. Notify Staff
+            await _emailSender.SendEmailAsync(staffUser.Email, "You Have a New Assignment",
+                $"<p>This is a notification to inform you that you have been assigned to the condominium: <strong>{condoToAssign.Name}</strong>.</p>");
+
+            // 2. Notify Company Admin (the one who did it)
+            await _emailSender.SendEmailAsync(companyAdmin.Email, $"Confirmation: Staff Assigned: {staffUser.FirstName}",
+                $"<p>You have successfully assigned {staffUser.FirstName} {staffUser.LastName} to the condominium '{condoToAssign.Name}'.</p>");
+
+            // 3. Notify the new Condo Manager
+            if (!string.IsNullOrEmpty(condoToAssign.CondominiumManagerId))
+            {
+                var condoManager = await _userRepository.GetUserByIdAsync(condoToAssign.CondominiumManagerId);
+                if (condoManager != null)
+                {
+                    await _emailSender.SendEmailAsync(condoManager.Email, $"New Staff Assigned to your Condominium",
+                        $"<p>This is to notify you that a new staff member, {staffUser.FirstName} {staffUser.LastName}, has been assigned to your condominium ('{condoToAssign.Name}').</p>");
+                }
+            }
+            // --- END EMAIL LOGIC ---
+
+            TempData["StatusMessage"] = $"Staff member {staffUser.FirstName} {staffUser.LastName} has been assigned to {condoToAssign.Name}.";
+            return RedirectToAction(nameof(AllCondominiumStaffByCompany), new { id = staffUser.CompanyId });
+        }
+
+        /// <summary>
+        /// (POST) Dismisses a staff member from a condominium (sets their CondoId to null).
+        /// Notifies the staff member, their (now former) manager, and the company admin.
+        /// </summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Company Administrator, Condominium Manager")] // Can be done by Admin or their direct Manager
+        public async Task<IActionResult> DismissStaff(string id)
+        {
+            var staffUser = await _userRepository.GetUserByIdAsync(id);
+            if (staffUser == null || !staffUser.CondominiumId.HasValue)
+            {
+                return NotFound(); // Can't dismiss someone who isn't assigned
+            }
+
+            var performer = await _userRepository.GetUserByEmailasync(User.Identity.Name); // Person clicking the button
+            var condo = await _condominiumRepository.GetByIdAsync(staffUser.CondominiumId.Value);
+            if (condo == null) return NotFound(); // Safety check
+
+            var company = await _companyRepository.GetByIdAsync(staffUser.CompanyId.Value);
+            var mainCompanyAdmin = await _userRepository.GetUserByIdAsync(company.ApplicationUserId);
+
+            // Get the manager of the condo they are being dismissed from
+            ApplicationUser condoManager = null;
+            if (!string.IsNullOrEmpty(condo.CondominiumManagerId))
+            {
+                condoManager = await _userRepository.GetUserByIdAsync(condo.CondominiumManagerId);
+            }
+
+            // --- Perform Dismissal ---
+            staffUser.CondominiumId = null; // Un-assign them
+            await _userRepository.UpdateUserAsync(staffUser);
+
+            TempData["StatusMessage"] = $"Staff member {staffUser.FirstName} {staffUser.LastName} has been dismissed and is now Unassigned.";
+
+            // --- START: UPDATED EMAIL LOGIC ---
+
+            // Get the role of the person performing the action for the email log
+            var performerRoles = await _userManager.GetRolesAsync(performer);
+            var performerRole = performerRoles.FirstOrDefault() ?? "Management"; // Default to 'Management' if no specific role
+
+            // 1. Notify Staff
+            await _emailSender.SendEmailAsync(staffUser.Email, "You Have Been Dismissed From Condominium",
+                $"<p>This is a notification to inform you that your account has been dismissed (unassigned) from the condominium '{condo.Name}' by your {performerRole}.</p>");
+
+            // 2. Notify the Manager they were dismissed from (if manager exists and wasn't the one who dismissed them)
+            if (condoManager != null && condoManager.Id != performer.Id)
+            {
+                await _emailSender.SendEmailAsync(condoManager.Email, $"Staff Dismissed: {staffUser.FirstName}",
+                    $"<p>This is to notify you that the staff member {staffUser.FirstName} {staffUser.LastName} has been dismissed from your condominium '{condo.Name}' by the {performerRole}.</p>");
+            }
+
+            // 3. Notify the Main Company Admin (if they weren't the one who dismissed them)
+            // (The email to the main admin should show *who* did the action, so we keep the name here for the audit trail)
+            if (mainCompanyAdmin != null && mainCompanyAdmin.Id != performer.Id)
+            {
+                await _emailSender.SendEmailAsync(mainCompanyAdmin.Email, $"Record: Staff Dismissed: {staffUser.FirstName}",
+                     $"<p>This is a record that the user {performer.FirstName} {performer.LastName} ({performerRole}) dismissed staff member {staffUser.FirstName} from condominium '{condo.Name}'.</p>");
+            }
+            // --- END: UPDATED EMAIL LOGIC ---
+
+            return RedirectToAction(nameof(AllCondominiumStaffByCompany), new { id = staffUser.CompanyId });
         }
 
         /// <summary>
@@ -1389,6 +1649,92 @@ namespace CET96_ProjetoFinal.web.Controllers
             return View(vm);
         }
 
+        /// <summary>
+        /// Displays read-only details for a Staff member.
+        /// Secures the action to ensure only an Admin from the same company
+        /// or the staff's direct Manager can view their details.
+        /// </summary>
+        /// <param name="id">The User ID of the staff member.</param>
+        /// <returns>A view with the staff member's details.</returns>
+        [Authorize(Roles = "Company Administrator, Condominium Manager")]
+        public async Task<IActionResult> StaffDetails(string id)
+        {
+            if (id == null) return NotFound();
+
+            var staffMember = await _userRepository.GetUserByIdAsync(id);
+            if (staffMember == null || !staffMember.CondominiumId.HasValue || !staffMember.CompanyId.HasValue)
+            {
+                return NotFound();
+            }
+
+            var loggedInUser = await _userRepository.GetUserByEmailasync(User.Identity.Name);
+            if (loggedInUser == null) return Unauthorized();
+
+            bool isAuthorized = false;
+
+            // Security Check 1: Is user a Manager assigned to this staff's condo?
+            if (User.IsInRole("Condominium Manager"))
+            {
+                var managersCondo = await _condominiumRepository.GetCondominiumByManagerIdAsync(loggedInUser.Id);
+                if (managersCondo != null && managersCondo.Id == staffMember.CondominiumId)
+                {
+                    isAuthorized = true;
+                }
+            }
+            // Security Check 2: Is user a Company Admin who owns this staff's company?
+            else if (User.IsInRole("Company Administrator"))
+            {
+                if (staffMember.CompanyId == loggedInUser.CompanyId)
+                {
+                    isAuthorized = true;
+                }
+            }
+
+            if (!isAuthorized)
+            {
+                return RedirectToAction("AccessDenied", "Error");
+            }
+
+            // Get Condo and Company names to display in the view
+            var condo = await _condominiumRepository.GetByIdAsync(staffMember.CondominiumId.Value);
+            var company = await _companyRepository.GetByIdAsync(staffMember.CompanyId.Value);
+
+            ViewBag.CondominiumName = condo?.Name ?? "N/A";
+            ViewBag.CompanyName = company?.Name ?? "N/A";
+
+            // Pass the ApplicationUser entity to your existing CondominiumStaff/Details view
+            return View("~/Views/CondominiumStaff/Detail.cshtml", staffMember);
+        }
+
+        /// <summary>
+        /// Displays a dedicated page listing all inactive Condominium Staff for a specific company.
+        /// </summary>
+        /// <param name="id">The ID of the company (passed as CompanyId).</param>
+        /// <returns>A view populated with a list of inactive staff accounts.</returns>
+        [Authorize(Roles = "Company Administrator")]
+        public async Task<IActionResult> InactiveStaff(int id) // 'id' is the CompanyId
+        {
+            var company = await _companyRepository.GetByIdAsync(id);
+            if (company == null)
+            {
+                return NotFound();
+            }
+
+            // Call your existing helper, filtering for "Condominium Staff" and forcing showInactive: true
+            var inactiveStaffList = await BuildUserListByRoleAsync(id, "Condominium Staff", showInactive: true);
+
+            var model = new StaffListViewModel // Use your existing StaffListViewModel
+            {
+                AllUsers = inactiveStaffList
+            };
+
+            ViewBag.CompanyId = id;
+            ViewBag.CompanyName = company.Name;
+            ViewBag.Title = "Inactive Condominium Staff";
+
+            // We will now create this new View file
+            return View(model);
+        }
 
         /// <summary>
         /// Builds a user list for a company filtered by a specific role (e.g., "Condominium Manager" or "Condominium Staff").
@@ -1407,9 +1753,9 @@ namespace CET96_ProjetoFinal.web.Controllers
 
             var list = new List<ApplicationUserViewModel>();
 
-            foreach (var u in users)
+            foreach (var user in users)
             {
-                var roles = await _userRepository.GetUserRolesAsync(u);
+                var roles = await _userRepository.GetUserRolesAsync(user);
                 if (!roles.Contains(role)) continue; // Keep only requested role
 
                 string? assignedCondoName = null;
@@ -1417,31 +1763,36 @@ namespace CET96_ProjetoFinal.web.Controllers
                 // Managers: assignment via one-to-one (manager -> condominium)
                 if (role == "Condominium Manager")
                 {
-                    var assignment = await _condominiumRepository.GetCondominiumByManagerIdAsync(u.Id);
+                    var assignment = await _condominiumRepository.GetCondominiumByManagerIdAsync(user.Id);
                     assignedCondoName = assignment?.Name;
                 }
                 // Staff: assignment via user's CondominiumId
-                else if (role == "Condominium Staff" && u.CondominiumId.HasValue)
+                else if (role == "Condominium Staff" && user.CondominiumId.HasValue)
                 {
-                    var condo = await _condominiumRepository.GetByIdAsync(u.CondominiumId.Value);
+                    var condo = await _condominiumRepository.GetByIdAsync(user.CondominiumId.Value);
                     assignedCondoName = condo?.Name;
                 }
 
                 list.Add(new ApplicationUserViewModel
                 {
-                    Id = u.Id,
-                    FirstName = u.FirstName,
-                    LastName = u.LastName,
-                    UserName = u.UserName,
-                    IsDeactivated = u.DeactivatedAt.HasValue,
+                    Id = user.Id,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    UserName = user.UserName,
+                    IsDeactivated = user.DeactivatedAt.HasValue,
                     Roles = roles,
-                    AssignedCondominiumName = assignedCondoName
+                    AssignedCondominiumName = assignedCondoName,
+                    IsEmailConfirmed = user.EmailConfirmed
                 });
             }
 
             return list;
         }
 
+
+
+        // TODO: Future feature - account deactivation by user themselves?
+        /* ------------------------ This code below is left commented on purpose ---------------*/
 
         ///// <summary>
         ///// Displays the confirmation page for account deactivation.

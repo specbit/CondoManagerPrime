@@ -12,10 +12,10 @@
     <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
 }
  *@
-<h4>Hello, @Model.FirstName!</h4>
+<h4>Hello, @Model.FirstName @Model.LastName!</h4>
 
 <div class="mt-4">
-    <p>From here you can manage your account settings.</p>
+    <p>From here you can manage your account @Model.Email settings.</p>
     <a class="btn btn-secondary" asp-action="ChangePassword">Change Password</a>
     <a class="btn btn-primary" asp-action="EditAccount" asp-route-id="@Model.Id">Edit Profile</a>
 @*     @if (User.IsInRole("Platform Administrator"))

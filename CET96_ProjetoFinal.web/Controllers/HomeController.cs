@@ -43,7 +43,7 @@ namespace CET96_ProjetoFinal.web.Controllers
         /// A Task<IActionResult> that renders the home page view, populated with a 
         /// HomeViewModel containing role-specific data.
         /// </returns>
-        [Authorize]
+        [AllowAnonymous]
         public async Task<IActionResult> Index()
         {
             var model = new HomeViewModel();
