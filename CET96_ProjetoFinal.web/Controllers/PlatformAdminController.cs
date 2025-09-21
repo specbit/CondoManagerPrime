@@ -3,6 +3,7 @@ using CET96_ProjetoFinal.web.Entities;
 using CET96_ProjetoFinal.web.Models;
 using CET96_ProjetoFinal.web.Repositories;
 using CET96_ProjetoFinal.web.Services;
+using Humanizer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -66,7 +67,8 @@ namespace CET96_ProjetoFinal.web.Controllers
                     LastName = user.LastName,
                     UserName = user.UserName,
                     IsDeactivated = user.DeactivatedAt.HasValue,
-                    Roles = roles
+                    Roles = roles,
+                    IsEmailConfirmed = user.EmailConfirmed
                 });
             }
 
@@ -81,6 +83,7 @@ namespace CET96_ProjetoFinal.web.Controllers
             return View(model); // This will return the new Views/PlatformAdmin/UserManager.cshtml
         }
 
+        // TODO: Delete this old code if the new cascade-deactivate code is approved.
         ///// <summary>
         ///// Displays the confirmation page before deactivating a user's account.
         ///// </summary>
@@ -236,6 +239,7 @@ namespace CET96_ProjetoFinal.web.Controllers
                 List<ApplicationUser> allUniqueUsers = new List<ApplicationUser>();
                 List<string> condominiumNames = new List<string>();
                 string companyName = "N/A";
+                string companyEmail = null;
 
                 await using (var transaction = await _context.Database.BeginTransactionAsync())
                 {
@@ -246,6 +250,7 @@ namespace CET96_ProjetoFinal.web.Controllers
                         if (company != null)
                         {
                             companyName = company.Name;
+                            companyEmail = company.Email;
                             company.IsActive = false;
                             company.DeletedAt = DateTime.UtcNow;
                             _companyRepository.Update(company);
@@ -322,6 +327,17 @@ namespace CET96_ProjetoFinal.web.Controllers
                 var userEmailBody = "<p>Your CondoManagerPrime account has been deactivated by a platform administrator as part of a company-wide action.</p>" +
                                     "<p>If you believe this is in error, please contact your company administrator or system support.</p>";
 
+                // 3. Send totification to the company' official email
+                if (!string.IsNullOrEmpty(companyEmail))
+                {
+                    await _emailSender.SendEmailAsync(
+                        companyEmail,
+                        $"Official Notification: Company Deactivated - {companyName}",
+                        $"<p>This is an official notification that your company, '{companyName}', and all associated user accounts and condominiums have been deactivated by a Platform Administrator.</p>" +
+                        "<p>Please contact support for further information.</p>"
+                    );
+                }
+
                 foreach (var user in allUniqueUsers)
                 {
                     // Avoid sending an email if the email address is somehow null or empty
@@ -335,7 +351,7 @@ namespace CET96_ProjetoFinal.web.Controllers
             }
             else
             {
-                // --- ORIGINAL-STYLE LOGIC: This user is not a Company Admin, so just deactivate them.
+                // --- This user is not a Company Admin, so just deactivate them.
                 userToDeactivate.DeactivatedAt = DateTime.UtcNow;
                 userToDeactivate.DeactivatedByUserId = platformAdmin.Id;
                 await _userRepository.UpdateUserAsync(userToDeactivate);
@@ -363,12 +379,15 @@ namespace CET96_ProjetoFinal.web.Controllers
             var userToActivate = await _userRepository.GetUserByIdAsync(id);
             if (userToActivate == null) return NotFound();
 
+            // 1. GET THE PLATFORM ADMIN (for the email) 
+            var platformAdmin = await _userManager.GetUserAsync(User);
+
             var successMessage = $"User {userToActivate.Email} has been activated.";
 
-            // 1. Clear the lockout end date to unlock the account
+            // 2. Clear the lockout end date to unlock the account
             await _userManager.SetLockoutEndDateAsync(userToActivate, null);
 
-            // 2. Clear any deactivation audit fields
+            // 3. Clear any deactivation audit fields
             userToActivate.DeactivatedAt = null;
             userToActivate.DeactivatedByUserId = null; // Also clear who deactivated them
 
@@ -383,18 +402,20 @@ namespace CET96_ProjetoFinal.web.Controllers
             {
                 var companyId = userToActivate.CompanyId.Value;
                 string companyName = "N/A";
+                string companyEmail = null;
 
-                // 3. Reactivate the Company
+                // 4. Reactivate the Company
                 var company = await _companyRepository.GetByIdAsync(companyId);
                 if (company != null)
                 {
                     companyName = company.Name;
+                    companyEmail = company.Email;
                     company.IsActive = true;
                     company.DeletedAt = null;
                     _companyRepository.Update(company);
                 }
 
-                // 4. Reactivate all Condominiums in that Company
+                // 5. Reactivate all Condominiums in that Company
                 var condominiums = await _condominiumRepository.GetActiveCondominiumsByCompanyIdAsync(companyId);
                 foreach (var condo in condominiums)
                 {
@@ -403,19 +424,39 @@ namespace CET96_ProjetoFinal.web.Controllers
                     _condominiumRepository.Update(condo);
                 }
 
-                // 5. Save all entity changes to the database
+                // 6. Save all entity changes to the database
                 // This single SaveChanges call commits all updates from all repositories
                 await _context.SaveChangesAsync();
 
                 successMessage = $"User {userToActivate.Email}, Company '{companyName}', and all associated condominiums have been reactivated.";
 
-                // You could optionally send an email to the reactivated admin here, telling them
-                // they must now manually reactivate their own staff.
+                // 7. Send Email to Company Admin
+                // They must now manually reactivate their own staff.
                 await _emailSender.SendEmailAsync(userToActivate.Email,
                     "Your Account and Company Have Been Reactivated",
                     $"<p>Your account, your company ({companyName}), and all its condominiums have been reactivated by the Platform Administrator.</p>" +
                     "<p>Please note: All subordinate user accounts (such as managers and staff) remain inactive. You must log in and manually reactivate any accounts you wish to restore.</p>");
 
+                // 8. Send Notification to the Company's Official Email 
+                if (!string.IsNullOrEmpty(companyEmail))
+                {
+                    await _emailSender.SendEmailAsync(
+                        companyEmail,
+                        $"Official Notification: Company Reactivated - {companyName}",
+                        $"<p>This is an official notification that your company, '{companyName}', has been reactivated by a Platform Administrator.</p>" +
+                        $"<p>The administrator {userToActivate.FirstName} {userToActivate.LastName} ({userToActivate.Email}) has also been reactivated.</p>"
+                    );
+                }
+
+                // 9. Send Summary Email to Platform Admin ---
+                if (platformAdmin != null)
+                {
+                    await _emailSender.SendEmailAsync(
+                        platformAdmin.Email,
+                        $"Activation Report: {companyName}",
+                        $"<p>This is a confirmation that you have successfully reactivated the company <strong>{companyName}</strong> and its administrator {userToActivate.FirstName} {userToActivate.LastName} ({userToActivate.Email}).</p>"
+                    );
+                }
             }
             // --- END: NEW CASCADE-UP LOGIC ---
 
@@ -423,7 +464,6 @@ namespace CET96_ProjetoFinal.web.Controllers
 
             return RedirectToAction("UserManager");
         }
-
 
         /// <summary>
         /// Determines the sort order for a given role name.

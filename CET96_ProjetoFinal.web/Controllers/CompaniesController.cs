@@ -1,6 +1,6 @@
 ﻿using CET96_ProjetoFinal.web.Helpers;
 using CET96_ProjetoFinal.web.Models;
-using CET96_ProjetoFinal.web.Repositories; // Add this using directive
+using CET96_ProjetoFinal.web.Repositories; 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;

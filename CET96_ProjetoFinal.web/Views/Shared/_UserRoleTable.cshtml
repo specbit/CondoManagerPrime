@@ -79,7 +79,7 @@
 
                                 @if (roleContext == "Manager")
                                 {
-                                    @* Managers: This logic is correct *@
+                                    <a asp-controller="Account" asp-action="ManagerDetails" asp-route-id="@user.Id" class="btn btn-sm btn-info">Details</a>
                                     <a asp-controller="Account" asp-action="EditAccount" asp-route-id="@user.Id" class="btn btn-sm btn-warning">Edit</a>
                                     @if (string.IsNullOrEmpty(user.AssignedCondominiumName))
                                     {
