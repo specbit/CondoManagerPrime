@@ -1,11 +1,10 @@
 ﻿@model CET96_ProjetoFinal.web.Entities.ApplicationUser
-
 @{
-    ViewData["Title"] = "Staff Details";
+    ViewData["Title"] = "Manager Details";
 }
 
-<h1>Staff Details</h1>
-<h4>@ViewBag.CondominiumName</h4>
+<h1>Manager Details</h1>
+<h4>@ViewBag.CompanyName</h4>
 <hr />
 
 <div class="card-body">
@@ -22,8 +21,8 @@
         <dt class="col-sm-3">Phone Number</dt>
         <dd class="col-sm-9">@Model.PhoneNumber</dd>
 
-        <dt class="col-sm-3">Profession</dt>
-        <dd class="col-sm-9">@Model.Profession</dd>
+        <dt class="col-sm-3">Assigned To</dt>
+        <dd class="col-sm-9">@ViewBag.AssignedCondominiumName</dd>
 
         <dt class="col-sm-3">Status</dt>
         <dd class="col-sm-9">
@@ -48,9 +47,6 @@
         <dt class="col-sm-3">ID Number</dt>
         <dd class="col-sm-9">@Model.IdentificationDocument</dd>
 
-        <dt class="col-sm-3">Works For Company</dt>
-        <dd class="col-sm-9">@ViewBag.CompanyName</dd>
-
         <dt class="col-sm-3">Account Created</dt>
         <dd class="col-sm-9">@Model.CreatedAt.ToString("g")</dd>
 
@@ -62,6 +58,7 @@
     </dl>
 </div>
 <div class="mt-3">
-    <a asp-controller="Account" asp-action="EditAccount" asp-route-id="@Model.Id" class="btn btn-warning">Edit Staff</a>
-    <a asp-controller="Account" asp-action="AllCondominiumStaffByCompany" asp-route-id="@Model.CompanyId" class="btn btn-outline-secondary">Back to Staff List</a>
+    <a asp-controller="Account" asp-action="EditAccount" asp-route-id="@Model.Id" class="btn btn-warning">Edit Manager</a>
+
+    <a asp-controller="Account" asp-action="AllUsersByCompany" asp-route-id="@Model.CompanyId" class="btn btn-outline-secondary">Back to List</a>
 </div>

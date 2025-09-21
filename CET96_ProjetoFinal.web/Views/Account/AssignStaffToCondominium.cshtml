@@ -1,0 +1,34 @@
+﻿@model CET96_ProjetoFinal.web.Models.AssignmentViewModel
+@{
+    ViewData["Title"] = "Assign Staff";
+}
+
+<div class="container mb-4">
+    <h1 class="display-5">Assign Staff to Condominium</h1>
+    <p class="lead">Assigning staff member: <strong>@Model.FullName</strong></p>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <form asp-action="AssignStaffToCondominium" method="post">
+            <div asp-validation-summary="All" class="text-danger"></div>
+
+            <input type="hidden" asp-for="UserId" />
+            <input type="hidden" asp-for="CompanyId" />
+
+            <div class="form-group mb-3">
+                <label asp-for="SelectedCondominiumId" class="control-label">Select a Condominium to Assign:</label>
+                <select asp-for="SelectedCondominiumId" class="form-select"
+                        asp-items="Model.CondominiumsList">
+                    <option value="">-- Select Condominium --</option>
+                </select>
+                <span asp-validation-for="SelectedCondominiumId" class="text-danger"></span>
+            </div>
+
+            <div class="form-group mt-3">
+                <input type="submit" value="Assign Staff" class="btn btn-primary" />
+                <a asp-action="AllCondominiumStaffByCompany" asp-route-id="@Model.CompanyId" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
