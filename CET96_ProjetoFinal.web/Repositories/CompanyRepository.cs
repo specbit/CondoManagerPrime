@@ -142,6 +142,15 @@ namespace CET96_ProjetoFinal.web.Repositories
                                  .ToListAsync();
         }
 
+        /// <inheritdoc/>
+        public async Task<IEnumerable<Company>> GetAllCompaniesByAdminIdAsync(string adminId)
+        {
+            // Finds all companies where the admin ID matches, regardless of active status.
+            return await _context.Companies
+                                 .Where(c => c.ApplicationUserId == adminId)
+                                 .ToListAsync();
+        }
+
         public async Task<bool> DoesCompanyExistForUserAsync(string userId)
         {
             return await _context.Companies.AnyAsync(c => c.ApplicationUserId == userId);

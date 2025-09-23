@@ -134,5 +134,13 @@ namespace CET96_ProjetoFinal.web.Repositories
                 .Include(c => c.Units) // Eager load the Units
                 .FirstOrDefaultAsync(c => c.Id == id);
         }
+
+        /// <inheritdoc/>
+        public async Task<IEnumerable<Condominium>> GetCondominiumsByCompanyIdAsync(int companyId)
+        {
+            return await _context.Condominiums
+                                 .Where(c => c.CompanyId == companyId)
+                                 .ToListAsync();
+        }
     }
 }

@@ -83,89 +83,6 @@ namespace CET96_ProjetoFinal.web.Controllers
             return View(model); // This will return the new Views/PlatformAdmin/UserManager.cshtml
         }
 
-        // TODO: Delete this old code if the new cascade-deactivate code is approved.
-        ///// <summary>
-        ///// Displays the confirmation page before deactivating a user's account.
-        ///// </summary>
-        ///// <param name="id">The ID of the user to deactivate.</param>
-        ///// <returns>The confirmation view, or a redirect if the action is not permitted.</returns>
-        //public async Task<IActionResult> DeactivateUser(string id)
-        //{
-        //    var userToDeactivate = await _userRepository.GetUserByIdAsync(id);
-        //    if (userToDeactivate == null)
-        //    {
-        //        return NotFound();
-        //    }
-
-        //    // FINAL SECURITY CHECK: Is the target a Platform Administrator?
-        //    if (await _userManager.IsInRoleAsync(userToDeactivate, "Platform Administrator"))
-        //    {
-        //        TempData["StatusMessage"] = "Error: Platform Administrator accounts cannot be deactivated.";
-        //        return RedirectToAction("UserManager");
-        //    }
-
-        //    // If the check passes, show the confirmation view.
-        //    return View(userToDeactivate);
-        //}
-
-        ///// <summary>
-        ///// Handles the POST request to confirm and perform the deactivation of a user account.
-        ///// </summary>
-        ///// <param name="id">The ID of the user to be deactivated.</param>
-        ///// <returns>A redirect to the user management page.</returns>
-        //[HttpPost]
-        //[ValidateAntiForgeryToken]
-        //public async Task<IActionResult> DeactivateUserConfirm(string id)
-        //{
-        //    var userToDeactivate = await _userRepository.GetUserByIdAsync(id);
-        //    if (userToDeactivate == null)
-        //    {
-        //        return NotFound();
-        //    }
-
-        //    // FINAL SECURITY CHECK: Double-check the role before performing the action.
-        //    if (await _userManager.IsInRoleAsync(userToDeactivate, "Platform Administrator"))
-        //    {
-        //        TempData["StatusMessage"] = "Error: Platform Administrator accounts cannot be deactivated.";
-        //        return RedirectToAction("UserManager");
-        //    }
-
-        //    // Deactivate the target user
-        //    var adminWhoIsDeactivating = await _userManager.GetUserAsync(User);
-        //    userToDeactivate.DeactivatedAt = DateTime.UtcNow;
-        //    userToDeactivate.DeactivatedByUserId = adminWhoIsDeactivating.Id;
-        //    await _userRepository.UpdateUserAsync(userToDeactivate);
-        //    await _userManager.SetLockoutEndDateAsync(userToDeactivate, DateTimeOffset.MaxValue);
-
-        //    TempData["StatusMessage"] = $"User {userToDeactivate.Email} has been successfully deactivated.";
-        //    return RedirectToAction("UserManager");
-        //}
-
-        ///// <summary>
-        ///// Activates a previously deactivated user account.
-        ///// </summary>
-        ///// <param name="id">The ID of the user to activate.</param>
-        ///// <returns>A redirect to the user management page.</returns>
-        //public async Task<IActionResult> ActivateUser(string id)
-        //{
-        //    var platformAdmin = await _userRepository.GetUserByEmailasync(User.Identity.Name);
-        //    var userToActivate = await _userRepository.GetUserByIdAsync(id);
-
-        //    if (userToActivate == null) return NotFound();
-
-        //    // 1. Clear the lockout end date to unlock the account
-        //    await _userRepository.SetLockoutEndDateAsync(userToActivate, null);
-
-        //    // 2. Clear any deactivation audit fields
-        //    userToActivate.DeactivatedAt = null;
-        //    userToActivate.DeactivatedByUserId = null; // Also clear who deactivated them
-        //    await _userRepository.UpdateUserAsync(userToActivate);
-
-        //    TempData["StatusMessage"] = $"User {userToActivate.Email} has been activated.";
-
-        //    return RedirectToAction("UserManager");
-        //}
-
         /// <summary>
         /// Displays the confirmation page before deactivating a user's account.
         /// If the target user is a Company Administrator, this view will include a
@@ -200,177 +117,131 @@ namespace CET96_ProjetoFinal.web.Controllers
         }
 
         /// <summary>
-        /// Handles the POST request to confirm and perform the deactivation of a user account.
-        /// CRITICAL: If the target user is in the 'Company Administrator' role, this will trigger a database
-        /// transaction to perform a cascade deactivation, shutting down the entire tenant. This includes:
-        /// 1. Deactivating the Company entity.
-        /// 2. Deactivating all associated Condominium entities.
-        /// 3. Deactivating and Locking ALL user accounts associated with that company OR any of its condominiums
-        ///    (including other admins, managers, and staff).
-        /// 4. Sends a summary email to the Platform Admin and notification emails to all deactivated users.
-        /// If the user is not a Company Admin, it will only deactivate the single user account.
+        /// Handles the POST request to confirm and lock a user account.
+        /// CRITICAL: If the user is a 'Company Administrator', this triggers a
+        /// cascade-lock of ALL associated user accounts (Managers and Staff) for ALL companies they manage.
+        /// This action sends notifications to the company's official email, all affected users, and the Platform Admin.
         /// </summary>
-        /// <param name="id">The ID of the user to be deactivated.</param>
+        /// <param name="id">The ID of the user to be locked.</param>
         /// <returns>A redirect to the user management page.</returns>
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeactivateUserConfirm(string id)
         {
             var userToDeactivate = await _userRepository.GetUserByIdAsync(id);
-            if (userToDeactivate == null)
-            {
-                return NotFound();
-            }
+            if (userToDeactivate == null) return NotFound();
 
-            // Security Check: Cannot deactivate a Platform Admin
-            if (await _userManager.IsInRoleAsync(userToDeactivate, "Platform Administrator"))
+            var platformAdmin = await _userManager.GetUserAsync(User);
+
+            if (userToDeactivate.Id == platformAdmin.Id || await _userManager.IsInRoleAsync(userToDeactivate, "Platform Administrator"))
             {
                 TempData["StatusMessage"] = "Error: Platform Administrator accounts cannot be deactivated.";
                 return RedirectToAction("UserManager");
             }
 
-            var platformAdmin = await _userManager.GetUserAsync(User);
             bool isCompanyAdmin = await _userManager.IsInRoleAsync(userToDeactivate, "Company Administrator");
 
-            if (isCompanyAdmin && userToDeactivate.CompanyId.HasValue)
+            if (isCompanyAdmin)
             {
-                // --- CASCADE DEACTIVATION WORKFLOW ---
-                int companyId = userToDeactivate.CompanyId.Value;
-                List<ApplicationUser> allUniqueUsers = new List<ApplicationUser>();
-                List<string> condominiumNames = new List<string>();
-                string companyName = "N/A";
-                string companyEmail = null;
+                _logger.LogInformation($"Starting cascade-lock for CompanyAdmin {userToDeactivate.Email}...");
 
-                await using (var transaction = await _context.Database.BeginTransactionAsync())
+                // 1. Find ALL companies for this admin using the new method
+                var companiesToLock = await _companyRepository.GetAllCompaniesByAdminIdAsync(userToDeactivate.Id);
+
+                if (companiesToLock != null && companiesToLock.Any())
                 {
-                    try
-                    {
-                        // 1. Deactivate Company
-                        var company = await _companyRepository.GetByIdAsync(companyId);
-                        if (company != null)
-                        {
-                            companyName = company.Name;
-                            companyEmail = company.Email;
-                            company.IsActive = false;
-                            company.DeletedAt = DateTime.UtcNow;
-                            _companyRepository.Update(company);
-                        }
+                    var usersToLock = new List<ApplicationUser> { userToDeactivate }; // Add the admin
+                    var companyNames = new List<string>();
 
-                        // 2. Deactivate Condominiums
-                        var condominiums = await _condominiumRepository.GetActiveCondominiumsByCompanyIdAsync(companyId); // Get active ones to deactivate
-                        var condominiumIds = new List<int>();
+                    // 2. Loop through each company to find all subordinate users
+                    foreach (var company in companiesToLock)
+                    {
+                        companyNames.Add(company.Name);
+
+                        // 2a. Get managers
+                        var managers = await _userRepository.GetUsersByCompanyIdAsync(company.Id);
+                        usersToLock.AddRange(managers);
+
+                        // 2b. Get staff
+                        var condominiums = await _condominiumRepository.GetCondominiumsByCompanyIdAsync(company.Id);
                         foreach (var condo in condominiums)
                         {
-                            condo.IsActive = false;
-                            condo.DeletedAt = DateTime.UtcNow;
-                            _condominiumRepository.Update(condo);
-                            condominiumIds.Add(condo.Id);
-                            condominiumNames.Add(condo.Name); // Store name for email
+                            var staff = await _userRepository.GetStaffByCondominiumIdAsync(condo.Id);
+                            usersToLock.AddRange(staff);
                         }
-
-                        // 3. Get all Users to deactivate
-                        var usersToDeactivate = new List<ApplicationUser>();
-
-                        // Add all users linked by CompanyId (all Company Admins, all Condo Managers)
-                        var companyUsers = await _userRepository.GetUsersByCompanyIdAsync(companyId);
-                        usersToDeactivate.AddRange(companyUsers);
-
-                        // Add all staff users linked to each condominium
-                        foreach (var condoId in condominiumIds)
-                        {
-                            var staffUsers = await _userRepository.GetStaffByCondominiumIdAsync(condoId);
-                            usersToDeactivate.AddRange(staffUsers);
-                        }
-
-                        // Final unique list
-                        allUniqueUsers = usersToDeactivate.DistinctBy(u => u.Id).ToList();
-
-                        // 4. Deactivate and Lock every user in the transaction
-                        foreach (var user in allUniqueUsers)
-                        {
-                            user.DeactivatedAt = DateTime.UtcNow;
-                            user.DeactivatedByUserId = platformAdmin.Id;
-                            await _userManager.UpdateAsync(user); // Use UserManager to update user
-                            await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
-                        }
-
-                        // 5. If everything succeeded, commit the transaction
-                        await transaction.CommitAsync();
                     }
-                    catch (Exception ex)
+
+                    var affectedUsers = usersToLock.DistinctBy(u => u.Id).ToList();
+
+                    // 3. Lock all users
+                    foreach (var user in affectedUsers)
                     {
-                        await transaction.RollbackAsync();
-                        _logger.LogError(ex, "Error during cascade-deactivate transaction.");
-                        TempData["StatusMessage"] = "Error: A critical failure occurred during the cascade-deactivation. No changes were made.";
-                        return RedirectToAction("UserManager");
+                        user.DeactivatedAt = DateTime.UtcNow;
+                        user.DeactivatedByUserId = platformAdmin.Id;
+                        await _userManager.UpdateAsync(user);
+                        await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
                     }
-                }
 
-                // --- SEND EMAILS (Only after transaction is committed) ---
-
-                // 1. Send Summary Email to Platform Admin
-                var condoListHtml = condominiumNames.Any() ? $"<ul>{string.Join("", condominiumNames.Select(n => $"<li>{n}</li>"))}</ul>" : "<p>No active condominiums were deactivated.</p>";
-                var userListHtml = $"<p>{allUniqueUsers.Count} total user account(s) have been deactivated and locked.</p>";
-                var adminEmailBody = $"<h3>Deactivation Summary</h3>" +
-                                     $"<p>You have successfully deactivated the following administrator and all their associated assets:</p>" +
-                                     $"<ul>" +
-                                     $"<li><b>Administrator:</b> {userToDeactivate.FirstName} {userToDeactivate.LastName} ({userToDeactivate.Email})</li>" +
-                                     $"<li><b>Company:</b> {companyName}</li>" +
-                                     $"</ul>" +
-                                     $"<b>Deactivated Condominiums:</b>" +
-                                     $"{condoListHtml}" +
-                                     $"{userListHtml}";
-
-                await _emailSender.SendEmailAsync(platformAdmin.Email, $"Deactivation Report: {companyName}", adminEmailBody);
-
-                // 2. Send Notification Email to ALL Deactivated Users
-                var userEmailBody = "<p>Your CondoManagerPrime account has been deactivated by a platform administrator as part of a company-wide action.</p>" +
-                                    "<p>If you believe this is in error, please contact your company administrator or system support.</p>";
-
-                // 3. Send totification to the company' official email
-                if (!string.IsNullOrEmpty(companyEmail))
-                {
-                    await _emailSender.SendEmailAsync(
-                        companyEmail,
-                        $"Official Notification: Company Deactivated - {companyName}",
-                        $"<p>This is an official notification that your company, '{companyName}', and all associated user accounts and condominiums have been deactivated by a Platform Administrator.</p>" +
-                        "<p>Please contact support for further information.</p>"
-                    );
-                }
-
-                foreach (var user in allUniqueUsers)
-                {
-                    // Avoid sending an email if the email address is somehow null or empty
-                    if (!string.IsNullOrEmpty(user.Email))
+                    // 4. Send Notifications
+                    foreach (var company in companiesToLock)
                     {
-                        await _emailSender.SendEmailAsync(user.Email, "Your Account Has Been Deactivated", userEmailBody);
+                        if (!string.IsNullOrEmpty(company.Email))
+                        {
+                            await _emailSender.SendEmailAsync(company.Email,
+                                $"Official Notification: Company Accounts Locked - {company.Name}",
+                                $"<p>This is an official notification that all user accounts associated with your company, '{company.Name}', have been locked by a Platform Administrator.</p>");
+                        }
                     }
+
+                    // Send to all affected users
+                    var userEmailBody = "<p>Your CondoManagerPrime account has been locked by a platform administrator as part of a company-wide deactivation.</p>" +
+                                        "<p>If you believe this is in error, please contact your company administrator or system support.</p>";
+                    foreach (var user in affectedUsers)
+                    {
+                        if (!string.IsNullOrEmpty(user.Email))
+                        {
+                            try
+                            {
+                                await _emailSender.SendEmailAsync(user.Email, "Your Account Has Been Locked", userEmailBody);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, $"Failed to send deactivation email to {user.Email}");
+                            }
+                        }
+                    }
+
+                    // Send summary to Platform Admin
+                    var userListHtml = $"<ul>{string.Join("", affectedUsers.Select(u => $"<li>{u.Email} ({u.FirstName} {u.LastName})</li>"))}</ul>";
+                    var adminEmailBody = $"<p>You have successfully locked {affectedUsers.Count} user accounts associated with the Company Administrator {userToDeactivate.Email}.</p>" +
+                                         $"<p>The following companies were affected:</p>" +
+                                         $"<ul>{string.Join("", companyNames.Select(n => $"<li>{n}</li>"))}</ul>" +
+                                         $"<p>The following user accounts were locked:</p>" +
+                                         $"{userListHtml}";
+
+                    await _emailSender.SendEmailAsync(platformAdmin.Email, $"Lock Report: {userToDeactivate.Email}", adminEmailBody);
+                    await _emailSender.SendEmailAsync("prme-condo-test@yopmail.com", "YOPMAIL TEST - Lock Report", adminEmailBody);
+
+                    TempData["StatusMessage"] = $"Administrator {userToDeactivate.Email} and all {affectedUsers.Count} associated user accounts have been locked.";
+                    return RedirectToAction("UserManager");
                 }
-
-                TempData["StatusMessage"] = $"Company '{companyName}', all its condominiums, and {allUniqueUsers.Count} user accounts have been successfully deactivated. Email notifications have been sent.";
-            }
-            else
-            {
-                // --- This user is not a Company Admin, so just deactivate them.
-                userToDeactivate.DeactivatedAt = DateTime.UtcNow;
-                userToDeactivate.DeactivatedByUserId = platformAdmin.Id;
-                await _userRepository.UpdateUserAsync(userToDeactivate);
-                await _userManager.SetLockoutEndDateAsync(userToDeactivate, DateTimeOffset.MaxValue);
-
-                await _emailSender.SendEmailAsync(userToDeactivate.Email, "Your Account Has Been Deactivated", "<p>Your CondoManagerPrime account has been manually deactivated by a platform administrator.</p>");
-
-                TempData["StatusMessage"] = $"User {userToDeactivate.Email} has been successfully deactivated.";
             }
 
+            // --- Simple user deactivation (not a Company Admin, or a Company Admin with 0 companies) ---
+            userToDeactivate.DeactivatedAt = DateTime.UtcNow;
+            userToDeactivate.DeactivatedByUserId = platformAdmin.Id;
+            await _userManager.UpdateAsync(userToDeactivate);
+            await _userManager.SetLockoutEndDateAsync(userToDeactivate, DateTimeOffset.MaxValue);
+            await _emailSender.SendEmailAsync(userToDeactivate.Email, "Your Account Has Been Locked", "<p>Your CondoManagerPrime account has been manually locked by a platform administrator.</p>");
+
+            TempData["StatusMessage"] = $"User {userToDeactivate.Email} has been successfully locked.";
             return RedirectToAction("UserManager");
         }
 
         /// <summary>
-        /// Activates a previously deactivated user account.
-        /// If the user is a Company Administrator, this will also cascade-up and
-        /// reactivate their parent Company and all associated Condominium entities.
-        /// It does NOT reactivate other subordinate user accounts, which must be
-        /// done manually by the reactivated administrator.
+        /// Activates a previously locked user account.
+        /// CRITICAL: If the user is a 'Company Administrator', this triggers a
+        /// cascade-unlock of ALL associated user accounts (Managers and Staff).
         /// </summary>
         /// <param name="id">The ID of the user to activate.</param>
         /// <returns>A redirect to the user management page.</returns>
@@ -379,89 +250,95 @@ namespace CET96_ProjetoFinal.web.Controllers
             var userToActivate = await _userRepository.GetUserByIdAsync(id);
             if (userToActivate == null) return NotFound();
 
-            // 1. GET THE PLATFORM ADMIN (for the email) 
             var platformAdmin = await _userManager.GetUserAsync(User);
 
-            var successMessage = $"User {userToActivate.Email} has been activated.";
-
-            // 2. Clear the lockout end date to unlock the account
-            await _userManager.SetLockoutEndDateAsync(userToActivate, null);
-
-            // 3. Clear any deactivation audit fields
-            userToActivate.DeactivatedAt = null;
-            userToActivate.DeactivatedByUserId = null; // Also clear who deactivated them
-
-            // Note: UpdateUserAsync might not be needed if SaveChangesAsync is called later,
-            // but it's good practice with the repository pattern.
-            await _userRepository.UpdateUserAsync(userToActivate);
-
-            // --- START: NEW CASCADE-UP LOGIC ---
             bool isCompanyAdmin = await _userManager.IsInRoleAsync(userToActivate, "Company Administrator");
+            var affectedUsers = new List<ApplicationUser> { userToActivate }; // Add the primary user to the list
 
-            if (isCompanyAdmin && userToActivate.CompanyId.HasValue)
+            List<Company> companies = null;
+
+            if (isCompanyAdmin)
             {
-                var companyId = userToActivate.CompanyId.Value;
-                string companyName = "N/A";
-                string companyEmail = null;
+                _logger.LogInformation($"Starting cascade-unlock for CompanyAdmin {userToActivate.Email}...");
 
-                // 4. Reactivate the Company
-                var company = await _companyRepository.GetByIdAsync(companyId);
-                if (company != null)
+                // 1. Find ALL companies for this admin
+                companies = (await _companyRepository.GetAllCompaniesByAdminIdAsync(userToActivate.Id)).ToList();
+
+                if (companies != null && companies.Any())
                 {
-                    companyName = company.Name;
-                    companyEmail = company.Email;
-                    company.IsActive = true;
-                    company.DeletedAt = null;
-                    _companyRepository.Update(company);
-                }
+                    var usersToUnlock = new List<ApplicationUser>();
 
-                // 5. Reactivate all Condominiums in that Company
-                var condominiums = await _condominiumRepository.GetActiveCondominiumsByCompanyIdAsync(companyId);
-                foreach (var condo in condominiums)
-                {
-                    condo.IsActive = true;
-                    condo.DeletedAt = null;
-                    _condominiumRepository.Update(condo);
-                }
+                    // 2. Loop through each company to find all subordinate users
+                    foreach (var company in companies)
+                    {
+                        // 2a. Get managers
+                        var managers = await _userRepository.GetUsersByCompanyIdAsync(company.Id);
+                        usersToUnlock.AddRange(managers);
 
-                // 6. Save all entity changes to the database
-                // This single SaveChanges call commits all updates from all repositories
-                await _context.SaveChangesAsync();
-
-                successMessage = $"User {userToActivate.Email}, Company '{companyName}', and all associated condominiums have been reactivated.";
-
-                // 7. Send Email to Company Admin
-                // They must now manually reactivate their own staff.
-                await _emailSender.SendEmailAsync(userToActivate.Email,
-                    "Your Account and Company Have Been Reactivated",
-                    $"<p>Your account, your company ({companyName}), and all its condominiums have been reactivated by the Platform Administrator.</p>" +
-                    "<p>Please note: All subordinate user accounts (such as managers and staff) remain inactive. You must log in and manually reactivate any accounts you wish to restore.</p>");
-
-                // 8. Send Notification to the Company's Official Email 
-                if (!string.IsNullOrEmpty(companyEmail))
-                {
-                    await _emailSender.SendEmailAsync(
-                        companyEmail,
-                        $"Official Notification: Company Reactivated - {companyName}",
-                        $"<p>This is an official notification that your company, '{companyName}', has been reactivated by a Platform Administrator.</p>" +
-                        $"<p>The administrator {userToActivate.FirstName} {userToActivate.LastName} ({userToActivate.Email}) has also been reactivated.</p>"
-                    );
-                }
-
-                // 9. Send Summary Email to Platform Admin ---
-                if (platformAdmin != null)
-                {
-                    await _emailSender.SendEmailAsync(
-                        platformAdmin.Email,
-                        $"Activation Report: {companyName}",
-                        $"<p>This is a confirmation that you have successfully reactivated the company <strong>{companyName}</strong> and its administrator {userToActivate.FirstName} {userToActivate.LastName} ({userToActivate.Email}).</p>"
-                    );
+                        // 2b. Get staff
+                        var condominiums = await _condominiumRepository.GetCondominiumsByCompanyIdAsync(company.Id);
+                        foreach (var condo in condominiums)
+                        {
+                            var staff = await _userRepository.GetStaffByCondominiumIdAsync(condo.Id);
+                            usersToUnlock.AddRange(staff);
+                        }
+                    }
+                    affectedUsers.AddRange(usersToUnlock.DistinctBy(u => u.Id));
+                    affectedUsers = affectedUsers.DistinctBy(u => u.Id).ToList();
                 }
             }
-            // --- END: NEW CASCADE-UP LOGIC ---
 
-            TempData["StatusMessage"] = successMessage;
+            // 3. Unlock all users in the list
+            foreach (var user in affectedUsers)
+            {
+                await _userManager.SetLockoutEndDateAsync(user, null); // Unlock
+                user.DeactivatedAt = null;
+                user.DeactivatedByUserId = null;
+                await _userManager.UpdateAsync(user); // Save audit fields
+            }
 
+            // 4. Send Notifications
+            if (isCompanyAdmin && companies != null)
+            {
+                foreach (var company in companies)
+                {
+                    if (!string.IsNullOrEmpty(company.Email))
+                    {
+                        await _emailSender.SendEmailAsync(
+                            company.Email,
+                            $"Official Notification: Company Accounts Reactivated - {company.Name}",
+                            $"<p>This is an official notification that your company, '{company.Name}', and its associated user accounts have been reactivated by a Platform Administrator.</p>"
+                        );
+                    }
+                }
+            }
+
+            // Send to all affected users
+            var userEmailBody = "<p>Your CondoManagerPrime account, and any associated staff accounts, have been reactivated by the Platform Administrator. You can now log in.</p>";
+            foreach (var user in affectedUsers)
+            {
+                if (!string.IsNullOrEmpty(user.Email))
+                {
+                    try
+                    {
+                        await _emailSender.SendEmailAsync(user.Email, "Your Account Has Been Reactivated", userEmailBody);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, $"Failed to send activation email to {user.Email}");
+                    }
+                }
+            }
+
+            // Send summary to Platform Admin
+            var userListHtml = $"<ul>{string.Join("", affectedUsers.Select(u => $"<li>{u.Email} ({u.FirstName} {u.LastName})</li>"))}</ul>";
+            var adminEmailBody = $"<p>You have successfully activated {affectedUsers.Count} user accounts associated with {userToActivate.Email}.</p>" +
+                                 $"<p>The following user accounts were activated:</p>" +
+                                 $"{userListHtml}";
+            await _emailSender.SendEmailAsync(platformAdmin.Email, $"Activation Report: {userToActivate.Email}", adminEmailBody);
+            await _emailSender.SendEmailAsync("prme-condo-test@yopmail.com", "YOPMAIL TEST - Activation Report", adminEmailBody);
+
+            TempData["StatusMessage"] = $"Successfully activated {affectedUsers.Count} user account(s).";
             return RedirectToAction("UserManager");
         }
 

@@ -62,5 +62,12 @@ namespace CET96_ProjetoFinal.web.Repositories
         /// <param name="id">The ID of the condominium to retrieve.</param>
         /// <returns>The Condominium entity with its Units collection loaded, or null if not found.</returns>
         Task<Condominium?> GetByIdAsync(int id);
+
+        /// <summary>
+        /// Gets ALL condominiums (active and inactive) for a specific company.
+        /// </summary>
+        /// <param name="companyId">The ID of the parent company.</param>
+        /// <returns>A collection of all condominiums for the company.</returns>
+        Task<IEnumerable<Condominium>> GetCondominiumsByCompanyIdAsync(int companyId);
     }
 }
