@@ -72,6 +72,13 @@ namespace CET96_ProjetoFinal.web.Repositories
         /// <returns>A collection of the user's inactive companies.</returns>
         Task<IEnumerable<Company>> GetInactiveCompaniesByUserIdAsync(string userId);
 
+        /// <summary>
+        /// Gets ALL companies (active and inactive) associated with a specific Company Administrator.
+        /// </summary>
+        /// <param name="adminId">The ID of the Company Administrator (user ID).</param>
+        /// <returns>A collection of all companies managed by the administrator.</returns>
+        Task<IEnumerable<Company>> GetAllCompaniesByAdminIdAsync(string adminId);
+
         Task<bool> DoesCompanyExistForUserAsync(string userId);
     }
 }

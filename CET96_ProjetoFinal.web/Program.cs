@@ -1,9 +1,7 @@
 using CET96_ProjetoFinal.web.Data;
 using CET96_ProjetoFinal.web.Entities;
-using CET96_ProjetoFinal.web.Helpers;
 using CET96_ProjetoFinal.web.Repositories;
 using CET96_ProjetoFinal.web.Services;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -20,7 +18,7 @@ namespace CET96_ProjetoFinal.web
 
             // --- User Database Context ---
             // This gets the connection string from appsettings.json
-            var connectionString = builder.Configuration.GetConnectionString("ApplicationUserConnection") 
+            var connectionString = builder.Configuration.GetConnectionString("ApplicationUserConnection")
                 ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
             // This registers the DbContext with the application's services
@@ -37,18 +35,6 @@ namespace CET96_ProjetoFinal.web
                 options.UseSqlServer(condominiumConnectionString));
 
             // Configure Identity services
-            //builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
-            //{
-            //    options.User.RequireUniqueEmail = true; // Ensure unique email addresses
-            //    options.SignIn.RequireConfirmedAccount = true;
-            //    options.Password.RequireDigit = false; // relax password policy for testing
-            //    options.Password.RequireLowercase = false;
-            //    options.Password.RequireNonAlphanumeric = false;
-            //    options.Password.RequireUppercase = false;
-            //    options.Password.RequiredLength = 6;
-            //})
-            //    .AddRoles<IdentityRole>() // Using roles
-            //    .AddEntityFrameworkStores<ApplicationUserDataContext>();
 
             builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
             {
@@ -80,6 +66,7 @@ namespace CET96_ProjetoFinal.web
             // Register the custom email sender service
             //builder.Services.AddTransient<IEmailSender, DebugEmailSender>();
             builder.Services.AddTransient<IEmailSender, SendGridEmailSender>();
+            //builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
 
             // Register custom application services
             //builder.Services.AddScoped<IApplicationUserHelper, ApplicationUserHelper>();
