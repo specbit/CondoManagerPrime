@@ -2121,7 +2121,104 @@ namespace CET96_ProjetoFinal.web.Controllers
             return list;
         }
 
+        /// <summary>
+        /// Displays the 'Forgot Password' page where the user can enter their email address.
+        /// </summary>
+        /// <returns>The ForgotPassword view.</returns>
+        [AllowAnonymous]
+        public IActionResult ForgotPassword()
+        {
+            return View();
+        }
 
+        /// <summary>
+        /// Handles the submission of the 'Forgot Password' form.
+        /// </summary>
+        /// <remarks>
+        /// This action finds the user by email, generates a password reset token, and sends them an email
+        /// with a link to reset their password. For security, it always returns a confirmation view,
+        /// regardless of whether the user was found, to prevent email enumeration attacks.
+        /// </remarks>
+        /// <param name="model">The view model containing the user's email address.</param>
+        /// <returns>The ForgotPasswordConfirmation view.</returns>
+        [HttpPost]
+        [AllowAnonymous]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                var user = await _userManager.FindByEmailAsync(model.Email);
+                if (user == null || !(await _userManager.IsEmailConfirmedAsync(user)))
+                {
+                    // Don't reveal that the user does not exist or is not confirmed
+                    return View("ForgotPasswordConfirmation");
+                }
+
+                var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+                var resetLink = Url.Action("ResetPassword", "Account",
+                    new { email = user.Email, token }, Request.Scheme);
+
+                await _emailSender.SendEmailAsync(model.Email, "Reset Your Password",
+                    $"Please reset your password by clicking here: <a href='{resetLink}'>link</a>");
+
+                return View("ForgotPasswordConfirmation");
+            }
+            return View(model);
+        }
+
+        /// <summary>
+        /// Displays the 'Reset Password' page after a user clicks the link in their email.
+        /// </summary>
+        /// <param name="token">The password reset token from the URL's query string.</param>
+        /// <param name="email">The user's email from the URL's query string.</param>
+        /// <returns>The ResetPassword view, pre-populated with the token and email.</returns>
+        [AllowAnonymous]
+        public IActionResult ResetPassword(string token = null, string email = null)
+        {
+            if (token == null || email == null)
+            {
+                ModelState.AddModelError("", "Invalid password reset token.");
+            }
+            var model = new ResetPasswordViewModel { Token = token, Email = email };
+            return View(model);
+        }
+
+        /// <summary>
+        /// Handles the submission of the 'Reset Password' form with the new password.
+        /// </summary>
+        /// <remarks>
+        /// This action validates the model and uses ASP.NET Core Identity's ResetPasswordAsync method
+        /// to securely update the user's password. It returns a confirmation view on success.
+        /// </remarks>
+        /// <param name="model">The view model containing the user's email, the reset token, and the new password.</param>
+        /// <returns>The ResetPasswordConfirmation view on success, or the ResetPassword view with errors on failure.</returns>
+        [HttpPost]
+        [AllowAnonymous]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                var user = await _userManager.FindByEmailAsync(model.Email);
+                if (user != null)
+                {
+                    var result = await _userManager.ResetPasswordAsync(user, model.Token, model.Password);
+                    if (result.Succeeded)
+                    {
+                        return View("ResetPasswordConfirmation");
+                    }
+                    foreach (var error in result.Errors)
+                    {
+                        ModelState.AddModelError("", error.Description);
+                    }
+                    return View(model);
+                }
+                // Don't reveal that the user does not exist
+                return View("ResetPasswordConfirmation");
+            }
+            return View(model);
+        }
 
         // TODO: Future feature - account deactivation by user themselves?
         /* ------------------------ This code below is left commented on purpose ---------------*/
