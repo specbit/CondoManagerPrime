@@ -4,6 +4,10 @@
     ViewData["Title"] = $"Manage Units for {ViewBag.CondominiumName}";
 }
 
+@{
+    var returnUrl = ViewData["ReturnUrl"] as string;
+}
+
 <h1>Manage Units for <strong>@ViewBag.CondominiumName</strong></h1>
 
 <p>
@@ -59,6 +63,17 @@
     </tbody>
 </table>
 
-<div>
-    <a asp-controller="Home" asp-action="Index" class="btn btn-secondary">Back to Dashboard</a>
+<div class="mt-3">
+    @if (!string.IsNullOrEmpty(returnUrl))
+    {
+        <a href="@returnUrl" class="btn btn-secondary">Back to Dashboard</a>
+    }
+    else
+    {
+        @* This is the fallback for when a Company Admin visits the page *@
+        <a asp-controller="Condominiums"
+           asp-action="Index"
+           asp-route-id="@ViewBag.CompanyId"
+           class="btn btn-secondary">Back to Condominiums</a>
+    }
 </div>

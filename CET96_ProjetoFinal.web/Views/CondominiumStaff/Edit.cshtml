@@ -2,6 +2,7 @@
 
 @{
     ViewData["Title"] = "Edit Staff Account";
+    var returnUrl = ViewData["ReturnUrl"] as string; // Get the returnUrl from the controller
 }
 
 <div class="container mb-4">
@@ -15,9 +16,11 @@
             @Html.AntiForgeryToken()
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
-            @* Hidden fields to pass the user ID and condominium ID back to the controller *@
+            @* Hidden fields to pass the user ID, company ID, and the return URL back to the controller *@
             <input type="hidden" asp-for="Id" />
             <input type="hidden" asp-for="CompanyId" />
+            <input type="hidden" name="returnUrl" value="@returnUrl" />
+
 
             <div class="form-group mb-3">
                 <label asp-for="FirstName" class="control-label"></label>
@@ -39,7 +42,17 @@
 
             <div class="form-group mt-4">
                 <button type="submit" class="btn btn-primary">Save Changes</button>
-                <a asp-controller="Home" asp-action="CondominiumManagerDashboard" class="btn btn-secondary">Cancel</a>
+
+                @* This button now intelligently goes back to wherever the user came from *@
+                @if (!string.IsNullOrEmpty(returnUrl))
+                {
+                    <a href="@returnUrl" class="btn btn-secondary">Cancel</a>
+                }
+                else
+                {
+                    // Fallback to the main home page if no returnUrl is provided for some reason
+                    <a asp-controller="Home" asp-action="Index" class="btn btn-secondary">Cancel</a>
+                }
             </div>
         </form>
     </div>

@@ -522,6 +522,8 @@ namespace CET96_ProjetoFinal.web.Controllers
             return View(user);
         }
 
+        // TODO: Delete this old method if the new combined one works well.
+
         //// GET: All Users By Company Administrator
         //[Authorize(Roles = "Company Administrator")]
         //public async Task<IActionResult> AllUsersByCompany(int id, bool showInactive = false)
@@ -591,21 +593,99 @@ namespace CET96_ProjetoFinal.web.Controllers
         //    return View(model);
         //}
 
+        ///// <summary>
+        ///// Company admin hub: shows Condominium Managers (with active/inactive toggle)
+        ///// and the list of **active** Condominium Staff, on the same page.
+        ///// </summary>
+        ///// <param name="id">Company ID.</param>
+        ///// <param name="showInactive">
+        ///// If true, the Managers table shows deactivated managers; the Staff table remains active-only.
+        ///// </param>
+        ///// <returns>View with two tables: Managers and Staff.</returns>
+        //[Authorize(Roles = "Company Administrator")]
+        //public async Task<IActionResult> AllUsersByCompany(int id, bool showInactive = false)
+        //{
+        //    // Login guard
+        //    var loggedInUser = await _userRepository.GetUserByEmailasync(User.Identity.Name);
+        //    if (loggedInUser == null) return RedirectToAction("Index", "Home");
+
+        //    // --- START: SECURITY LOGIC FOR MANAGERS ---
+        //    if (User.IsInRole("Condominium Manager"))
+        //    {
+        //        var assignedCondo = await _condominiumRepository.GetCondominiumByManagerIdAsync(loggedInUser.Id);
+        //        if (assignedCondo == null)
+        //        {
+        //            TempData["StatusMessage"] = "You are not assigned to a condominium.";
+        //            return RedirectToAction("Index", "CondominiumManager");
+        //        }
+
+        //        // A manager should ONLY be able to see their own company's staff list.
+        //        if (id != assignedCondo.CompanyId)
+        //        {
+        //            return RedirectToAction("AccessDenied", "Error");
+        //        }
+        //    }
+        //    // --- END: SECURITY LOGIC ---
+
+        //    // Load company & set ViewBags 
+        //    var company = await _companyRepository.GetByIdAsync(id);
+        //    if (company == null) return NotFound();
+
+        //    // Page context
+        //    ViewBag.CompanyName = company.Name;
+        //    ViewBag.CompanyId = company.Id;
+        //    ViewBag.Title = "Condominium Managers and Staff";
+        //    ViewBag.ShowingInactiveManagers = showInactive;
+
+        //    // Delegate building/filtering/mapping to the helper (which calls GetUserRolesAsync inside).
+
+        //    // Managers list respects the 'showInactive' toggle 
+        //    var managers = await BuildUserListByRoleAsync(id, "Condominium Manager", showInactive);
+
+        //    // Staff table is always ACTIVE-ONLY on this combined page (clear, predictable)
+        //    // (If I want a toggle later, easy to add a 'showInactiveStaff' param.)
+        //    var staff = await BuildUserListByRoleAsync(id, "Condominium Staff", showInactive: false);
+
+        //    var model = new CompanyUsersViewModel
+        //    {
+        //        CompanyId = company.Id,
+        //        CompanyName = company.Name,
+        //        Managers = managers,
+        //        Staff = staff
+        //    };
+
+        //    return View(model);
+        //}
+
+        // In AccountController.cs
+
         /// <summary>
-        /// Company admin hub: shows Condominium Managers (with active/inactive toggle)
-        /// and the list of **active** Condominium Staff, on the same page.
+        /// Shared user management hub for Company Admins and Condominium Managers.
+        /// - Company Admins see both Managers and Staff tables.
+        /// - Condominium Managers only see the Staff table.
         /// </summary>
         /// <param name="id">Company ID.</param>
-        /// <param name="showInactive">
-        /// If true, the Managers table shows deactivated managers; the Staff table remains active-only.
-        /// </param>
-        /// <returns>View with two tables: Managers and Staff.</returns>
-        [Authorize(Roles = "Company Administrator")]
+        /// <param name="showInactive">If true, the Managers table shows deactivated managers.</param>
+        /// <returns>View with tables appropriate for the user's role.</returns>
+        [Authorize(Roles = "Company Administrator, Condominium Manager")] // <-- Now allows Managers
         public async Task<IActionResult> AllUsersByCompany(int id, bool showInactive = false)
         {
             // Login guard
             var loggedInUser = await _userRepository.GetUserByEmailasync(User.Identity.Name);
             if (loggedInUser == null) return RedirectToAction("Index", "Home");
+
+            // --- START: SECURITY LOGIC FOR MANAGERS ---
+            if (User.IsInRole("Condominium Manager"))
+            {
+                // A manager should ONLY be able to see their own company's user list.
+                if (id != loggedInUser.CompanyId)
+                {
+                    // If they try to access a different company's list, send them back to their dashboard.
+                    TempData["StatusMessage"] = "Error: You do not have permission to view that page.";
+                    return RedirectToAction("Index", "CondominiumManager");
+                }
+            }
+            // --- END: SECURITY LOGIC ---
 
             // Load company & set ViewBags 
             var company = await _companyRepository.GetByIdAsync(id);
@@ -614,7 +694,7 @@ namespace CET96_ProjetoFinal.web.Controllers
             // Page context
             ViewBag.CompanyName = company.Name;
             ViewBag.CompanyId = company.Id;
-            ViewBag.Title = "Condominium Managers and Staff";
+            ViewBag.Title = "User Management"; // More generic title
             ViewBag.ShowingInactiveManagers = showInactive;
 
             // Delegate building/filtering/mapping to the helper (which calls GetUserRolesAsync inside).

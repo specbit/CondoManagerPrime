@@ -5,43 +5,46 @@
 }
 
 <div class="container mb-4">
-    <h1 class="display-4">Condominium Managers and Staff</h1>
-    <p class="lead">Manage all condominium manager and staff accounts for <strong>@ViewBag.CompanyName</strong> company.</p>
 
-    <div class="mt-3">
-        <a asp-controller="Condominiums"
-           asp-action="Index"
-           asp-route-id="@ViewBag.CompanyId"
-           class="btn btn-secondary">Back to Condominiums</a>
+    @if (User.IsInRole("Company Administrator"))
+    {
+        <h1 class="display-4">Condominium Managers and Staff</h1>
+        <p class="lead">Manage all condominium manager and staff accounts for <strong>@ViewBag.CompanyName</strong> company.</p>
 
-        <a asp-controller="Account"
-           asp-action="RegisterNewCondominiumManager"
-           asp-route-companyId="@ViewBag.CompanyId"
-           class="btn btn-primary">Create New Manager</a>
+        <div class="mt-3">
+            <a asp-controller="Condominiums" asp-action="Index" asp-route-id="@ViewBag.CompanyId" class="btn btn-secondary">Back to Condominiums</a>
+            <a asp-controller="Account" asp-action="RegisterNewCondominiumManager" asp-route-companyId="@ViewBag.CompanyId" class="btn btn-primary">Create New Manager</a>
+            <a asp-controller="Account" asp-action="AllCondominiumStaffByCompany" asp-route-id="@ViewBag.CompanyId" class="btn btn-info">Manage Staff</a>
+            <a asp-controller="Account" asp-action="InactiveManagers" asp-route-id="@ViewBag.CompanyId" class="btn btn-warning">View Inactive Managers</a>
+            <a asp-controller="Account" asp-action="InactiveStaff" asp-route-id="@ViewBag.CompanyId" class="btn btn-warning">View Inactive Staff</a>
+        </div>
+    }
+    else if (User.IsInRole("Condominium Manager"))
+    {
+        <h1 class="display-4">Condominium Staff</h1>
+        <p class="lead">Manage all condominium staff for <strong>@ViewBag.CompanyName</strong> company.</p>
 
-        <a asp-action="InactiveManagers"
-           asp-route-id="@ViewBag.CompanyId"
-           class="btn btn-warning">View Inactive Managers</a>
+        <div class="mt-3">
+            <a asp-controller="Home" asp-action="Index" class="btn btn-secondary">Back to Dashboard</a>
+            <a asp-controller="CondominiumStaff" asp-action="Create" asp-route-condominiumId="@ViewBag.CondominiumId" class="btn btn-primary">Create New Staff</a>
+            <a asp-controller="Account" asp-action="InactiveStaff" asp-route-id="@ViewBag.CompanyId" class="btn btn-warning">View Inactive Staff</a>
+        </div>
+    }
 
-        <a asp-action="AllCondominiumStaffByCompany"
-           asp-route-id="@ViewBag.CompanyId"
-           class="btn btn-info">Manage Staff</a>
-
-        <a asp-action="InactiveStaff"
-           asp-route-id="@ViewBag.CompanyId"
-           class="btn btn-warning">View Inactive Staff</a>
-    </div>
 </div>
 
 
-@await Html.PartialAsync("_UserRoleTable", Model.Managers, new ViewDataDictionary(ViewData) {
-{ "TableTitle", "Condominium Managers" },
-    { "RoleContext", "Manager" },
-    { "ShowNav", false } // We don't need the mini-nav, it's already at the top
+@* --- CONDITIONAL MANAGER TABLE --- *@
+@if (User.IsInRole("Company Administrator"))
+{
+    @await Html.PartialAsync("_UserRoleTable", Model.Managers, new ViewDataDictionary(ViewData) {
+    { "TableTitle", "Condominium Managers" },
+        { "RoleContext", "Manager" }
 })
+}
 
+@* --- STAFF TABLE (SHOWN FOR BOTH ROLES) --- *@
 @await Html.PartialAsync("_UserRoleTable", Model.Staff, new ViewDataDictionary(ViewData) {
     { "TableTitle", "Condominium Staff (Active)" },
-    { "RoleContext", "Staff" },
-    { "ShowNav", false }
+    { "RoleContext", "Staff" }
 })
