@@ -426,39 +426,49 @@ namespace CET96_ProjetoFinal.web.Controllers
         /// <returns>The edit staff member view.</returns>
         public async Task<IActionResult> Edit(string id)
         {
-            var loggedInUser = await _userRepository.GetUserByEmailasync(User.Identity.Name);
-            var managedCondominium = await _condominiumRepository.GetCondominiumByManagerIdAsync(loggedInUser.Id);
-
-            if (managedCondominium == null)
-            {
-                TempData["StatusMessage"] = "Error: You are not assigned to a condominium.";
-                return RedirectToAction("CondominiumManagerDashboard", "Home");
-            }
-
             var staffMember = await _userRepository.GetUserByIdAsync(id);
             if (staffMember == null)
             {
                 return NotFound();
             }
 
-            // CRUCIAL SECURITY CHECK: Ensure the staff member belongs to the logged-in manager's condominium.
-            if (staffMember.CondominiumId != managedCondominium.Id)
+            // --- SECURITY CHECK ---
+            var loggedInUser = await _userRepository.GetUserByEmailasync(User.Identity.Name);
+            bool isAuthorized = false;
+
+            if (User.IsInRole("Company Administrator") && staffMember.CompanyId == loggedInUser.CompanyId)
+            {
+                // Admins can edit any staff in their own company.
+                isAuthorized = true;
+            }
+            else if (User.IsInRole("Condominium Manager"))
+            {
+                // Managers can only edit staff in their assigned condominium.
+                var managedCondominium = await _condominiumRepository.GetCondominiumByManagerIdAsync(loggedInUser.Id);
+                if (managedCondominium != null && staffMember.CondominiumId == managedCondominium.Id)
+                {
+                    isAuthorized = true;
+                }
+            }
+
+            if (!isAuthorized)
             {
                 TempData["StatusMessage"] = "Error: You do not have permission to edit this staff member.";
-                return RedirectToAction("CondominiumManagerDashboard", "Home");
+                return RedirectToAction("Index", "CondominiumManager");
             }
+            // --- END SECURITY CHECK ---
 
             var model = new EditAccountViewModel
             {
                 Id = staffMember.Id,
                 FirstName = staffMember.FirstName,
                 LastName = staffMember.LastName,
-                PhoneNumber = staffMember.PhoneNumber,
-                CompanyId = managedCondominium.Id // Using CompanyId for consistency in redirects, though it represents CondominiumId here.
+                PhoneNumber = staffMember.PhoneNumber
             };
 
             return View(model);
         }
+
 
         // POST: CondominiumStaff/Edit/5
         /// <summary>
@@ -482,29 +492,51 @@ namespace CET96_ProjetoFinal.web.Controllers
                 return NotFound();
             }
 
+            // --- SECURITY CHECK (again) ---
             var loggedInUser = await _userRepository.GetUserByEmailasync(User.Identity.Name);
-            var managedCondominium = await _condominiumRepository.GetCondominiumByManagerIdAsync(loggedInUser.Id);
+            bool isAuthorized = false;
+            if (User.IsInRole("Company Administrator") && staffMember.CompanyId == loggedInUser.CompanyId)
+            {
+                isAuthorized = true;
+            }
+            else if (User.IsInRole("Condominium Manager"))
+            {
+                var managedCondominium = await _condominiumRepository.GetCondominiumByManagerIdAsync(loggedInUser.Id);
+                if (managedCondominium != null && staffMember.CondominiumId == managedCondominium.Id)
+                {
+                    isAuthorized = true;
+                }
+            }
 
-            // CRUCIAL SECURITY CHECK (again): Double-check ownership before saving changes.
-            if (managedCondominium == null || staffMember.CondominiumId != managedCondominium.Id)
+            if (!isAuthorized)
             {
                 TempData["StatusMessage"] = "Error: You do not have permission to perform this action.";
-                return RedirectToAction("CondominiumManagerDashboard", "Home");
+                return RedirectToAction("Index", "CondominiumManager");
             }
+            // --- END SECURITY CHECK ---
 
             // Update the user properties from the ViewModel.
             staffMember.FirstName = model.FirstName;
             staffMember.LastName = model.LastName;
             staffMember.PhoneNumber = model.PhoneNumber;
             staffMember.UpdatedAt = DateTime.UtcNow;
-            staffMember.UserUpdatedId = _userManager.GetUserId(User);
+            staffMember.UserUpdatedId = loggedInUser.Id;
 
             var result = await _userManager.UpdateAsync(staffMember);
 
             if (result.Succeeded)
             {
                 TempData["StatusMessage"] = "Staff member updated successfully.";
-                return RedirectToAction("CondominiumManagerDashboard", "Home");
+
+                // --- CORRECT REDIRECT LOGIC ---
+                // Send the user back to the dashboard they came from.
+                if (User.IsInRole("Condominium Manager"))
+                {
+                    return RedirectToAction("Index", "CondominiumManager");
+                }
+
+                // Fallback for Company Admin
+                return RedirectToAction("AllUsersByCompany", "Account", new { id = staffMember.CompanyId });
             }
 
             // If update fails, display errors.

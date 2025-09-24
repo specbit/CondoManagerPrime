@@ -5,7 +5,6 @@
 }
 
 <h1>Staff Details</h1>
-<h4>@ViewBag.CondominiumName</h4>
 <hr />
 
 <div class="card-body">
@@ -50,6 +49,12 @@
 
         <dt class="col-sm-3">Works For Company</dt>
         <dd class="col-sm-9">@ViewBag.CompanyName</dd>
+
+        @if (ViewBag.CondominiumName != "N/A")
+        {
+            <dt class="col-sm-3">Assigned Condominium</dt>
+            <dd class="col-sm-9">@ViewBag.CondominiumName</dd>
+        }
 
         <dt class="col-sm-3">Account Created</dt>
         <dd class="col-sm-9">@Model.CreatedAt.ToString("g")</dd>
