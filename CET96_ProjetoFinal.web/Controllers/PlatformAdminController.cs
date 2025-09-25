@@ -3,7 +3,6 @@ using CET96_ProjetoFinal.web.Entities;
 using CET96_ProjetoFinal.web.Models;
 using CET96_ProjetoFinal.web.Repositories;
 using CET96_ProjetoFinal.web.Services;
-using Humanizer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -367,7 +366,7 @@ namespace CET96_ProjetoFinal.web.Controllers
         /// <returns>A view with a list of all companies.</returns>
         public async Task<IActionResult> CompaniesList()
         {
-            var companies = await _companyRepository.GetAllWithCreatorsAsync(); 
+            var companies = await _companyRepository.GetAllWithCreatorsAsync();
             return View(companies);
         }
 
@@ -388,18 +387,29 @@ namespace CET96_ProjetoFinal.web.Controllers
             // 1. Get all condominiums from the database
             var condominiums = await _condominiumRepository.GetAllAsync();
 
+            // 1.a Get all companies once and build a fast lookup (avoids N+1 queries; no Include needed)
+            var companies = await _companyRepository.GetAllAsync();
+            var companyNameById = companies.ToDictionary(c => c.Id, c => c.Name);
+
             // 2. Create a list to hold our new view model
             var viewModelList = new List<PlatformAdminCondoViewModel>();
 
             // 3. Loop through each condo, find its manager, and build the view model
             foreach (var condo in condominiums)
             {
+                // Resolve company name without using EF Include
+                var companyName = "—";
+                if (companyNameById.TryGetValue(condo.CompanyId, out var resolvedName))
+                    companyName = resolvedName;
+
                 var viewModel = new PlatformAdminCondoViewModel
                 {
                     Id = condo.Id,
                     Name = condo.Name,
                     Address = condo.Address,
                     IsActive = condo.IsActive,
+                    CompanyId = condo.CompanyId,
+                    CompanyName = companyName,
                     ManagerEmail = "Unassigned" // Default value
                 };
 
@@ -418,5 +428,6 @@ namespace CET96_ProjetoFinal.web.Controllers
             // 4. Pass the new list of ViewModels to the view
             return View(viewModelList);
         }
+
     }
 }

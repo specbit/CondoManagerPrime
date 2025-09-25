@@ -1,6 +1,5 @@
-﻿using CET96_ProjetoFinal.web.Helpers;
-using CET96_ProjetoFinal.web.Models;
-using CET96_ProjetoFinal.web.Repositories; 
+﻿using CET96_ProjetoFinal.web.Models;
+using CET96_ProjetoFinal.web.Repositories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +10,7 @@ namespace CET96_ProjetoFinal.web.Controllers
     public class CompaniesController : Controller
     {
         private readonly IApplicationUserRepository _userRepository;
-        private readonly ICompanyRepository _companiesRepository; 
+        private readonly ICompanyRepository _companiesRepository;
 
         public CompaniesController(IApplicationUserRepository userHelper, ICompanyRepository companiesRepository)
         {
@@ -272,7 +271,7 @@ namespace CET96_ProjetoFinal.web.Controllers
                 company.IsActive = false;  // Soft delete by marking as inactive
                 company.DeletedAt = DateTime.UtcNow; // Record WHEN it was deactivated
                 company.UserDeletedId = user.Id;     // Record WHO deactivated it
-                
+
                 _companiesRepository.Update(company); // Mark the entity as modified
                 await _companiesRepository.SaveAllAsync(); // Save changes to the database
             }

@@ -29,6 +29,7 @@ namespace CET96_ProjetoFinal.web.Models
         [Required(ErrorMessage = "Tax ID is required.")]
         [MaxLength(20, ErrorMessage = "The {0} field must not exceed {1} characters.")]
         [Display(Name = "Tax ID")]
+        [RegularExpression(@"^\d+$", ErrorMessage = "Tax ID must contain digits only.")]
         public string TaxId { get; set; }
 
         [Required(ErrorMessage = "Address is required.")]

@@ -11,6 +11,7 @@ namespace CET96_ProjetoFinal.web.Models
 
         [Required]
         [Display(Name = "Tax ID")]
+        [RegularExpression(@"^\d+$", ErrorMessage = "Tax ID must contain digits only.")]
         public string CompanyTaxId { get; set; }
 
         [Required]

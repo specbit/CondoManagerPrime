@@ -108,7 +108,7 @@ namespace CET96_ProjetoFinal.web.Controllers
             // and will save both correctly.
             await _context.SaveChangesAsync();
 
-            // 6. Send a welcome email to the company's contact email 
+            // 6. Send a welcome email to the company's contact email + Company Administrator
             try
             {
                 await _emailSender.SendEmailAsync(
@@ -116,6 +116,17 @@ namespace CET96_ProjetoFinal.web.Controllers
                     $"Welcome to CondoManagerPrime, {company.Name}!",
                     $"<h1>Welcome!</h1><p>Your company, {company.Name}, has been successfully registered on the CondoManagerPrime platform.</p>"
                 );
+
+                // to the admin who created it (avoid duplicate if same address)
+                if (!string.IsNullOrWhiteSpace(user.Email) &&
+                    !string.Equals(user.Email, company.Email, StringComparison.OrdinalIgnoreCase))
+                {
+                    await _emailSender.SendEmailAsync(
+                        user.Email,
+                        $"Company '{company.Name}' created",
+                        $"Hi {user.FirstName},<br/><br/>You successfully created the company <strong>{company.Name}</strong>."
+                    );
+                }
             }
             catch (Exception)
             {
