@@ -2220,6 +2220,17 @@ namespace CET96_ProjetoFinal.web.Controllers
             return View(model);
         }
 
+        /// <summary>
+        /// Displays a generic "Access Denied" page for authorization failures.
+        /// </summary>
+        /// <returns>The AccessDenied view.</returns>
+        [AllowAnonymous]
+        public IActionResult AccessDenied()
+        {
+            // We will use the view from our ErrorController for a consistent look and feel.
+            return View("~/Views/Error/AccessDenied.cshtml");
+        }
+
         // TODO: Future feature - account deactivation by user themselves?
         /* ------------------------ This code below is left commented on purpose ---------------*/
 
