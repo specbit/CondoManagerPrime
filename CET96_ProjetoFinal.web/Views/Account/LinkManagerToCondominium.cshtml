@@ -43,7 +43,7 @@
                 @if (Model.CondominiumsList.Any())
                 {
                     @* Create a dropdown list from the condominiums passed in the model *@
-                    <select name="SelectedCondominiumId" class="form-control" asp-items="@(new SelectList(Model.CondominiumsList, "Id", "Name"))">
+                    <select name="SelectedCondominiumId" class="form-control" asp-items="Model.CondominiumsList">
                         <option value="">-- Please select a condominium --</option>
                     </select>
                 }

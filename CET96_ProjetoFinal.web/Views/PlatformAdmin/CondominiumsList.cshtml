@@ -18,6 +18,7 @@
             <tr>
                 <th>Name</th>
                 <th>Address</th>
+                <th>Company</th>
                 <th>Manager</th>
                 <th class="text-center">Status</th>
             </tr>
@@ -28,7 +29,8 @@
                 <tr>
                     <td>@item.Name</td>
                     <td>@item.Address</td>
-                    <td>@item.ManagerEmail</td>
+                    <td>@item.CompanyName</td>
+                    <td>@(string.IsNullOrEmpty(item.ManagerEmail) ? "Unassigned" : item.ManagerEmail)</td>
                     <td class="text-center">
                         @if (item.IsActive)
                         {
