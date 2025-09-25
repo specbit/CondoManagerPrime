@@ -1,0 +1,46 @@
+﻿@using CET96_ProjetoFinal.web.Entities
+@model IEnumerable<Company>
+
+@{
+    ViewData["Title"] = "All Companies";
+}
+
+<div class="container">
+    <h2 class="display-4">All Companies</h2>
+    <p class="lead">A complete list of all companies registered on the platform.</p>
+
+    <p>
+        <a asp-controller="Home" asp-action="Index" class="btn btn-secondary">Back to Dashboard</a>
+    </p>
+
+    <table class="table table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Created By</th>
+                <th class="text-center">Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var company in Model)
+            {
+                <tr>
+                    <td>@company.Name</td>
+                    <td>@company.Email</td>
+                    <td>@company.ApplicationUser.Email</td>
+                    <td class="text-center">
+                        @if (company.IsActive)
+                        {
+                            <span class="badge bg-success">Active</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-danger">Inactive</span>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
