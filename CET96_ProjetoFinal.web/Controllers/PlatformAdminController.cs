@@ -360,5 +360,63 @@ namespace CET96_ProjetoFinal.web.Controllers
                 default: return 99; // Other roles go to the bottom
             }
         }
+
+        /// <summary>
+        /// Displays a complete list of all companies registered on the platform.
+        /// </summary>
+        /// <returns>A view with a list of all companies.</returns>
+        public async Task<IActionResult> CompaniesList()
+        {
+            var companies = await _companyRepository.GetAllWithCreatorsAsync(); 
+            return View(companies);
+        }
+
+        /// <summary>
+        /// Displays a complete list of all condominiums registered on the platform for the Platform Administrator.
+        /// </summary>
+        /// <remarks>
+        /// Because the Condominium's manager is not directly mapped in the database context (it is [NotMapped]),
+        /// this method manually fetches all condominiums and then iterates through them to look up
+        /// and attach the manager's email address to a dedicated ViewModel.
+        /// </remarks>
+        /// <returns>
+        /// A view populated with a list of PlatformAdminCondoViewModel objects, each containing
+        /// condominium details and the assigned manager's email.
+        /// </returns>
+        public async Task<IActionResult> CondominiumsList()
+        {
+            // 1. Get all condominiums from the database
+            var condominiums = await _condominiumRepository.GetAllAsync();
+
+            // 2. Create a list to hold our new view model
+            var viewModelList = new List<PlatformAdminCondoViewModel>();
+
+            // 3. Loop through each condo, find its manager, and build the view model
+            foreach (var condo in condominiums)
+            {
+                var viewModel = new PlatformAdminCondoViewModel
+                {
+                    Id = condo.Id,
+                    Name = condo.Name,
+                    Address = condo.Address,
+                    IsActive = condo.IsActive,
+                    ManagerEmail = "Unassigned" // Default value
+                };
+
+                if (!string.IsNullOrEmpty(condo.CondominiumManagerId))
+                {
+                    var manager = await _userRepository.GetUserByIdAsync(condo.CondominiumManagerId);
+                    if (manager != null)
+                    {
+                        viewModel.ManagerEmail = manager.Email;
+                    }
+                }
+
+                viewModelList.Add(viewModel);
+            }
+
+            // 4. Pass the new list of ViewModels to the view
+            return View(viewModelList);
+        }
     }
 }

@@ -1,0 +1,46 @@
+﻿@using CET96_ProjetoFinal.web.Models
+@model IEnumerable<PlatformAdminCondoViewModel>
+
+@{
+    ViewData["Title"] = "All Condominiums";
+}
+
+<div class="container">
+    <h2 class="display-4">All Condominiums</h2>
+    <p class="lead">A complete list of all condominiums registered on the platform.</p>
+
+    <p>
+        <a asp-controller="Home" asp-action="Index" class="btn btn-secondary">Back to Dashboard</a>
+    </p>
+
+    <table class="table table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>Name</th>
+                <th>Address</th>
+                <th>Manager</th>
+                <th class="text-center">Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td>@item.Name</td>
+                    <td>@item.Address</td>
+                    <td>@item.ManagerEmail</td>
+                    <td class="text-center">
+                        @if (item.IsActive)
+                        {
+                            <span class="badge bg-success">Active</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-danger">Inactive</span>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
