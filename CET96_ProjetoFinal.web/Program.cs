@@ -53,6 +53,14 @@ namespace CET96_ProjetoFinal.web
                 .AddEntityFrameworkStores<ApplicationUserDataContext>()
                 .AddDefaultTokenProviders(); // Important for password reset and email confirmation tokens
 
+            // Configure application cookie
+            builder.Services.ConfigureApplicationCookie(options =>
+            {
+                // This line tells the application what to do when a user is logged in
+                // but tries to access a page they don't have permission for.
+                options.AccessDeniedPath = "/Error/403";
+            });
+
             // This adds the cookie authentication handler
             // Explicitly configures the cookie
             builder.Services.Configure<SecurityStampValidatorOptions>(options =>
@@ -85,12 +93,16 @@ namespace CET96_ProjetoFinal.web
             RunSeeding(app);
 
             // Configure the HTTP request pipeline.
-            if (!app.Environment.IsDevelopment())
-            {
-                app.UseExceptionHandler("/Home/Error");
-                // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-                app.UseHsts();
-            }
+
+            //if (!app.Environment.IsDevelopment())
+            //{
+            //    app.UseExceptionHandler("/Home/Error");
+            //    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+            //    app.UseHsts();
+            //}
+
+            // Use custom error handling middleware
+            app.UseStatusCodePagesWithReExecute("/Error/{0}");
 
             app.UseHttpsRedirection();
             app.UseStaticFiles();
