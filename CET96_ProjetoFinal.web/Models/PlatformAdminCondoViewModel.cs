@@ -7,5 +7,7 @@
         public string Address { get; set; }
         public bool IsActive { get; set; }
         public string ManagerEmail { get; set; }
+        public int? CompanyId { get; set; }
+        public string CompanyName { get; set; } = "—";
     }
 }
