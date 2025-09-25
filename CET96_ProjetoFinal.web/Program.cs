@@ -19,7 +19,7 @@ namespace CET96_ProjetoFinal.web
             // --- User Database Context ---
             // This gets the connection string from appsettings.json
             var connectionString = builder.Configuration.GetConnectionString("ApplicationUserConnection")
-                ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+                ?? throw new InvalidOperationException("Connection string 'ApplicationUserConnection' not found.");
 
             // This registers the DbContext with the application's services
             builder.Services.AddDbContext<ApplicationUserDataContext>(options =>
