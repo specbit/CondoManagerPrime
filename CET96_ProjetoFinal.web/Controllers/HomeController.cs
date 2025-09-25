@@ -150,36 +150,6 @@ namespace CET96_ProjetoFinal.web.Controllers
             return View(model);
         }
 
-        //[Authorize(Roles = "Condominium Manager")]
-        //public async Task<IActionResult> CondominiumManagerDashboard()
-        //{
-        //    var loggedInUser = await _userRepository.GetUserByEmailasync(User.Identity.Name);
-        //    if (loggedInUser == null)
-        //    {
-        //        // This should not happen for an authenticated user, but is a good safeguard.
-        //        return Unauthorized();
-        //    }
-
-        //    var managedCondominium = await _condominiumRepository.GetCondominiumByManagerIdAsync(loggedInUser.Id);
-
-        //    if (managedCondominium == null)
-        //    {
-        //        // Handle case where a manager is not assigned to a condominium.
-        //        return View("NoCondominiumAssigned");
-        //    }
-
-        //    // Now, fetch the staff for that condominium.
-        //    var staffList = await _userRepository.GetStaffByCondominiumIdAsync(managedCondominium.Id);
-
-        //    var viewModel = new CondominiumManagerDashboardViewModel
-        //    {
-        //        Condominium = managedCondominium,
-        //        Staff = staffList
-        //    };
-
-        //    return View(viewModel);
-        //}
-
         [Authorize(Roles = "Condominium Manager")]
         [HttpGet]
         public IActionResult CondominiumManagerDashboard()
@@ -187,8 +157,11 @@ namespace CET96_ProjetoFinal.web.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-
-        public IActionResult Privacy()
+        /// <summary>
+        /// Displays the application's About page.
+        /// </summary>
+        /// <returns>The About view.</returns>
+        public IActionResult About()
         {
             return View();
         }
