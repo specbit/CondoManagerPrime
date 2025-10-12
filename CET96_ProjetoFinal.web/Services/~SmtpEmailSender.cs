@@ -15,7 +15,7 @@ public class SmtpEmailSender : IEmailSender
     private readonly IConfiguration _configuration;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="SmtpEmailSender"/> class.
+    /// Initializes a new instance of the <see cref="NewSmtpEmailSender"/> class.
     /// </summary>
     /// <param name="configuration">The application's configuration, used to retrieve SMTP settings.</param>
     public SmtpEmailSender(IConfiguration configuration)

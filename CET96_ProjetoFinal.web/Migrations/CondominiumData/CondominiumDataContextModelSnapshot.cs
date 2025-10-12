@@ -97,6 +97,65 @@ namespace CET96_ProjetoFinal.web.Migrations.CondominiumData
                     b.ToTable("Condominiums");
                 });
 
+            modelBuilder.Entity("CET96_ProjetoFinal.web.Entities.Conversation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Conversations");
+                });
+
+            modelBuilder.Entity("CET96_ProjetoFinal.web.Entities.Message", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ConversationId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ReceiverId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SenderId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("SentAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConversationId");
+
+                    b.ToTable("Messages");
+                });
+
             modelBuilder.Entity("CET96_ProjetoFinal.web.Entities.Unit", b =>
                 {
                     b.Property<int>("Id")
@@ -136,6 +195,17 @@ namespace CET96_ProjetoFinal.web.Migrations.CondominiumData
                     b.ToTable("Units");
                 });
 
+            modelBuilder.Entity("CET96_ProjetoFinal.web.Entities.Message", b =>
+                {
+                    b.HasOne("CET96_ProjetoFinal.web.Entities.Conversation", "Conversation")
+                        .WithMany("Messages")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Conversation");
+                });
+
             modelBuilder.Entity("CET96_ProjetoFinal.web.Entities.Unit", b =>
                 {
                     b.HasOne("CET96_ProjetoFinal.web.Entities.Condominium", "Condominium")
@@ -150,6 +220,11 @@ namespace CET96_ProjetoFinal.web.Migrations.CondominiumData
             modelBuilder.Entity("CET96_ProjetoFinal.web.Entities.Condominium", b =>
                 {
                     b.Navigation("Units");
+                });
+
+            modelBuilder.Entity("CET96_ProjetoFinal.web.Entities.Conversation", b =>
+                {
+                    b.Navigation("Messages");
                 });
 #pragma warning restore 612, 618
         }

@@ -2,6 +2,7 @@ using CET96_ProjetoFinal.web.Data;
 using CET96_ProjetoFinal.web.Entities;
 using CET96_ProjetoFinal.web.Repositories;
 using CET96_ProjetoFinal.web.Services;
+using CET96_ProjetoFinal.web.Settings;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -73,8 +74,12 @@ namespace CET96_ProjetoFinal.web
 
             // Register the custom email sender service
             //builder.Services.AddTransient<IEmailSender, DebugEmailSender>();
-            builder.Services.AddTransient<IEmailSender, SendGridEmailSender>();
+            //builder.Services.AddTransient<IEmailSender, SendGridEmailSender>();
             //builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
+
+            // This line reads the settings from your secrets.json file.
+            builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"));
+            builder.Services.AddTransient<IEmailSender, NewSmtpEmailSender>();
 
             // Register custom application services
             //builder.Services.AddScoped<IApplicationUserHelper, ApplicationUserHelper>();
