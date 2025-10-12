@@ -1,0 +1,64 @@
+﻿@model IEnumerable<CET96_ProjetoFinal.web.Entities.ApplicationUser>
+
+@{
+    ViewData["Title"] = "Manage Unit Owners";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<p>
+    <a asp-action="Create" class="btn btn-primary">Create New Owner</a>
+</p>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Full Name</th>
+            <th>Email / Username</th>
+            <th>Phone Number</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (Model.Any())
+        {
+            @foreach (var owner in Model)
+            {
+                <tr>
+                    <td>@owner.FirstName @owner.LastName</td>
+                    <td>@owner.Email</td>
+                    <td>@owner.PhoneNumber</td>
+                    <td>
+                        @if (owner.DeactivatedAt.HasValue)
+                        {
+                            <span class="badge bg-danger">Inactive</span>
+                        }
+                        else if (!owner.EmailConfirmed)
+                        {
+                            <span class="badge bg-warning text-dark">Pending Confirmation</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-success">Active</span>
+                        }
+                    </td>
+                    <td>
+                        <a asp-action="Edit" asp-route-id="@owner.Id" class="btn btn-sm btn-warning">Edit</a>
+                        <a asp-action="Details" asp-route-id="@owner.Id" class="btn btn-sm btn-info">Details</a>
+                        @* We will implement this later *@
+                        <a class="btn btn-sm btn-danger disabled">Deactivate</a>
+                    </td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr>
+                <td colspan="5" class="text-center">
+                    No unit owners have been created yet.
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

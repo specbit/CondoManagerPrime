@@ -18,11 +18,15 @@ namespace CET96_ProjetoFinal.web.Data
 
         public DbSet<Condominium> Condominiums { get; set; }
         public DbSet<Unit> Units { get; set; }
-        // Later, I will add other DbSets here, like Fractions, Incidents, etc.
+
+        public DbSet<Conversation> Conversations { get; set; }
+        public DbSet<Message> Messages { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            // --- Define relationships and indexes for entities managed by THIS context ---
 
             // Define the one-to-many relationship
             modelBuilder.Entity<Condominium>()
@@ -39,6 +43,12 @@ namespace CET96_ProjetoFinal.web.Data
             modelBuilder.Entity<Unit>()
                 .HasIndex(u => new { u.CondominiumId, u.UnitNumber })
                 .IsUnique();
+
+            // Relationship: A Conversation has many Messages
+            modelBuilder.Entity<Conversation>()
+                .HasMany(c => c.Messages)
+                .WithOne(m => m.Conversation)
+                .HasForeignKey(m => m.ConversationId);
         }
     }
 }
