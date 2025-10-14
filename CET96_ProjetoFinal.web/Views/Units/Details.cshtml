@@ -1,0 +1,70 @@
+﻿@model CET96_ProjetoFinal.web.Entities.Unit
+
+@{
+    ViewData["Title"] = $"Details for Unit {Model.UnitNumber}";
+}
+
+<h1>@ViewData["Title"]</h1>
+<hr />
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0">Condominium Information</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-4">Name</dt>
+                    <dd class="col-sm-8">@Model.Condominium.Name</dd>
+
+                    <dt class="col-sm-4">Address</dt>
+                    <dd class="col-sm-8">@Model.Condominium.Address</dd>
+
+                    <dt class="col-sm-4">Registry #</dt>
+                    <dd class="col-sm-8">@Model.Condominium.PropertyRegistryNumber</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0">Assigned Owner</h5>
+            </div>
+            <div class="card-body">
+                @if (Model.Owner != null)
+                {
+                    <dl class="row">
+                        <dt class="col-sm-4">Full Name</dt>
+                        <dd class="col-sm-8">@Model.Owner.FirstName @Model.Owner.LastName</dd>
+                        <dt class="col-sm-4">Email</dt>
+                        <dd class="col-sm-8">@Model.Owner.Email</dd>
+
+                        <dt class="col-sm-4">Phone</dt>
+                        <dd class="col-sm-8">@Model.Owner.PhoneNumber</dd>
+
+                        <dt class="col-sm-4">ID Document</dt>
+                        <dd class="col-sm-8">@Model.Owner.IdentificationDocument</dd>
+                    </dl>
+                }
+                else
+                {
+                    <div class="alert alert-secondary mb-0">
+                        This unit has no owner assigned.
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <a asp-action="Index" asp-route-condominiumId="@Model.CondominiumId" class="btn btn-secondary">Back to Units List</a>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

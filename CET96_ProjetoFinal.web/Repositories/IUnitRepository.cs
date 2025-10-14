@@ -34,5 +34,21 @@ namespace CET96_ProjetoFinal.web.Repositories
         /// <param name="ownerId">The string ID of the user (ApplicationUser) to check.</param>
         /// <returns>Returns <c>true</c> if the user is assigned to at least one unit; otherwise, <c>false</c>.</returns>
         bool IsOwnerAssigned(string ownerId);
+
+
+        /// <summary>
+        /// Asynchronously retrieves a single Unit entity by its ID, including its related Condominium.
+        /// </summary>
+        /// <remarks>
+        /// This method eagerly loads only the 'Condominium' navigation property from the same database context.
+        /// The 'Owner' details must be fetched separately from the other database context and manually
+        /// attached to the returned Unit object in the controller.
+        /// </remarks>
+        /// <param name="id">The primary key of the Unit to retrieve.</param>
+        /// <returns>
+        /// A Task that represents the asynchronous operation. 
+        /// The task result contains the Unit object with its Condominium details if found; otherwise, null.
+        /// </returns>
+        Task<Unit?> GetUnitWithDetailsAsync(int id);
     }
 }

@@ -34,10 +34,20 @@ namespace CET96_ProjetoFinal.web.Data
                 .WithOne(u => u.Condominium)
                 .HasForeignKey(u => u.CondominiumId);
 
+
             // Create a composite unique index
             modelBuilder.Entity<Condominium>()
                 .HasIndex(c => new { c.CompanyId, c.PropertyRegistryNumber })
                 .IsUnique();
+
+
+            // This context becomes aware of 'ApplicationUser' because of the new 'Unit.Owner' navigation property.
+            // We must explicitly tell this context to IGNORE the 'Company' property on the 'ApplicationUser' entity.
+            // This is critical because the relationship between ApplicationUser and Company is already fully configured
+            // and managed by the other database context (ApplicationDbContext), and trying to map it here would
+            // create a conflict, causing the "Unable to determine the relationship" build error.
+            modelBuilder.Entity<ApplicationUser>().Ignore(u => u.Company);
+
 
             // Create the composite unique index
             modelBuilder.Entity<Unit>()

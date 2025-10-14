@@ -1,6 +1,7 @@
 ﻿using CET96_ProjetoFinal.web.Data;
 using CET96_ProjetoFinal.web.Entities;
 using Microsoft.EntityFrameworkCore;
+using SendGrid.Helpers.Mail;
 
 namespace CET96_ProjetoFinal.web.Repositories
 {
@@ -55,6 +56,14 @@ namespace CET96_ProjetoFinal.web.Repositories
         public bool IsOwnerAssigned(string ownerId)
         {
             return _context.Units.Any(u => u.OwnerId == ownerId);
+        }
+
+        /// <inheritdoc />
+        public async Task<Unit?> GetUnitWithDetailsAsync(int id)
+        {
+            return await _context.Units
+                .Include(u => u.Condominium)
+                .FirstOrDefaultAsync(u => u.Id == id);
         }
     }
 }

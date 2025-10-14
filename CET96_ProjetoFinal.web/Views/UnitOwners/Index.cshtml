@@ -17,8 +17,8 @@
             <th>Email / Username</th>
             <th>Phone Number</th>
             <th>Account Status</th>
-            <th>Assigned To Unit</th> @* <-- New Column *@
-            <th>Actions</th>
+            <th>Assigned To Unit</th>
+            <th class="text-end">Actions</th>
         </tr>
     </thead>
     <tbody>
@@ -37,32 +37,41 @@
                         }
                         else if (!owner.IsConfirmed)
                         {
-
                             <span class="badge bg-warning text-dark">Pending Confirmation</span>
                         }
                         else
                         {
-
                             <span class="badge bg-success">Active</span>
                         }
                     </td>
                     <td>
-                        @* --- New Assignment Status --- *@
                         @if (owner.IsAssigned)
                         {
                             <span class="badge bg-primary">Assigned</span>
                         }
                         else
                         {
-
                             <span class="badge bg-secondary">Available</span>
                         }
                     </td>
-                    <td>
-                        @* --- Activated Buttons --- *@
+                    <td class="text-end">
                         <a asp-action="Details" asp-route-id="@owner.Id" class="btn btn-sm btn-info">Details</a>
                         <a asp-action="Edit" asp-route-id="@owner.Id" class="btn btn-sm btn-warning">Edit</a>
-                        <a class="btn btn-sm btn-danger disabled">Deactivate</a>
+
+                        @if (!owner.IsActive)
+                        {
+                            <form asp-action="ActivateOwner" asp-route-id="@owner.Id" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-success">Activate</button>
+                            </form>
+                        }
+                        else
+                        {
+                            <form asp-action="DeactivateOwner" asp-route-id="@owner.Id" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-danger">Deactivate</button>
+                            </form>
+                        }
                     </td>
                 </tr>
             }
@@ -76,7 +85,6 @@
     </tbody>
 </table>
 
-@* --- Intelligent "Back" Button --- *@
 <div class="mt-4">
     @if (User.IsInRole("Company Administrator"))
     {
@@ -92,3 +100,9 @@
            class="btn btn-secondary">Back to Dashboard</a>
     }
 </div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}
