@@ -5,6 +5,7 @@ using CET96_ProjetoFinal.web.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace CET96_ProjetoFinal.web.Controllers
@@ -162,6 +163,13 @@ namespace CET96_ProjetoFinal.web.Controllers
             var currentUser = await _userRepository.GetUserByIdAsync(User.FindFirstValue(ClaimTypes.NameIdentifier));
             if (currentUser == null) return Forbid();
 
+            // Check if another user already exists with this ID document number.
+            bool documentExists = await _userManager.Users.AnyAsync(u => u.IdentificationDocument == model.IdentificationDocument);
+            if (documentExists)
+            {
+                ModelState.AddModelError("IdentificationDocument", "An owner with this Identification Document number already exists.");
+            }
+
             var condominium = await _condominiumRepository.GetByIdAsync(model.CondominiumId);
             if (condominium == null)
             {
@@ -302,6 +310,13 @@ namespace CET96_ProjetoFinal.web.Controllers
                 var ownerToUpdate = await _userRepository.GetUserByIdAsync(model.Id);
                 if (ownerToUpdate == null) return NotFound();
 
+                // Check if another user (not the one being edited) has this ID document number.
+                bool documentExists = await _userManager.Users.AnyAsync(u => u.IdentificationDocument == model.IdentificationDocument && u.Id != model.Id);
+                if (documentExists)
+                {
+                    ModelState.AddModelError("IdentificationDocument", "This Identification Document number is already in use by another owner.");
+                }
+
                 // --- Security Check (essential on POST as well) ---
                 var condominium = await _condominiumRepository.GetByIdAsync(ownerToUpdate.CondominiumId.Value);
                 var currentUser = await _userRepository.GetUserByIdAsync(User.FindFirstValue(ClaimTypes.NameIdentifier));
@@ -385,6 +400,107 @@ namespace CET96_ProjetoFinal.web.Controllers
             }
 
             return View(owner);
+        }
+
+        /// <summary>
+        /// Handles the POST request to deactivate a Unit Owner's account.
+        /// Enforces the business rule that an owner cannot be deactivated if they are currently assigned to a unit.
+        /// </summary>
+        /// <param name="id">The string identifier (GUID) of the Unit Owner to deactivate.</param>
+        /// <returns>A redirect to the Index action, displaying the list of unit owners.</returns>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeactivateOwner(string id)
+        {
+            // Business Rule: An owner cannot be deactivated if they are assigned to a unit.
+            if (_unitRepository.IsOwnerAssigned(id))
+            {
+                TempData["StatusMessage"] = "Error: Cannot deactivate an owner who is currently assigned to a unit. Please dismiss them from the unit first.";
+
+                // Determine the correct redirect based on the user's role to maintain context.
+                if (User.IsInRole("Company Administrator"))
+                {
+                    var ownerUser = await _userRepository.GetUserByIdAsync(id);
+                    return RedirectToAction(nameof(Index), new { companyId = ownerUser.CompanyId });
+                }
+                return RedirectToAction(nameof(Index));
+            }
+
+            var userToDeactivate = await _userRepository.GetUserByIdAsync(id);
+            if (userToDeactivate == null)
+            {
+                return NotFound();
+            }
+
+            var loggedInUserId = _userManager.GetUserId(User);
+
+            // Deactivate the user by setting the audit fields.
+            userToDeactivate.DeactivatedAt = DateTime.UtcNow;
+            userToDeactivate.DeactivatedByUserId = loggedInUserId;
+            userToDeactivate.UpdatedAt = DateTime.UtcNow;
+            userToDeactivate.UserUpdatedId = loggedInUserId;
+
+            var result = await _userManager.UpdateAsync(userToDeactivate);
+            if (result.Succeeded)
+            {
+                // Set a lockout date in the distant future to prevent the user from logging in.
+                await _userManager.SetLockoutEndDateAsync(userToDeactivate, DateTimeOffset.MaxValue);
+                TempData["StatusMessage"] = $"Owner '{userToDeactivate.FirstName} {userToDeactivate.LastName}' has been successfully deactivated.";
+            }
+            else
+            {
+                TempData["StatusMessage"] = "Error: Could not deactivate the owner.";
+            }
+
+            // Redirect back to the correct list view depending on the logged-in user's role.
+            if (User.IsInRole("Company Administrator"))
+            {
+                return RedirectToAction(nameof(Index), new { companyId = userToDeactivate.CompanyId });
+            }
+            return RedirectToAction(nameof(Index));
+        }
+
+        /// <summary>
+        /// Handles the POST request to activate a previously deactivated Unit Owner's account.
+        /// </summary>
+        /// <param name="id">The string identifier (GUID) of the Unit Owner to activate.</param>
+        /// <returns>A redirect to the Index action, displaying the list of unit owners.</returns>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ActivateOwner(string id)
+        {
+            var userToActivate = await _userRepository.GetUserByIdAsync(id);
+            if (userToActivate == null)
+            {
+                return NotFound();
+            }
+
+            var loggedInUserId = _userManager.GetUserId(User);
+
+            // Activate the user by clearing the deactivation audit fields.
+            userToActivate.DeactivatedAt = null;
+            userToActivate.DeactivatedByUserId = null;
+            userToActivate.UpdatedAt = DateTime.UtcNow;
+            userToActivate.UserUpdatedId = loggedInUserId;
+
+            var result = await _userManager.UpdateAsync(userToActivate);
+            if (result.Succeeded)
+            {
+                // Remove the lockout to allow the user to log in again.
+                await _userManager.SetLockoutEndDateAsync(userToActivate, null);
+                TempData["StatusMessage"] = $"Owner '{userToActivate.FirstName} {userToActivate.LastName}' has been successfully activated.";
+            }
+            else
+            {
+                TempData["StatusMessage"] = "Error: Could not activate the owner.";
+            }
+
+            // Redirect back to the correct list view.
+            if (User.IsInRole("Company Administrator"))
+            {
+                return RedirectToAction(nameof(Index), new { companyId = userToActivate.CompanyId });
+            }
+            return RedirectToAction(nameof(Index));
         }
     }
 }

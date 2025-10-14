@@ -116,11 +116,15 @@ namespace CET96_ProjetoFinal.web.Controllers
 
             if (ModelState.IsValid)
             {
+                var loggedInUserId = _userManager.GetUserId(User);
+
                 var unit = new Unit
                 {
                     UnitNumber = model.UnitNumber,
                     CondominiumId = model.CondominiumId,
-                    IsActive = true
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow, // It's good practice to set this here 
+                    UserCreatedId = loggedInUserId
                 };
                 await _unitRepository.CreateAsync(unit);
                 await _unitRepository.SaveAllAsync();
@@ -186,8 +190,11 @@ namespace CET96_ProjetoFinal.web.Controllers
                 var unitToUpdate = await _unitRepository.GetByIdAsync(model.Id);
                 if (unitToUpdate == null) return NotFound();
 
+                var loggedInUserId = _userManager.GetUserId(User);
+
                 unitToUpdate.UnitNumber = model.UnitNumber;
                 unitToUpdate.UpdatedAt = DateTime.UtcNow;
+                unitToUpdate.UserUpdatedId = loggedInUserId;
 
                 _unitRepository.Update(unitToUpdate);
                 await _unitRepository.SaveAllAsync();
@@ -230,9 +237,9 @@ namespace CET96_ProjetoFinal.web.Controllers
         /// Handles the confirmed deactivation (soft delete) of a unit.
         /// </summary>
         /// <remarks>
-        /// This action finds the specified unit, sets its IsActive flag to false,
-        /// records the deletion timestamp, and saves the changes. It then redirects
-        /// the user back to their original page using the provided returnUrl.
+        /// This action enforces the business rule that a unit cannot be deactivated if it has an assigned owner.
+        /// If the check passes, it sets the unit's IsActive flag to false, records the deletion timestamp,
+        /// and saves the changes. It then redirects the user back to their original page using the provided returnUrl.
         /// </remarks>
         /// <param name="id">The ID of the unit to be deactivated.</param>
         /// <param name="returnUrl">The URL to return to after the action is complete.</param>
@@ -242,45 +249,77 @@ namespace CET96_ProjetoFinal.web.Controllers
         public async Task<IActionResult> DeleteConfirmed(int id, string returnUrl = null)
         {
             var unitToDelete = await _unitRepository.GetByIdAsync(id);
-            if (unitToDelete != null)
-            {
-                // This is a SOFT delete
-                unitToDelete.IsActive = false;
-                unitToDelete.DeletedAt = DateTime.UtcNow;
-                // TODO: You would set UserDeletedId here if tracking it
 
-                _unitRepository.Update(unitToDelete);
-                await _unitRepository.SaveAllAsync();
-                TempData["StatusMessage"] = "Unit deactivated successfully.";
-            }
-            else
+            if (unitToDelete == null)
             {
                 TempData["StatusMessage"] = "Error: Unit not found.";
+                return RedirectToAction(nameof(Index)); // Fallback to the main index if the unit doesn't exist.
             }
 
+            // --- Business rule check ---
+            if (!string.IsNullOrEmpty(unitToDelete.OwnerId))
+            {
+                TempData["StatusMessage"] = "Error: Cannot deactivate a unit with an assigned owner. Please dismiss the owner first.";
+                return RedirectToAction(nameof(Index), new { condominiumId = unitToDelete.CondominiumId });
+            }
+
+            var loggedInUserId = _userManager.GetUserId(User);
+
+            // This is a SOFT delete
+            unitToDelete.IsActive = false;
+            unitToDelete.DeletedAt = DateTime.UtcNow;
+            unitToDelete.UserDeletedId = loggedInUserId;
+
+            _unitRepository.Update(unitToDelete);
+            await _unitRepository.SaveAllAsync();
+            TempData["StatusMessage"] = "Unit deactivated successfully.";
+
             // --- REDIRECT LOGIC ---
-            // If a returnUrl was provided, use it.
             if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
             {
                 return Redirect(returnUrl);
             }
 
-            // Fallback to the default unit list for that condominium if possible
-            if (unitToDelete != null)
+            // Fallback to the default unit list for that condominium.
+            return RedirectToAction(nameof(Index), new { condominiumId = unitToDelete.CondominiumId });
+        }
+
+        /// <summary>
+        /// Displays a detailed view of a single unit, including its condominium and owner details.
+        /// </summary>
+        /// <param name="id">The ID of the unit to display.</param>
+        /// <returns>The details view for the specified unit.</returns>
+        [HttpGet("Details/{id:int}")] // GET Units/Details/5
+        public async Task<IActionResult> Details(int id)
+        {
+            // Step 1: Get the Unit and its Condominium from the first database.
+            var unit = await _unitRepository.GetUnitWithDetailsAsync(id);
+
+            if (unit == null)
             {
-                return RedirectToAction(nameof(Index), new { condominiumId = unitToDelete.CondominiumId });
+                return NotFound();
             }
 
-            // Final fallback if everything else fails
-            return RedirectToAction(nameof(Index));
+            // Step 2: Manually fetch the Owner from the second database.
+            // Check if there is an OwnerId to look up.
+            if (!string.IsNullOrEmpty(unit.OwnerId))
+            {
+                // Use the user repository to get the user from the other database context.
+                var owner = await _userRepository.GetUserByIdAsync(unit.OwnerId);
+
+                // Manually "stitch" the owner object onto our unit object in C# code.
+                unit.Owner = owner;
+            }
+
+            return View(unit);
         }
 
         // GET: Units/InactiveUnits?condominiumId=5
         /// <summary>
         /// Displays a list of all inactive units for a specific condominium.
         /// </summary>
-        [HttpGet("{condominiumId:int}/Inactive")] // GET Units/1005/Inactive
-        public async Task<IActionResult> Inactive(int condominiumId)
+        [HttpGet("{condominiumId:int}/Inactive")] 
+        public async Task<IActionResult> InactiveUnits(int condominiumId)
         {
             var condominium = await _condominiumRepository.GetByIdAsync(condominiumId);
             if (condominium == null) return NotFound();
@@ -306,12 +345,16 @@ namespace CET96_ProjetoFinal.web.Controllers
         public async Task<IActionResult> Reactivate(int id)
         {
             var unitToReactivate = await _unitRepository.GetByIdAsync(id);
+
             if (unitToReactivate != null)
             {
+                var loggedInUserId = _userManager.GetUserId(User);
+
                 unitToReactivate.IsActive = true;
-                unitToReactivate.DeletedAt = null;
+                unitToReactivate.DeletedAt = null;       // Clear deletion date
+                unitToReactivate.UserDeletedId = null;   // Clear who deleted it
                 unitToReactivate.UpdatedAt = DateTime.UtcNow;
-                // You would set UserUpdatedId here if tracking it
+                unitToReactivate.UserUpdatedId = loggedInUserId;
 
                 _unitRepository.Update(unitToReactivate);
                 await _unitRepository.SaveAllAsync();

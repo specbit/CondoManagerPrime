@@ -45,13 +45,14 @@
                         }
                     </td>
                     <td>
+                        <a asp-action="Details" asp-route-id="@unit.Id" class="btn btn-sm btn-info">Details</a>
                         <a asp-action="Edit" asp-route-id="@unit.Id" class="btn btn-sm btn-warning">Edit</a>
 
                         @* --- INTELLIGENT BUTTON LOGIC --- *@
                         @if (string.IsNullOrEmpty(unit.OwnerId))
                         {
                             // If there is NO owner, show the "Assign Owner" button
-                            <a asp-action="AssignOwner" asp-route-id="@unit.Id" class="btn btn-sm btn-info">Assign Owner</a>
+                            <a asp-action="AssignOwner" asp-route-id="@unit.Id" class="btn btn-sm btn-success">Assign Owner</a>
                         }
                         else
                         {
