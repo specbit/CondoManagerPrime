@@ -22,6 +22,15 @@ namespace CET96_ProjetoFinal.web.Data
         public DbSet<Conversation> Conversations { get; set; }
         public DbSet<Message> Messages { get; set; }
 
+
+        /// <summary>
+        /// Configures the model for the database context by defining entity relationships, indexes, and ignored
+        /// properties.
+        /// </summary>
+        /// <remarks>This method is used to define entity relationships, composite unique indexes, and
+        /// ignored properties for the entities managed by this context. It ensures proper configuration of the database
+        /// schema and resolves potential conflicts with other contexts managing overlapping entities.</remarks>
+        /// <param name="modelBuilder">The <see cref="ModelBuilder"/> used to configure the model for the context.</param>
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
