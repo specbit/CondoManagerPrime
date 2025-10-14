@@ -250,5 +250,20 @@ namespace CET96_ProjetoFinal.web.Repositories
 
             return result;
         }
+
+        /// <inheritdoc />
+        public async Task<IEnumerable<ApplicationUser>> GetUsersInRoleByCondominiumAsync(string roleName, int condominiumId)
+        {
+            // 1. Get all users who have the specified role (e.g., "Unit Owner").
+            // This gives us a broad list of all owners across all companies.
+            var usersInRole = await _userManager.GetUsersInRoleAsync(roleName);
+
+            // 2. Filter that broad list down to only the users who are explicitly linked
+            // to the specific condominiumId provided.
+            var filteredUsers = usersInRole.Where(u => u.CondominiumId == condominiumId);
+
+            // 3. Return the final, filtered list.
+            return filteredUsers;
+        }
     }
 }

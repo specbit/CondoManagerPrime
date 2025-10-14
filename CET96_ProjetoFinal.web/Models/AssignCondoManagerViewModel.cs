@@ -1,11 +1,9 @@
-﻿using CET96_ProjetoFinal.web.Entities;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using System.Collections.Generic;
+﻿using Microsoft.AspNetCore.Mvc.Rendering;
 using System.ComponentModel.DataAnnotations;
 
 namespace CET96_ProjetoFinal.web.Models
 {
-    public class AssignmentViewModel
+    public class AssignCondoManagerViewModel
     {
         public string UserId { get; set; }
 
@@ -22,7 +20,7 @@ namespace CET96_ProjetoFinal.web.Models
         // and not the default "-- Select Condominium --" option, which has a value of 0 or null.
         [Range(1, int.MaxValue, ErrorMessage = "You must select a condominium to assign.")]
         public int? SelectedCondominiumId { get; set; }
-
+            
         // used to render the dropdown
         /// <summary>
         /// This holds the list of available condominiums to populate the dropdown.

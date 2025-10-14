@@ -50,5 +50,11 @@ namespace CET96_ProjetoFinal.web.Repositories
 
             return await query.AnyAsync();
         }
+
+        /// <inheritdoc />
+        public bool IsOwnerAssigned(string ownerId)
+        {
+            return _context.Units.Any(u => u.OwnerId == ownerId);
+        }
     }
 }

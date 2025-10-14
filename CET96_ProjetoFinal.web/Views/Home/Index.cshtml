@@ -52,9 +52,6 @@
                                     <a asp-controller="Companies" asp-action="Details" asp-route-id="@company.Id" class="btn btn-info">Details</a>
                                     <a asp-controller="Companies" asp-action="Edit" asp-route-id="@company.Id" class="btn btn-warning">Edit</a>
                                     <a asp-controller="Companies" asp-action="Delete" asp-route-id="@company.Id" class="btn btn-danger">Deactivate</a>
-                                    <a asp-controller="UnitOwners"
-                                       asp-action="Index"
-                                       class="btn btn-dark">Manage All Owners</a>
                                 </div>
                             </div>
                         </a>
@@ -101,6 +98,7 @@
 
                     <a asp-controller="UnitOwners"
                        asp-action="Index"
+                       asp-route-condominiumId="@Model.CondominiumId"
                        class="btn btn-info">Manage Owners</a>
                 </div>
             }
