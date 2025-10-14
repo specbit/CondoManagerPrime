@@ -1,0 +1,54 @@
+﻿@model CET96_ProjetoFinal.web.Models.AssignOwnerToUnitViewModel
+
+@{
+    ViewData["Title"] = "Assign Owner to Unit";
+}
+
+<h1>@ViewData["Title"]</h1>
+<hr />
+
+<h4>Condominium: <strong>@Model.CondominiumName</strong></h4>
+<p>You are assigning an owner to Unit: <strong>@Model.UnitNumber</strong></p>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <form asp-action="AssignOwner" asp-route-id="@Model.UnitId" method="post">
+            <div asp-validation-summary="All" class="text-danger"></div>
+
+            <input type="hidden" asp-for="UnitId" />
+            <input type="hidden" asp-for="UnitNumber" />
+            <input type="hidden" asp-for="CondominiumName" />
+
+            <div class="form-group mb-3">
+                <label asp-for="SelectedOwnerId" class="control-label"></label>
+
+                @if (Model.AvailableOwners?.Any() ?? false)
+                {
+                    @* This ensures a proper <select> dropdown is created *@
+                    <select asp-for="SelectedOwnerId" class="form-control" asp-items="Model.AvailableOwners">
+                        <option value="">-- Select an available owner --</option>
+                    </select>
+                }
+                else
+                {
+                    <div class="alert alert-warning">There are no unassigned owners available. Please create a new owner first.</div>
+                }
+
+                <span asp-validation-for="SelectedOwnerId" class="text-danger"></span>
+            </div>
+
+            <div class="form-group mt-4">
+                @* This button is now disabled if there are no owners to choose from *@
+                <input type="submit" value="Assign Owner" class="btn btn-primary" @(Model.AvailableOwners?.Any() == true ? "" : "disabled") />
+
+
+                @* This link now correctly points back to the Units list *@
+                <a asp-action="Index" asp-route-condominiumId="@ViewBag.CondominiumId" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

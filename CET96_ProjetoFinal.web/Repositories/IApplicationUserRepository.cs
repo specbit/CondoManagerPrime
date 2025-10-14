@@ -179,5 +179,15 @@ namespace CET96_ProjetoFinal.web.Repositories
         /// <returns>Collection of active users in the given role.</returns>
         Task<IEnumerable<ApplicationUser>> GetActiveUsersByCompanyAndRoleAsync(int companyId, string role);
 
+        /// <summary>
+        /// Retrieves a collection of users who are assigned a specific role and belong to a specific condominium.
+        /// </summary>
+        /// <param name="roleName">The name of the role to filter by (e.g., "Unit Owner").</param>
+        /// <param name="condominiumId">The ID of the condominium to filter users by.</param>
+        /// <returns>
+        /// A task that represents the asynchronous operation. The task result contains an
+        /// <see cref="IEnumerable{ApplicationUser}"/> with all users matching both the role and condominium ID.
+        /// </returns>
+        Task<IEnumerable<ApplicationUser>> GetUsersInRoleByCondominiumAsync(string roleName, int condominiumId);
     }
 }

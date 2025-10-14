@@ -17,6 +17,7 @@ namespace CET96_ProjetoFinal.web.Repositories
         /// </returns>
         Task<IEnumerable<Unit>> GetUnitsByCondominiumIdAsync(int condominiumId);
 
+
         /// <summary>
         /// Checks if a Unit with a specific number already exists within a given condominium.
         /// </summary>
@@ -25,5 +26,13 @@ namespace CET96_ProjetoFinal.web.Repositories
         /// <param name="excludeUnitId">An optional ID of a unit to exclude from the check (used for editing).</param>
         /// <returns>A boolean value: true if the unit number exists for another unit, otherwise false.</returns>
         Task<bool> UnitNumberExistsAsync(int condominiumId, string unitNumber, int? excludeUnitId = null);
+
+
+        /// <summary>
+        /// Checks if a user is already assigned as an owner to any unit in the database.
+        /// </summary>
+        /// <param name="ownerId">The string ID of the user (ApplicationUser) to check.</param>
+        /// <returns>Returns <c>true</c> if the user is assigned to at least one unit; otherwise, <c>false</c>.</returns>
+        bool IsOwnerAssigned(string ownerId);
     }
 }

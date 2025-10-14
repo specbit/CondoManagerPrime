@@ -1,4 +1,4 @@
-﻿@model IEnumerable<CET96_ProjetoFinal.web.Entities.Unit>
+﻿@model IEnumerable<CET96_ProjetoFinal.web.Models.UnitViewModel>
 
 @{
     ViewData["Title"] = $"Manage Units for {ViewBag.CondominiumName}";
@@ -31,7 +31,10 @@
             {
                 <tr>
                     <td>@unit.UnitNumber</td>
-                    <td>(Not Assigned)</td>
+
+                    @* --- THIS IS THE FIX --- *@
+                    <td>@unit.OwnerName</td>
+
                     <td>
                         @if (unit.IsActive)
                         {
@@ -44,8 +47,7 @@
                     </td>
                     <td>
                         <a asp-action="Edit" asp-route-id="@unit.Id" class="btn btn-sm btn-warning">Edit</a>
-                        <a class="btn btn-sm btn-info disabled">Assign Owner</a> @* Disabled for now *@
-                        @* Changed the delete to a form for security reasons *@
+                        <a asp-controller="Units" asp-action="AssignOwner" asp-route-id="@unit.Id" class="btn btn-sm btn-info">Assign Owner</a>
                         <form asp-action="Delete" asp-route-id="@unit.Id" method="post" style="display:inline;">
                             @Html.AntiForgeryToken()
                             <button type="submit" class="btn btn-sm btn-danger">Deactivate</button>
@@ -57,7 +59,7 @@
         else
         {
             <tr>
-                <td colspan="3" class="text-center">No units have been added yet.</td>
+                <td colspan="4" class="text-center">No units have been added yet.</td>
             </tr>
         }
     </tbody>

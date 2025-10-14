@@ -810,7 +810,7 @@ namespace CET96_ProjetoFinal.web.Controllers
             // Get the companyId from the manager
             var companyId = condominiumManager.CompanyId;
 
-            var model = new AssignmentViewModel
+            var model = new AssignCondoManagerViewModel
             {
                 UserId = condominiumManager.Id,
                 FullName = $"{condominiumManager.FirstName} {condominiumManager.LastName}",
@@ -841,7 +841,7 @@ namespace CET96_ProjetoFinal.web.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Company Administrator")]
-        public async Task<IActionResult> LinkManagerToCondominium(AssignmentViewModel model)
+        public async Task<IActionResult> LinkManagerToCondominium(AssignCondoManagerViewModel model)
         {
             // 1. Validate the input.
             var condominiumManager = await _userRepository.GetUserByIdAsync(model.UserId);
@@ -1679,7 +1679,7 @@ namespace CET96_ProjetoFinal.web.Controllers
             }
             // --- END: ROLE LOGIC ---
 
-            var model = new AssignmentViewModel
+            var model = new AssignCondoManagerViewModel
             {
                 UserId = staffUser.Id,
                 FullName = $"{staffUser.FirstName} {staffUser.LastName}",
@@ -1699,7 +1699,7 @@ namespace CET96_ProjetoFinal.web.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Company Administrator, Condominium Manager")]
-        public async Task<IActionResult> AssignStaffToCondominium(AssignmentViewModel model)
+        public async Task<IActionResult> AssignStaffToCondominium(AssignCondoManagerViewModel model)
         {
             var staffUser = await _userRepository.GetUserByIdAsync(model.UserId);
             var loggedInUser = await _userRepository.GetUserByEmailasync(User.Identity.Name);

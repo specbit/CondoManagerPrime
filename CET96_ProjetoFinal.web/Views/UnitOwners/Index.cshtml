@@ -1,13 +1,13 @@
 ﻿@model IEnumerable<CET96_ProjetoFinal.web.Entities.ApplicationUser>
 
 @{
-    ViewData["Title"] = "Manage Unit Owners";
+    ViewData["Title"] = $"Manage Owners for {ViewBag.CondominiumName}";
 }
 
 <h1>@ViewData["Title"]</h1>
 
 <p>
-    <a asp-action="Create" class="btn btn-primary">Create New Owner</a>
+    <a asp-action="Create" asp-route-condominiumId="@ViewBag.CondominiumId" class="btn btn-primary">Create New Owner</a>
 </p>
 
 <table class="table table-striped">
@@ -44,9 +44,8 @@
                         }
                     </td>
                     <td>
-                        <a asp-action="Edit" asp-route-id="@owner.Id" class="btn btn-sm btn-warning">Edit</a>
-                        <a asp-action="Details" asp-route-id="@owner.Id" class="btn btn-sm btn-info">Details</a>
-                        @* We will implement this later *@
+                        <a class="btn btn-sm btn-warning disabled">Edit</a>
+                        <a class="btn btn-sm btn-info disabled">Details</a>
                         <a class="btn btn-sm btn-danger disabled">Deactivate</a>
                     </td>
                 </tr>
@@ -56,7 +55,7 @@
         {
             <tr>
                 <td colspan="5" class="text-center">
-                    No unit owners have been created yet.
+                    No unit owners have been created for this condominium yet.
                 </td>
             </tr>
         }
