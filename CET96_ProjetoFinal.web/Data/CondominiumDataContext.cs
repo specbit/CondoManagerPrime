@@ -1,4 +1,5 @@
-﻿using CET96_ProjetoFinal.web.Entities;
+﻿using CET96_ProjetoFinal.web.Data.Entities;
+using CET96_ProjetoFinal.web.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace CET96_ProjetoFinal.web.Data
