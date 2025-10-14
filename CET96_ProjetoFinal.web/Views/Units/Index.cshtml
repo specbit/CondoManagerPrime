@@ -32,7 +32,6 @@
                 <tr>
                     <td>@unit.UnitNumber</td>
 
-                    @* --- THIS IS THE FIX --- *@
                     <td>@unit.OwnerName</td>
 
                     <td>
@@ -47,7 +46,19 @@
                     </td>
                     <td>
                         <a asp-action="Edit" asp-route-id="@unit.Id" class="btn btn-sm btn-warning">Edit</a>
-                        <a asp-controller="Units" asp-action="AssignOwner" asp-route-id="@unit.Id" class="btn btn-sm btn-info">Assign Owner</a>
+
+                        @* --- INTELLIGENT BUTTON LOGIC --- *@
+                        @if (string.IsNullOrEmpty(unit.OwnerId))
+                        {
+                            // If there is NO owner, show the "Assign Owner" button
+                            <a asp-action="AssignOwner" asp-route-id="@unit.Id" class="btn btn-sm btn-info">Assign Owner</a>
+                        }
+                        else
+                        {
+                            // If an owner EXISTS, show the "Dismiss Owner" button
+                            <a asp-action="DismissOwner" asp-route-id="@unit.Id" class="btn btn-sm btn-secondary">Dismiss Owner</a>
+                        }
+
                         <form asp-action="Delete" asp-route-id="@unit.Id" method="post" style="display:inline;">
                             @Html.AntiForgeryToken()
                             <button type="submit" class="btn btn-sm btn-danger">Deactivate</button>
@@ -66,16 +77,25 @@
 </table>
 
 <div class="mt-3">
-    @if (!string.IsNullOrEmpty(returnUrl))
+    @if (User.IsInRole("Company Administrator"))
     {
-        <a href="@returnUrl" class="btn btn-secondary">Back to Dashboard</a>
-    }
-    else
-    {
-        @* This is the fallback for when a Company Admin visits the page *@
+        // If the user is an Admin, the button goes back to the list of condominiums.
         <a asp-controller="Condominiums"
            asp-action="Index"
            asp-route-id="@ViewBag.CompanyId"
            class="btn btn-secondary">Back to Condominiums</a>
     }
+    else
+    {
+        // If the user is a Manager, the button goes back to their main homepage.
+        <a asp-controller="Home"
+           asp-action="Index"
+           class="btn btn-secondary">Back to Dashboard</a>
+    }
 </div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

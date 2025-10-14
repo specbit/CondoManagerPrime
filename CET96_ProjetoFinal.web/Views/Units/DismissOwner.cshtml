@@ -1,0 +1,33 @@
+﻿@model CET96_ProjetoFinal.web.Entities.Unit
+
+@{
+    ViewData["Title"] = "Dismiss Owner";
+}
+
+<h1>@ViewData["Title"]</h1>
+<h3>Are you sure you want to dismiss the owner from this unit?</h3>
+<hr />
+
+<div>
+    <h4>Unit Details</h4>
+    <dl class="row">
+        <dt class="col-sm-2">
+            Unit Number
+        </dt>
+        <dd class="col-sm-10">
+            @Model.UnitNumber
+        </dd>
+        <dt class="col-sm-2">
+            Current Owner
+        </dt>
+        <dd class="col-sm-10">
+            @ViewBag.OwnerName
+        </dd>
+    </dl>
+
+    <form asp-action="DismissOwnerConfirmed" asp-route-id="@Model.Id" method="post">
+        @Html.AntiForgeryToken()
+        <input type="submit" value="Confirm Dismissal" class="btn btn-danger" />
+        <a asp-action="Index" asp-route-condominiumId="@ViewBag.CondominiumId" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>

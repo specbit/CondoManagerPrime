@@ -73,7 +73,8 @@ namespace CET96_ProjetoFinal.web.Controllers
                     UnitNumber = unit.UnitNumber,
                     IsActive = unit.IsActive,
                     // If an owner is found, use their name; otherwise, show "(Not Assigned)".
-                    OwnerName = owner != null ? $"{owner.FirstName} {owner.LastName}" : "(Not Assigned)"
+                    OwnerName = owner != null ? $"{owner.FirstName} {owner.LastName}" : "(Not Assigned)",
+                    OwnerId = unit.OwnerId
                 });
             }
 
@@ -86,34 +87,6 @@ namespace CET96_ProjetoFinal.web.Controllers
             // Return the view with the new list of ViewModels.
             return View(model);
         }
-
-        // TODO: delete this old Index method after confirming the new one works
-        ///// <summary>
-        ///// Displays a list of all active units for a specific condominium.
-        ///// </summary>
-        ///// <param name="condominiumId">The ID of the condominium.</param>
-        ///// <param name="returnUrl">The URL to return to after an action.</param>
-        ///// <returns>A view with the list of units.</returns>
-        //[HttpGet("{condominiumId:int}")] // GET Units/1005
-        //public async Task<IActionResult> Index(int condominiumId, string returnUrl = null)
-        //{
-        //    var condominium = await _condominiumRepository.GetByIdAsync(condominiumId);
-        //    if (condominium == null)
-        //    {
-        //        return NotFound();
-        //    }
-
-        //    ViewBag.CompanyId = condominium.CompanyId;
-        //    var units = await _unitRepository.GetUnitsByCondominiumIdAsync(condominiumId);
-
-        //    // Pass data to the view for navigation and display
-        //    ViewData["ReturnUrl"] = returnUrl;
-        //    ViewBag.CompanyId = condominium.CompanyId;
-        //    ViewBag.CondominiumName = condominium.Name;
-        //    ViewBag.CondominiumId = condominiumId;
-
-        //    return View(units);
-        //}
 
         // GET: Units/Create?condominiumId=5
         [HttpGet("{condominiumId:int}/Create")] // GET Units/1005/Create
@@ -456,6 +429,87 @@ namespace CET96_ProjetoFinal.web.Controllers
             ViewBag.CondominiumId = unit.CondominiumId;
 
             return View(model);
+        }
+
+        /// <summary>
+        /// Displays a confirmation page before dismissing an owner from a unit.
+        /// </summary>
+        /// <param name="id">The ID of the Unit.</param>
+        [HttpGet("DismissOwner/{id:int}")]
+        public async Task<IActionResult> DismissOwner(int id)
+        {
+            var unit = await _unitRepository.GetByIdAsync(id);
+            if (unit == null || string.IsNullOrEmpty(unit.OwnerId))
+            {
+                return NotFound(); // Can't dismiss if there's no owner
+            }
+
+            var owner = await _userRepository.GetUserByIdAsync(unit.OwnerId);
+            ViewBag.OwnerName = owner != null ? $"{owner.FirstName} {owner.LastName}" : "the current owner";
+            ViewBag.CondominiumId = unit.CondominiumId;
+
+            return View(unit);
+        }
+
+        /// <summary>
+        /// Handles the confirmed dismissal of an owner from a unit and sends notification emails.
+        /// </summary>
+        /// <param name="id">The ID of the unit from which the owner will be dismissed.</param>
+        [HttpPost("DismissOwner/{id:int}")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DismissOwnerConfirmed(int id)
+        {
+            var unit = await _unitRepository.GetByIdAsync(id);
+            if (unit == null || string.IsNullOrEmpty(unit.OwnerId))
+            {
+                return NotFound();
+            }
+
+            // Get the owner's details BEFORE we dismiss them, so we know who they were.
+            var owner = await _userRepository.GetUserByIdAsync(unit.OwnerId);
+
+            // --- DATABASE UPDATE ---
+            // Set the OwnerId to null to dismiss the owner.
+            unit.OwnerId = null;
+            _unitRepository.Update(unit);
+            await _unitRepository.SaveAllAsync();
+
+            // --- START: EMAIL NOTIFICATION LOGIC ---
+            if (owner != null) // Only send emails if we found the owner's details
+            {
+                var condo = await _condominiumRepository.GetByIdAsync(unit.CondominiumId);
+
+                // 1. Email to the Owner who was dismissed
+                await _emailSender.SendEmailAsync(owner.Email,
+                    $"You have been dismissed from Unit {unit.UnitNumber}",
+                    $"<p>Hello {owner.FirstName},</p><p>This is a notification that you are no longer assigned as the owner of <b>Unit {unit.UnitNumber}</b> in the condominium <b>{condo.Name}</b>.</p>");
+
+                // 2. Email to the Condominium Manager
+                if (!string.IsNullOrEmpty(condo.CondominiumManagerId))
+                {
+                    var condoManager = await _userRepository.GetUserByIdAsync(condo.CondominiumManagerId);
+                    if (condoManager != null)
+                    {
+                        await _emailSender.SendEmailAsync(condoManager.Email,
+                            $"Owner Dismissed: Unit {unit.UnitNumber}",
+                            $"<p>This is a notification that {owner.FirstName} {owner.LastName} has been dismissed as the owner of <b>Unit {unit.UnitNumber}</b>.</p>");
+                    }
+                }
+
+                // 3. Email to the Company Administrator
+                var company = await _companyRepository.GetByIdAsync(condo.CompanyId);
+                var companyAdmin = await _userRepository.GetUserByIdAsync(company.ApplicationUserId);
+                if (companyAdmin != null)
+                {
+                    await _emailSender.SendEmailAsync(companyAdmin.Email,
+                       $"Owner Dismissed in {condo.Name}",
+                       $"<p>An owner dismissal has occurred in <b>{condo.Name}</b>:</p><ul><li>Former Owner: {owner.FirstName} {owner.LastName}</li><li>Unit: {unit.UnitNumber}</li></ul>");
+                }
+            }
+            // --- END: EMAIL NOTIFICATION LOGIC ---
+
+            TempData["StatusMessage"] = $"Owner '{owner?.FirstName} {owner?.LastName}' was successfully dismissed from Unit {unit.UnitNumber}. Notifications sent.";
+            return RedirectToAction(nameof(Index), new { condominiumId = unit.CondominiumId });
         }
     }
 }
