@@ -32,6 +32,13 @@
                 else
                 {
                     <div class="alert alert-warning">There are no unassigned owners available. Please create a new owner first.</div>
+                    <br />
+
+                    <br />
+                    <a asp-controller="UnitOwners"
+                       asp-action="Create"
+                       asp-route-condominiumId="@ViewBag.CondominiumId"
+                       class="btn btn-sm btn-primary">Create a New Owner</a>
                 }
 
                 <span asp-validation-for="SelectedOwnerId" class="text-danger"></span>

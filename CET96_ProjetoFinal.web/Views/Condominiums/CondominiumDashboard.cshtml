@@ -22,7 +22,7 @@
     <a asp-controller="Account" asp-action="AllUsersByCompany" asp-route-id="@Model.CompanyId" class="btn btn-dark">Manage Staff & Managers</a>
     <a asp-controller="UnitOwners"
        asp-action="Index"
+       asp-route-condominiumId="@Model.Id" 
        class="btn btn-info">Manage Owners</a>
-
     <a asp-action="Index" asp-route-id="@Model.CompanyId" class="btn btn-secondary">Back to Condominium List</a>
 </div>

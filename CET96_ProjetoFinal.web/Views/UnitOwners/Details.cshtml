@@ -1,0 +1,46 @@
+﻿@model CET96_ProjetoFinal.web.Entities.ApplicationUser
+
+@{
+    ViewData["Title"] = $"Details for {Model.FirstName} {Model.LastName}";
+}
+
+<h1>@ViewData["Title"]</h1>
+<hr />
+
+<div>
+    <h4>Unit Owner Information</h4>
+    <dl class="row">
+        <dt class="col-sm-3">First Name</dt>
+        <dd class="col-sm-9">@Model.FirstName</dd>
+
+        <dt class="col-sm-3">Last Name</dt>
+        <dd class="col-sm-9">@Model.LastName</dd>
+
+        <dt class="col-sm-3">Email</dt>
+        <dd class="col-sm-9">@Model.Email</dd>
+
+        <dt class="col-sm-3">Phone Number</dt>
+        <dd class="col-sm-9">@Model.PhoneNumber</dd>
+
+        <dt class="col-sm-3">Document Type</dt>
+        <dd class="col-sm-9">@Model.DocumentType</dd>
+
+        <dt class="col-sm-3">Identification Document</dt>
+        <dd class="col-sm-9">@Model.IdentificationDocument</dd>
+
+        <dt class="col-sm-3">Belongs to Condominium</dt>
+        <dd class="col-sm-9">@ViewBag.CondominiumName</dd>
+    </dl>
+</div>
+
+<div class="mt-4">
+    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning">Edit</a>
+    @* This "Back" button now uses the intelligent URL from the controller *@
+    <a href="@ViewBag.ReturnUrl" class="btn btn-secondary">Back to Dashboard</a>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

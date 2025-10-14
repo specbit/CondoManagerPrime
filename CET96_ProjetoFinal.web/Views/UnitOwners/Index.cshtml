@@ -1,4 +1,4 @@
-﻿@model IEnumerable<CET96_ProjetoFinal.web.Entities.ApplicationUser>
+﻿@model IEnumerable<CET96_ProjetoFinal.web.Models.UnitOwnerListViewModel>
 
 @{
     ViewData["Title"] = $"Manage Owners for {ViewBag.CondominiumName}";
@@ -16,7 +16,8 @@
             <th>Full Name</th>
             <th>Email / Username</th>
             <th>Phone Number</th>
-            <th>Status</th>
+            <th>Account Status</th>
+            <th>Assigned To Unit</th> @* <-- New Column *@
             <th>Actions</th>
         </tr>
     </thead>
@@ -26,26 +27,41 @@
             @foreach (var owner in Model)
             {
                 <tr>
-                    <td>@owner.FirstName @owner.LastName</td>
+                    <td>@owner.FullName</td>
                     <td>@owner.Email</td>
                     <td>@owner.PhoneNumber</td>
                     <td>
-                        @if (owner.DeactivatedAt.HasValue)
+                        @if (!owner.IsActive)
                         {
                             <span class="badge bg-danger">Inactive</span>
                         }
-                        else if (!owner.EmailConfirmed)
+                        else if (!owner.IsConfirmed)
                         {
+
                             <span class="badge bg-warning text-dark">Pending Confirmation</span>
                         }
                         else
                         {
+
                             <span class="badge bg-success">Active</span>
                         }
                     </td>
                     <td>
-                        <a class="btn btn-sm btn-warning disabled">Edit</a>
-                        <a class="btn btn-sm btn-info disabled">Details</a>
+                        @* --- New Assignment Status --- *@
+                        @if (owner.IsAssigned)
+                        {
+                            <span class="badge bg-primary">Assigned</span>
+                        }
+                        else
+                        {
+
+                            <span class="badge bg-secondary">Available</span>
+                        }
+                    </td>
+                    <td>
+                        @* --- Activated Buttons --- *@
+                        <a asp-action="Details" asp-route-id="@owner.Id" class="btn btn-sm btn-info">Details</a>
+                        <a asp-action="Edit" asp-route-id="@owner.Id" class="btn btn-sm btn-warning">Edit</a>
                         <a class="btn btn-sm btn-danger disabled">Deactivate</a>
                     </td>
                 </tr>
@@ -54,10 +70,25 @@
         else
         {
             <tr>
-                <td colspan="5" class="text-center">
-                    No unit owners have been created for this condominium yet.
-                </td>
+                <td colspan="6" class="text-center">No unit owners have been created for this condominium yet.</td>
             </tr>
         }
     </tbody>
 </table>
+
+@* --- Intelligent "Back" Button --- *@
+<div class="mt-4">
+    @if (User.IsInRole("Company Administrator"))
+    {
+        <a asp-controller="Condominiums"
+           asp-action="CondominiumDashboard"
+           asp-route-id="@ViewBag.CondominiumId"
+           class="btn btn-secondary">Back to Condominium Dashboard</a>
+    }
+    else
+    {
+        <a asp-controller="Home"
+           asp-action="Index"
+           class="btn btn-secondary">Back to Dashboard</a>
+    }
+</div>
