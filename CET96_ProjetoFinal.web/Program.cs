@@ -1,5 +1,6 @@
 using CET96_ProjetoFinal.web.Data;
 using CET96_ProjetoFinal.web.Entities;
+using CET96_ProjetoFinal.web.Hubs;
 using CET96_ProjetoFinal.web.Repositories;
 using CET96_ProjetoFinal.web.Services;
 using CET96_ProjetoFinal.web.Settings;
@@ -90,7 +91,10 @@ namespace CET96_ProjetoFinal.web
 
             // Register SeedDb service to seed the database
             builder.Services.AddTransient<SeedDb>(); // Register the Seeder
-            //builder.Services.AddTransient<MockSeedDb>(); // Register the Seeder
+                                                     //builder.Services.AddTransient<MockSeedDb>(); // Register the MockSeeder
+
+            // --- Register SignalR services ---
+            builder.Services.AddSignalR();
 
             var app = builder.Build();
 
@@ -116,6 +120,9 @@ namespace CET96_ProjetoFinal.web
 
             app.UseAuthentication();
             app.UseAuthorization();
+
+            // --- Map the ChatHub to an endpoint ---
+            app.MapHub<ChatHub>("/chatHub");
 
             app.MapControllerRoute(
                 name: "default",

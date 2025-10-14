@@ -1,4 +1,5 @@
-﻿using CET96_ProjetoFinal.web.Enums;
+﻿using CET96_ProjetoFinal.web.Data.Entities;
+using CET96_ProjetoFinal.web.Enums;
 using System.ComponentModel.DataAnnotations;
 
 namespace CET96_ProjetoFinal.web.Entities
@@ -26,6 +27,6 @@ namespace CET96_ProjetoFinal.web.Entities
 
         // --- Tracking & Workflow ---
         public bool IsRead { get; set; } = false;
-        public MessageStatus Status { get; set; } = MessageStatus.Pending;
+        //public MessageStatus Status { get; set; } = MessageStatus.Pending;
     }
 }
