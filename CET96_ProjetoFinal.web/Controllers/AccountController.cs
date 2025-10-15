@@ -1560,7 +1560,7 @@ namespace CET96_ProjetoFinal.web.Controllers
         /// <returns>Redirects back to the staff list for the user's company.</returns>
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Company Administrator")]
+        [Authorize(Roles = "Company Administrator, Condominium Manager")]
         public async Task<IActionResult> DeactivateCondominiumStaff(string id)
         {
             var userToDeactivate = await _userRepository.GetUserByIdAsync(id);

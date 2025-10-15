@@ -11,7 +11,7 @@ using System.Security.Claims;
 namespace CET96_ProjetoFinal.web.Controllers
 {
     [Authorize(Roles = "Company Administrator, Condominium Manager")]
-    public class UnitOwnersController : Controller
+    public class ManageOwnersController : Controller
     {
         private readonly IApplicationUserRepository _userRepository;
         private readonly UserManager<ApplicationUser> _userManager;
@@ -21,7 +21,7 @@ namespace CET96_ProjetoFinal.web.Controllers
         private readonly IUnitRepository _unitRepository;
 
 
-        public UnitOwnersController(
+        public ManageOwnersController(
             IApplicationUserRepository userRepository,
             UserManager<ApplicationUser> userManager,
             ICondominiumRepository condominiumRepository,

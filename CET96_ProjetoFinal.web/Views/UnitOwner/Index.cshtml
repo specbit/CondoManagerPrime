@@ -1,0 +1,11 @@
+﻿@{
+    ViewData["Title"] = "Owner Dashboard";
+}
+
+<div class="text-center">
+    <h1 class="display-4">Welcome, Owner!</h1>
+    <p>Manage your communications below.</p>
+    <hr />
+    <a asp-action="Create" asp-controller="Messages" class="btn btn-success btn-lg mb-3">Create New Conversation</a>
+    <a asp-controller="Messages" asp-action="Index" class="btn btn-primary btn-lg mb-3">Go to Message Center</a>
+</div>

@@ -51,6 +51,22 @@ namespace CET96_ProjetoFinal.web.Controllers
             // First, check if a user is logged in at all.
             if (User.Identity.IsAuthenticated)
             {
+                // --- START: NEW ROUTING LOGIC ---
+                // Before doing any other work, check for roles that have dedicated dashboards
+                // and redirect them immediately.
+
+                if (User.IsInRole("Unit Owner"))
+                {
+                    // Redirect to the Index action of the UnitOwnerController
+                    return RedirectToAction("Index", "UnitOwner");
+                }
+                if (User.IsInRole("Condominium Staff"))
+                {
+                    // Redirect to the Index action of the StaffDashboardController
+                    return RedirectToAction("Index", "StaffDashboard");
+                }
+                // --- END: NEW ROUTING LOGIC ---
+
                 // Fetch the user object once, as it's needed for multiple roles.
                 var user = await _userRepository.GetUserByEmailasync(User.Identity.Name);
 
