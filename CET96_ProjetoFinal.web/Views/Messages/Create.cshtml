@@ -1,0 +1,44 @@
+﻿@model CET96_ProjetoFinal.web.Models.CreateConversationViewModel
+
+@{
+    ViewData["Title"] = "Create a New Conversation";
+}
+
+<h1>@ViewData["Title"]</h1>
+<p>Use this form to send a message to your condominium manager.</p>
+<hr />
+
+<div class="row">
+    <div class="col-md-8">
+        <form asp-action="Create">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            @* These hidden fields are essential to pass the necessary IDs back to the controller *@
+            <input type="hidden" asp-for="UnitId" />
+            <input type="hidden" asp-for="CondominiumManagerId" />
+
+            <div class="form-group mb-3">
+                <label asp-for="Subject" class="control-label"></label>
+                <input asp-for="Subject" class="form-control" />
+                <span asp-validation-for="Subject" class="text-danger"></span>
+            </div>
+
+            <div class="form-group mb-3">
+                <label asp-for="Message" class="control-label"></label>
+                <textarea asp-for="Message" class="form-control" rows="5"></textarea>
+                <span asp-validation-for="Message" class="text-danger"></span>
+            </div>
+
+            <div class="form-group mt-4">
+                <input type="submit" value="Send Message" class="btn btn-primary" />
+                <a asp-controller="UnitOwner" asp-action="Index" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

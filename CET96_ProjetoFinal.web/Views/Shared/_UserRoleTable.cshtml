@@ -100,7 +100,6 @@
                                 }
                                 else if (roleContext == "Staff")
                                 {
-                                    @* FIX: Staff logic now mirrors Manager logic, per your new architecture *@
                                     <a asp-controller="Account" asp-action="StaffDetails" asp-route-id="@user.Id" class="btn btn-sm btn-info">Details</a>
                                     <a asp-controller="Account" asp-action="EditAccount" asp-route-id="@user.Id" class="btn btn-sm btn-warning">Edit</a>
 

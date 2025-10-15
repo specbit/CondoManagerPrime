@@ -1,6 +1,7 @@
 ﻿using CET96_ProjetoFinal.web.Data;
 using CET96_ProjetoFinal.web.Data.Entities;
 using CET96_ProjetoFinal.web.Entities;
+using CET96_ProjetoFinal.web.Enums;
 using CET96_ProjetoFinal.web.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -60,8 +61,86 @@ namespace CET96_ProjetoFinal.web.Controllers
             return View(model);
         }
 
-        // This action is called by JavaScript to get a conversation's message history
-        // In Controllers/MessagesController.cs
+        // GET: /Messages/Create
+        /// <summary>
+        /// Displays the form for a Unit Owner to create a new conversation.
+        /// </summary>
+        [Authorize(Roles = "Unit Owner")]
+        public async Task<IActionResult> Create()
+        {
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            // Find the unit assigned to the currently logged-in owner.
+            var assignedUnit = await _context.Units.FirstOrDefaultAsync(u => u.OwnerId == currentUserId);
+            if (assignedUnit == null)
+            {
+                TempData["StatusMessage"] = "Error: You are not assigned to a unit, so you cannot create a conversation.";
+                return RedirectToAction("Index", "Home");
+            }
+
+            // Find the manager of the condominium this unit belongs to.
+            var condominium = await _context.Condominiums.FindAsync(assignedUnit.CondominiumId);
+            if (condominium == null || string.IsNullOrEmpty(condominium.CondominiumManagerId))
+            {
+                TempData["StatusMessage"] = "Error: This unit's condominium does not have a manager assigned.";
+                return RedirectToAction("Index", "Home");
+            }
+
+            var model = new CreateConversationViewModel
+            {
+                UnitId = assignedUnit.Id,
+                CondominiumManagerId = condominium.CondominiumManagerId
+            };
+
+            return View(model);
+        }
+
+        // POST: /Messages/Create
+        /// <summary>
+        /// Handles the submission of the new conversation form.
+        /// </summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Unit Owner")]
+        public async Task<IActionResult> Create(CreateConversationViewModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                var initiatorId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+                // 1. Create the main Conversation object (the "ticket").
+                var conversation = new Conversation
+                {
+                    Subject = model.Subject,
+                    InitiatorId = initiatorId,
+                    AssignedToId = model.CondominiumManagerId, // Initially assign to the manager
+                    UnitId = model.UnitId,
+                    Status = MessageStatus.Pending,
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.Conversations.Add(conversation);
+                await _context.SaveChangesAsync(); // Save to get the new ConversationId
+
+                // 2. Create the first Message in that conversation.
+                var message = new Message
+                {
+                    Content = model.Message,
+                    SenderId = initiatorId,
+                    ReceiverId = model.CondominiumManagerId, // The first message goes to the manager
+                    ConversationId = conversation.Id, // Link to the conversation we just created
+                    SentAt = DateTime.UtcNow
+                };
+                _context.Messages.Add(message);
+                await _context.SaveChangesAsync();
+
+                // TODO: Use SignalR to notify the manager in real-time.
+
+                TempData["StatusMessage"] = "Your new conversation has been created successfully.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            return View(model);
+        }
 
         // This action is called by JavaScript to get a conversation's message history
         [HttpGet]

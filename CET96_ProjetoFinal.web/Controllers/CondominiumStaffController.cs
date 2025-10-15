@@ -324,100 +324,6 @@ namespace CET96_ProjetoFinal.web.Controllers
             return View(model);
         }
 
-        //// POST: CondominiumStaff/Create
-        ///// <summary>
-        ///// Handles the submission of the new staff member form. This action creates a new ApplicationUser,
-        ///// assigns them to the 'Condominium Staff' role, and triggers three distinct email workflows:
-        ///// 1. A confirmation email is sent to the new staff member's email address.
-        ///// 2. A notification email is sent to the logged-in Condominium Manager who performed the action.
-        ///// 3. A notification email is sent to the primary Company Administrator who owns the parent company.
-        ///// </summary>
-        ///// <param name="model">The view model with the new staff member's details.</param>
-        ///// <returns>A redirect to the staff list on success, with a status message.</returns>        [HttpPost]
-        //[ValidateAntiForgeryToken]
-        //public async Task<IActionResult> Create(RegisterCondominiumStaffViewModel model)
-        //{
-        //    // Get the currently logged-in Condominium Manager
-        //    var condoManager = await _userRepository.GetUserByEmailasync(User.Identity.Name);
-        //    if (condoManager == null)
-        //    {
-        //        // This should not happen if they are authorized, but it's a safe check.
-        //        return Unauthorized();
-        //    }
-
-        //    if (ModelState.IsValid)
-        //    {
-        //        var userExists = await _userRepository.GetUserByEmailasync(model.Username);
-        //        if (userExists != null)
-        //        {
-        //            ModelState.AddModelError("Username", "This email is already in use.");
-        //        }
-
-        //        if (ModelState.IsValid)
-        //        {
-        //            var user = new ApplicationUser
-        //            {
-        //                FirstName = model.FirstName,
-        //                LastName = model.LastName,
-        //                UserName = model.Username,
-        //                Email = model.Username,
-        //                PhoneNumber = model.PhoneNumber,
-        //                DocumentType = model.DocumentType,
-        //                IdentificationDocument = model.IdentificationDocument,
-        //                CondominiumId = model.CondominiumId,
-        //                Profession = model.Profession,
-        //                CreatedAt = DateTime.UtcNow
-        //            };
-
-        //            var result = await _userRepository.AddUserAsync(user, model.Password);
-
-        //            if (result.Succeeded)
-        //            {
-        //                await _userRepository.AddUserToRoleAsync(user, "Condominium Staff");
-        //                // --- START: ALL EMAIL LOGIC ---
-
-        //                // 1. Send CONFIRMATION Email to the NEW STAFF member
-        //                var token = await _userRepository.GenerateEmailConfirmationTokenAsync(user);
-        //                var confirmationLink = Url.Action("ConfirmEmail", "Account", new { userId = user.Id, token }, Request.Scheme);
-        //                await _emailSender.SendEmailAsync(user.Email,
-        //                    "Confirm your new CondoManagerPrime Account",
-        //                    $"<p>An account has been created for you. Please confirm your account by clicking this link: <a href='{confirmationLink}'>link</a></p>");
-
-        //                // 2. (New Feature) Send NOTIFICATION Email to the CONDO MANAGER (who is logged in)
-        //                var condo = await _condominiumRepository.GetByIdAsync(model.CondominiumId);
-        //                await _emailSender.SendEmailAsync(condoManager.Email,
-        //                    $"New Staff Created: {user.FirstName} {user.LastName}",
-        //                    $"<p>You have successfully created a new staff account for {user.FirstName} {user.LastName} ({user.Email}) for the condominium {condo?.Name}.</p>");
-
-        //                // 3. (New Feature) Send NOTIFICATION Email to the main COMPANY ADMINISTRATOR
-        //                if (condo != null)
-        //                {
-        //                    var company = await _companyRepository.GetByIdAsync(condo.CompanyId);
-        //                    // company.ApplicationUserId holds the ID of the main admin
-        //                    var companyAdmin = await _userRepository.GetUserByIdAsync(company.ApplicationUserId);
-
-        //                    if (companyAdmin != null)
-        //                    {
-        //                        await _emailSender.SendEmailAsync(companyAdmin.Email,
-        //                            $"New Staff Added to Company: {user.FirstName} {user.LastName}",
-        //                            $"<p>This is a notification that your Condominium Manager ({condoManager.FirstName} {condoManager.LastName}) has created a new staff account:</p>" +
-        //                            $"<ul><li><b>Staff:</b> {user.FirstName} {user.LastName} ({user.Email})</li><li><b>Condominium:</b> {condo.Name}</li><li><b>Company:</b> {company.Name}</li></ul>");
-        //                    }
-        //                }
-        //                // --- END: ALL EMAIL LOGIC ---
-        //                TempData["StatusMessage"] = $"Condominium staff member '{user.FirstName} {user.LastName}' created successfully.";
-        //                return RedirectToAction(nameof(Index), new { condominiumId = user.CondominiumId });
-        //            }
-
-        //            foreach (var error in result.Errors)
-        //            {
-        //                ModelState.AddModelError(string.Empty, error.Description);
-        //            }
-        //        }
-        //    }
-        //    return View(model);
-        //}
-
         // GET: CondominiumStaff/Edit/5
         /// <summary>
         /// Displays the form to edit an existing staff member's details.
@@ -550,7 +456,7 @@ namespace CET96_ProjetoFinal.web.Controllers
 
         // POST: CondominiumStaff/Deactivate/5
         /// <summary>
-        /// Deactivates a staff member's account.
+        /// Deactivates a staff member's account after performing a robust security check.
         /// </summary>
         /// <param name="id">The ID of the staff member to deactivate.</param>
         /// <returns>A redirect to the staff list.</returns>
@@ -558,39 +464,45 @@ namespace CET96_ProjetoFinal.web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Deactivate(string id)
         {
-            var loggedInUser = await _userRepository.GetUserByEmailasync(User.Identity.Name);
-            var managedCondominium = await _condominiumRepository.GetCondominiumByManagerIdAsync(loggedInUser.Id);
-
-            if (managedCondominium == null)
-            {
-                TempData["StatusMessage"] = "Error: You are not assigned to a condominium.";
-                return RedirectToAction("CondominiumManagerDashboard", "Home");
-            }
-
             var staffMember = await _userRepository.GetUserByIdAsync(id);
-            if (staffMember == null)
+            if (staffMember == null) return NotFound();
+
+            // --- START: CORRECTED SECURITY CHECK ---
+            var loggedInUser = await _userRepository.GetUserByEmailasync(User.Identity.Name);
+            bool isAuthorized = false;
+
+            if (User.IsInRole("Company Administrator"))
             {
-                return NotFound();
+                var managedCompanies = await _companyRepository.GetCompaniesByUserIdAsync(loggedInUser.Id);
+                if (managedCompanies.Any(c => c.Id == staffMember.CompanyId))
+                {
+                    isAuthorized = true;
+                }
+            }
+            else if (User.IsInRole("Condominium Manager"))
+            {
+                var managedCondominium = await _condominiumRepository.GetCondominiumByManagerIdAsync(loggedInUser.Id);
+                if (managedCondominium != null && staffMember.CondominiumId == managedCondominium.Id)
+                {
+                    isAuthorized = true;
+                }
             }
 
-            // CRUCIAL SECURITY CHECK: Ensure the staff member belongs to the logged-in manager's condominium.
-            if (staffMember.CondominiumId != managedCondominium.Id)
+            if (!isAuthorized)
             {
-                TempData["StatusMessage"] = "Error: You do not have permission to perform this action.";
-                return RedirectToAction("CondominiumManagerDashboard", "Home");
+                return RedirectToAction("AccessDenied", "Account");
             }
+            // --- END: CORRECTED SECURITY CHECK ---
 
-            // Deactivate the user
             staffMember.DeactivatedAt = DateTime.UtcNow;
-            staffMember.DeactivatedByUserId = _userManager.GetUserId(User);
+            staffMember.DeactivatedByUserId = loggedInUser.Id;
             staffMember.UpdatedAt = DateTime.UtcNow;
-            staffMember.UserUpdatedId = _userManager.GetUserId(User);
+            staffMember.UserUpdatedId = loggedInUser.Id;
 
             var result = await _userManager.UpdateAsync(staffMember);
 
             if (result.Succeeded)
             {
-                // Set a lockout end date to prevent login
                 await _userManager.SetLockoutEndDateAsync(staffMember, DateTimeOffset.MaxValue);
                 TempData["StatusMessage"] = "Staff member deactivated successfully.";
             }
@@ -599,12 +511,12 @@ namespace CET96_ProjetoFinal.web.Controllers
                 TempData["StatusMessage"] = "Error deactivating staff member.";
             }
 
-            return RedirectToAction("CondominiumManagerDashboard", "Home");
+            return RedirectToAction(nameof(Index), new { condominiumId = staffMember.CondominiumId });
         }
 
         // POST: CondominiumStaff/Activate/5
         /// <summary>
-        /// Activates a staff member's account.
+        /// Activates a staff member's account after performing a robust security check.
         /// </summary>
         /// <param name="id">The ID of the staff member to activate.</param>
         /// <returns>A redirect to the staff list.</returns>
@@ -612,39 +524,45 @@ namespace CET96_ProjetoFinal.web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Activate(string id)
         {
-            var loggedInUser = await _userRepository.GetUserByEmailasync(User.Identity.Name);
-            var managedCondominium = await _condominiumRepository.GetCondominiumByManagerIdAsync(loggedInUser.Id);
-
-            if (managedCondominium == null)
-            {
-                TempData["StatusMessage"] = "Error: You are not assigned to a condominium.";
-                return RedirectToAction("CondominiumManagerDashboard", "Home");
-            }
-
             var staffMember = await _userRepository.GetUserByIdAsync(id);
-            if (staffMember == null)
+            if (staffMember == null) return NotFound();
+
+            // --- START: CORRECTED SECURITY CHECK ---
+            var loggedInUser = await _userRepository.GetUserByEmailasync(User.Identity.Name);
+            bool isAuthorized = false;
+
+            if (User.IsInRole("Company Administrator"))
             {
-                return NotFound();
+                var managedCompanies = await _companyRepository.GetCompaniesByUserIdAsync(loggedInUser.Id);
+                if (managedCompanies.Any(c => c.Id == staffMember.CompanyId))
+                {
+                    isAuthorized = true;
+                }
+            }
+            else if (User.IsInRole("Condominium Manager"))
+            {
+                var managedCondominium = await _condominiumRepository.GetCondominiumByManagerIdAsync(loggedInUser.Id);
+                if (managedCondominium != null && staffMember.CondominiumId == managedCondominium.Id)
+                {
+                    isAuthorized = true;
+                }
             }
 
-            // CRUCIAL SECURITY CHECK: Ensure the staff member belongs to the logged-in manager's condominium.
-            if (staffMember.CondominiumId != managedCondominium.Id)
+            if (!isAuthorized)
             {
-                TempData["StatusMessage"] = "Error: You do not have permission to perform this action.";
-                return RedirectToAction("CondominiumManagerDashboard", "Home");
+                return RedirectToAction("AccessDenied", "Account");
             }
+            // --- END: CORRECTED SECURITY CHECK ---
 
-            // Activate the user
             staffMember.DeactivatedAt = null;
             staffMember.DeactivatedByUserId = null;
             staffMember.UpdatedAt = DateTime.UtcNow;
-            staffMember.UserUpdatedId = _userManager.GetUserId(User);
+            staffMember.UserUpdatedId = loggedInUser.Id;
 
             var result = await _userManager.UpdateAsync(staffMember);
 
             if (result.Succeeded)
             {
-                // Remove any lockout end date
                 await _userManager.SetLockoutEndDateAsync(staffMember, null);
                 TempData["StatusMessage"] = "Staff member activated successfully.";
             }
@@ -653,7 +571,7 @@ namespace CET96_ProjetoFinal.web.Controllers
                 TempData["StatusMessage"] = "Error activating staff member.";
             }
 
-            return RedirectToAction("CondominiumManagerDashboard", "Home");
+            return RedirectToAction(nameof(Index), new { condominiumId = staffMember.CondominiumId });
         }
     }
 }
