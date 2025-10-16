@@ -1,0 +1,152 @@
+﻿@model List<CET96_ProjetoFinal.web.Models.ConversationViewModel>
+
+@{
+    ViewData["Title"] = "Message Center";
+}
+
+<h1>@ViewData["Title"]</h1>
+<hr />
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">Conversations</div>
+            <ul class="list-group list-group-flush" id="conversation-list">
+                @* This section now dynamically builds the list from the data passed by the controller. *@
+                @if (Model.Any())
+                {
+                    @foreach (var convo in Model)
+                    {
+                        @* Each list item is clickable and stores its unique conversation ID in a data attribute. *@
+                        <li class="list-group-item list-group-item-action" style="cursor: pointer;" data-conversation-id="@convo.Id">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">@convo.Subject</h6>
+                                <small>@convo.Status</small>
+                            </div>
+                            <p class="mb-1">@convo.OtherParticipantName</p>
+                        </li>
+                    }
+                }
+                else
+                {
+                    <li class="list-group-item">No conversations found.</li>
+                }
+            </ul>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header" id="chat-header">
+                Select a Conversation
+            </div>
+            <div class="card-body" style="height: 500px; overflow-y: scroll;" id="message-list">
+            </div>
+            <div class="card-footer">
+                <div class="input-group">
+                    <input type="text" class="form-control" id="message-input" placeholder="Select a conversation to type..." disabled />
+                    <button class="btn btn-primary" id="send-button" disabled>Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@latest/dist/browser/signalr.min.js"></script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // This variable will store the ID of the currently active conversation.
+            let currentConversationId = null;
+
+            // 1. Establish a connection to our SignalR Hub on the server. (No change here)
+            const connection = new signalR.HubConnectionBuilder().withUrl("/chatHub").build();
+
+            // Get references to all our interactive HTML elements.
+            const sendButton = document.getElementById("send-button");
+            const messageInput = document.getElementById("message-input");
+            const messageList = document.getElementById("message-list");
+            const conversationListItems = document.querySelectorAll("#conversation-list li");
+            const chatHeader = document.getElementById("chat-header");
+
+            // --- Function to load messages for a selected conversation ---
+            async function loadMessages(conversationId, subject) {
+                currentConversationId = conversationId;
+                messageList.innerHTML = '<h6>Loading messages...</h6>'; // Show a loading indicator.
+                chatHeader.textContent = subject; // Update the chat header with the conversation subject.
+
+                try {
+                    // Use the Fetch API to call our new controller action.
+                    const response = await fetch(`/Messages/GetMessagesForConversation?conversationId=${conversationId}`);
+                    const messages = await response.json();
+
+                    messageList.innerHTML = ''; // Clear the "Loading..." message.
+                    messages.forEach(msg => {
+                        // Use a helper function to add each message to the view.
+                        appendMessage(msg.senderName, msg.content);
+                    });
+
+                    // Enable the input fields now that a conversation is active.
+                    messageInput.disabled = false;
+                    messageInput.placeholder = "Type a message...";
+                    sendButton.disabled = false;
+                } catch (error) {
+                    console.error("Failed to load messages:", error);
+                    messageList.innerHTML = '<h6 class="text-danger">Could not load messages.</h6>';
+                }
+            }
+
+            // --- Helper function to append a message to the UI ---
+            function appendMessage(user, message) {
+                const p = document.createElement("p");
+                p.innerHTML = `<strong>${user}:</strong> ${message}`;
+                messageList.appendChild(p);
+                messageList.scrollTop = messageList.scrollHeight; // Auto-scroll to the bottom.
+            }
+
+            // --- Add click listeners to each conversation item in the list ---
+            conversationListItems.forEach(item => {
+                item.addEventListener("click", function () {
+                    const conversationId = this.getAttribute("data-conversation-id");
+                    if (!conversationId) return; // Ignore clicks on "No conversations found" item.
+
+                    const subject = this.querySelector("h6").textContent;
+
+                    // Highlight the currently selected conversation.
+                    conversationListItems.forEach(i => i.classList.remove("active"));
+                    this.classList.add("active");
+
+                    // Load the messages for the clicked conversation.
+                    loadMessages(conversationId, subject);
+                });
+            });
+
+            // 2. Define what happens when the SERVER sends a message TO US ("ReceiveMessage").
+            // This now receives a message object, not just two strings.
+            connection.on("ReceiveMessage", function (messageViewModel) {
+                // For now, we append it to the current view.
+                // Later, we can add logic to only show it if it belongs to the active conversation.
+                appendMessage(messageViewModel.senderName, messageViewModel.content);
+            });
+
+            // 3. Start the connection to the server. (No change here)
+            connection.start()
+                .then(() => console.log("SignalR Connected!"))
+                .catch(err => console.error(err.toString()));
+
+            // 4. Define what happens when WE send a message TO THE SERVER.
+            // This now sends the conversation ID along with the message content.
+            sendButton.addEventListener("click", function (event) {
+                const message = messageInput.value;
+                if (message.trim() !== "" && currentConversationId) {
+                    // Invoke the "SendMessage" method on the Hub, passing the active conversation ID.
+                    connection.invoke("SendMessage", currentConversationId, message).catch(err => console.error(err.toString()));
+                    messageInput.value = "";
+                    messageInput.focus();
+                }
+                event.preventDefault();
+            });
+        });
+    </script>
+}
