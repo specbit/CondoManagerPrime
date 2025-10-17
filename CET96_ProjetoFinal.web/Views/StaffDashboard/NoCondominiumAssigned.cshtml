@@ -1,0 +1,16 @@
+﻿@{
+    ViewData["Title"] = "No Condominium Assigned";
+}
+<div class="text-center">
+    <h1 class="display-4">Welcome, Staff Member</h1>
+    <hr />
+    <div class="alert alert-warning mt-4">
+        You are not currently assigned to a condominium. Please contact your manager.
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

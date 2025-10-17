@@ -5,7 +5,7 @@
 }
 
 <h1>@ViewData["Title"]</h1>
-<p>Use this form to send a message to your condominium manager.</p>
+<p>Use this form to send a new message.</p>
 <hr />
 
 <div class="row">
@@ -13,9 +13,14 @@
         <form asp-action="Create">
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
-            @* These hidden fields are essential to pass the necessary IDs back to the controller *@
-            <input type="hidden" asp-for="UnitId" />
-            <input type="hidden" asp-for="CondominiumManagerId" />
+            @* This is the new "Smart" Recipient Dropdown *@
+            <div class="form-group mb-3">
+                <label asp-for="RecipientId" class="control-label"></label>
+                <select asp-for="RecipientId" asp-items="Model.Recipients" class="form-select">
+                    <option value="">-- Select a recipient --</option>
+                </select>
+                <span asp-validation-for="RecipientId" class="text-danger"></span>
+            </div>
 
             <div class="form-group mb-3">
                 <label asp-for="Subject" class="control-label"></label>
@@ -31,7 +36,24 @@
 
             <div class="form-group mt-4">
                 <input type="submit" value="Send Message" class="btn btn-primary" />
-                <a asp-controller="UnitOwner" asp-action="Index" class="btn btn-secondary">Cancel</a>
+                @* --- This block now generates the correct "Cancel" link based on the user's role --- *@
+                @if (User.IsInRole("Unit Owner"))
+                {
+                    <a asp-controller="UnitOwner" asp-action="Index" class="btn btn-secondary">Cancel</a>
+                }
+                else if (User.IsInRole("Condominium Staff"))
+                {
+                    <a asp-controller="StaffDashboard" asp-action="Index" class="btn btn-secondary">Cancel</a>
+                }
+                else if (User.IsInRole("Condominium Manager") || User.IsInRole("Company Administrator"))
+                {
+                    <a asp-controller="Messages" asp-action="Dashboard" asp-route-condominiumId="@ViewBag.CondominiumId" class="btn btn-secondary">Cancel</a>
+                }
+                else
+                {
+                    // A safe fallback for any other potential role
+                    <a asp-controller="Home" asp-action="Index" class="btn btn-secondary">Cancel</a>
+                }
             </div>
         </form>
     </div>

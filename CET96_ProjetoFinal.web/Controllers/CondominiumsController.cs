@@ -349,6 +349,7 @@ namespace CET96_ProjetoFinal.web.Controllers
         }
 
         [Authorize(Roles = "Company Administrator")]
+        [HttpGet("CondominiumDashboard/{id:int}")]
         public async Task<IActionResult> CondominiumDashboard(int id)
         {
             // Fetch the condominium and its units

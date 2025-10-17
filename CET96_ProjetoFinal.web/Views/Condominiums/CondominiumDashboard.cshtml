@@ -24,5 +24,9 @@
        asp-action="Index"
        asp-route-condominiumId="@Model.Id" 
        class="btn btn-info">Manage Owners</a>
-    <a asp-action="Index" asp-route-id="@Model.CompanyId" class="btn btn-secondary">Back to Condominium List</a>
+    <a asp-controller="Messages"
+       asp-action="Dashboard"
+       asp-route-condominiumId="@Model.Id" 
+       class="btn btn-primary">Messaging</a>
+       <a asp-action="Index" asp-route-id="@Model.CompanyId" class="btn btn-secondary">Back to Condominium List</a>
 </div>

@@ -1,0 +1,26 @@
+﻿@{
+    ViewData["Title"] = "Messaging Dashboard";
+}
+
+<div class="text-center">
+    <h1 class="display-4">Messaging Dashboard</h1>
+    <p>From here, you can start a new conversation or view your existing message threads.</p>
+    <hr />
+
+    <div class="mt-4">
+        <a asp-controller="Messages" asp-action="Create" class="btn btn-success btn-lg">Create New Conversation</a>
+        <a asp-controller="Messages" asp-action="Index" class="btn btn-primary btn-lg">View Message Center</a>
+    </div>
+
+    <div class="mt-5">
+        @* This button intelligently links back to the correct dashboard based on the user's role *@
+        @if (User.IsInRole("Company Administrator"))
+        {
+            <a asp-controller="Home" asp-action="Index" class="btn btn-secondary">Back to Main Dashboard</a>
+        }
+        else if (User.IsInRole("Condominium Manager"))
+        {
+            <a asp-controller="Home" asp-action="Index" class="btn btn-secondary">Back to Dashboard</a>
+        }
+    </div>
+</div>
