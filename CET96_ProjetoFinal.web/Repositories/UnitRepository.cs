@@ -10,7 +10,6 @@ namespace CET96_ProjetoFinal.web.Repositories
     /// </summary>
     public class UnitRepository : GenericRepository<Unit, CondominiumDataContext>, IUnitRepository
     {
-        // Don't need a second context here since Units are in the same DB as Condominiums.
         public UnitRepository(CondominiumDataContext context) : base(context)
         {
         }
@@ -64,6 +63,14 @@ namespace CET96_ProjetoFinal.web.Repositories
             return await _context.Units
                 .Include(u => u.Condominium)
                 .FirstOrDefaultAsync(u => u.Id == id);
+        }
+
+        /// <inheritdoc />
+        public async Task<Unit> GetUnitByOwnerIdWithDetailsAsync(string ownerId)
+        {
+            return await _context.Units
+                .Include(u => u.Condominium)
+                .FirstOrDefaultAsync(u => u.OwnerId.ToLower() == ownerId.ToLower());
         }
     }
 }

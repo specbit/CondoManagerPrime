@@ -50,5 +50,16 @@ namespace CET96_ProjetoFinal.web.Repositories
         /// The task result contains the Unit object with its Condominium details if found; otherwise, null.
         /// </returns>
         Task<Unit?> GetUnitWithDetailsAsync(int id);
+
+
+        /// <summary>
+        /// Asynchronously retrieves the single Unit assigned to a specific owner, including related condominium details.
+        /// </summary>
+        /// <param name="ownerId">The string identifier (GUID) of the owner whose assigned unit is to be retrieved.</param>
+        /// <returns>
+        /// A Task that represents the asynchronous operation. 
+        /// The task result contains the Unit object with its Condominium details if an assignment is found; otherwise, null.
+        /// </returns>
+        Task<Unit> GetUnitByOwnerIdWithDetailsAsync(string ownerId);
     }
 }

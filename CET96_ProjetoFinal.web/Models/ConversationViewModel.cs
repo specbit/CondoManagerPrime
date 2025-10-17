@@ -6,5 +6,6 @@
         public string Subject { get; set; }
         public string Status { get; set; }
         public string OtherParticipantName { get; set; }
+        public DateTime CreatedAt { get; set; }
     }
 }
