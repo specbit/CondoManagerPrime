@@ -13,6 +13,9 @@
         <form asp-action="Create">
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
+            @* This hidden field ensures the Condominium ID is sent back with the form *@
+            <input type="hidden" asp-for="CondominiumId" />
+
             @* This is the new "Smart" Recipient Dropdown *@
             <div class="form-group mb-3">
                 <label asp-for="RecipientId" class="control-label"></label>

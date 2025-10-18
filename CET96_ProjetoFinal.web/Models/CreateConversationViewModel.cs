@@ -21,8 +21,11 @@ namespace CET96_ProjetoFinal.web.Models
         [Display(Name = "To")]
         public string RecipientId { get; set; }
 
-        // This will populate the <select> dropdown list in the view.
+        // Needed so the POST can know which condo to scope staff/owners to
+        public int? CondominiumId { get; set; }
+
+        // This will populate the <select> dropdown list in the view (Server only).
         [ValidateNever] // Prevents model validation on this property
-        public IEnumerable<SelectListItem> Recipients { get; set; }
+        public IEnumerable<SelectListItem> Recipients { get; set; } = Enumerable.Empty<SelectListItem>();
     }
 }

@@ -29,7 +29,10 @@
         @* This is the new contextual button to message the manager *@
         @if (Model.Manager != null)
         {
-            <a asp-controller="Messages" asp-action="Create" class="btn btn-sm btn-outline-primary">
+            <a asp-controller="Messages"
+               asp-action="Create"
+               asp-route-recipientId="@Model.Manager.Id" 
+               class="btn btn-sm btn-outline-primary">
                 Contact Your Manager
             </a>
         }
