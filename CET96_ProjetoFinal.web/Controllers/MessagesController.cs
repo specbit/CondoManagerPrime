@@ -37,46 +37,144 @@ namespace CET96_ProjetoFinal.web.Controllers
         }
 
         // The main action to display the messaging page
-        public async Task<IActionResult> Index(int? condominiumId)
-        {
-            ViewBag.CondominiumId = condominiumId;
 
-            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            // 1. Get all conversations involving the current user
-            var conversations = await _context.Conversations
-                .Where(c => c.InitiatorId == currentUserId || c.AssignedToId == currentUserId)
-                .OrderByDescending(c => c.CreatedAt)
-                .ToListAsync();
-
-            // 2. Get a unique list of all other user IDs from these conversations
-            var userIds = conversations
-                .Select(c => c.InitiatorId == currentUserId ? c.AssignedToId : c.InitiatorId)
-                .Where(id => id != null)
-                .Distinct()
-                .ToList();
-
-            // 3. Fetch all those users from the database in a single query
-            var users = await _userManager.Users.Where(u => userIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id);
-
-            // 4. Create a list of ViewModels to pass to the view
-            var model = conversations.Select(c =>
+            public async Task<IActionResult> Index(int? condominiumId)
             {
-                var otherUserId = c.InitiatorId == currentUserId ? c.AssignedToId : c.InitiatorId;
-                var otherUser = otherUserId != null && users.ContainsKey(otherUserId) ? users[otherUserId] : null;
+                ViewBag.CondominiumId = condominiumId;
 
-                return new ConversationViewModel
+                var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+                // 1) Conversations (no Include)
+                var conversations = await _context.Conversations
+                    .Where(c => c.InitiatorId == currentUserId || c.AssignedToId == currentUserId)
+                    .OrderByDescending(c => c.CreatedAt)
+                    .ToListAsync();
+
+                // 1a) Units for those conversations
+                var unitIds = conversations
+                    .Select(c => c.UnitId)
+                    .Where(id => id > 0)
+                    .Distinct()
+                    .ToList();
+
+                var unitNumbersById = await _context.Units
+                    .Where(u => unitIds.Contains(u.Id))
+                    .ToDictionaryAsync(u => u.Id, u => u.UnitNumber);
+
+                // 2) Other user ids
+                var userIds = conversations
+                    .Select(c => c.InitiatorId == currentUserId ? c.AssignedToId : c.InitiatorId)
+                    .Where(id => id != null)
+                    .Distinct()
+                    .ToList();
+
+                // 3) Users
+                var users = await _userManager.Users
+                    .Where(u => userIds.Contains(u.Id))
+                    .ToDictionaryAsync(u => u.Id);
+
+                // 3a) Roles -> badge css
+                var rolesByUser = new Dictionary<string, (string Role, string BadgeCss)>();
+                foreach (var kv in users)
                 {
-                    Id = c.Id,
-                    Subject = c.Subject,
-                    Status = c.Status.ToString(),
-                    OtherParticipantName = otherUser != null ? $"{otherUser.FirstName} {otherUser.LastName}" : "System",
-                    CreatedAt = c.CreatedAt
-                };
-            }).ToList();
+                    var usr = kv.Value;
+                    var roles = await _userManager.GetRolesAsync(usr);
+                    var role = roles.FirstOrDefault() ?? "User";
+                    var badgeCss = role switch
+                    {
+                        "Company Administrator" => "bg-dark",
+                        "Condominium Manager" => "bg-primary",
+                        "Condominium Staff" => "bg-info",
+                        "Unit Owner" => "bg-success",
+                        _ => "bg-secondary"
+                    };
+                    rolesByUser[usr.Id] = (role, badgeCss);
+                }
 
-            return View(model);
-        }
+                // 4) Project VM
+                var model = conversations.Select(c =>
+                {
+                    var otherUserId = c.InitiatorId == currentUserId ? c.AssignedToId : c.InitiatorId;
+                    users.TryGetValue(otherUserId ?? "", out var otherUser);
+
+                    var (role, badge) = (otherUserId != null && rolesByUser.TryGetValue(otherUserId, out var tuple))
+                        ? tuple : ("User", "bg-secondary");
+
+                    // map your enum -> css class for the status dot
+                    var statusCss = c.Status switch
+                    {
+                        MessageStatus.Pending => "status-pending",
+                        MessageStatus.Assigned => "status-assigned",
+                        MessageStatus.InProgress => "status-inprogress",
+                        MessageStatus.Resolved => "status-resolved",
+                        MessageStatus.Closed => "status-closed",
+                        _ => "status-closed"
+                    };
+
+                    // Only assign a unit number if the conversation is linked to a unit
+                    var unitNumber = unitNumbersById.TryGetValue(c.UnitId, out var num) ? num : null;
+
+                    return new ConversationViewModel
+                    {
+                        Id = c.Id,
+                        Subject = c.Subject,
+                        Status = c.Status.ToString(),
+                        OtherParticipantName = otherUser != null ? $"{otherUser.FirstName} {otherUser.LastName}" : "System",
+                        OtherParticipantRole = role,
+                        OtherRoleBadgeCss = badge,
+                        StatusCss = statusCss,
+                        UnitNumber = role == "Unit Owner" ? unitNumber : null,
+                        CreatedAt = c.CreatedAt
+                    };
+                }).ToList();
+
+                return View(model);
+            }
+
+
+
+        // TODO: delete this commented-out Index action if not needed
+
+        //public async Task<IActionResult> Index(int? condominiumId)
+        //{
+        //    ViewBag.CondominiumId = condominiumId;
+
+        //    var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        //    // 1. Get all conversations involving the current user
+        //    var conversations = await _context.Conversations
+        //        .Where(c => c.InitiatorId == currentUserId || c.AssignedToId == currentUserId)
+        //        .OrderByDescending(c => c.CreatedAt)
+        //        .ToListAsync();
+
+        //    // 2. Get a unique list of all other user IDs from these conversations
+        //    var userIds = conversations
+        //        .Select(c => c.InitiatorId == currentUserId ? c.AssignedToId : c.InitiatorId)
+        //        .Where(id => id != null)
+        //        .Distinct()
+        //        .ToList();
+
+        //    // 3. Fetch all those users from the database in a single query
+        //    var users = await _userManager.Users.Where(u => userIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id);
+
+        //    // 4. Create a list of ViewModels to pass to the view
+        //    var model = conversations.Select(c =>
+        //    {
+        //        var otherUserId = c.InitiatorId == currentUserId ? c.AssignedToId : c.InitiatorId;
+        //        var otherUser = otherUserId != null && users.ContainsKey(otherUserId) ? users[otherUserId] : null;
+
+        //        return new ConversationViewModel
+        //        {
+        //            Id = c.Id,
+        //            Subject = c.Subject,
+        //            Status = c.Status.ToString(),
+        //            OtherParticipantName = otherUser != null ? $"{otherUser.FirstName} {otherUser.LastName}" : "System",
+        //            CreatedAt = c.CreatedAt
+        //        };
+        //    }).ToList();
+
+        //    return View(model);
+        //}
 
         /// <summary>
         /// Displays the "Create Conversation" form and dynamically builds the recipient list
