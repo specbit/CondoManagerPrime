@@ -43,12 +43,39 @@
                     @foreach (var convo in Model) // The OrderBy is now in the controller
                     {
                         @* Each list item is clickable and stores its unique conversation ID in a data attribute. *@
-                        <li class="list-group-item list-group-item-action" style="cursor: pointer;" data-conversation-id="@convo.Id">
+                        @* <li class="list-group-item list-group-item-action" style="cursor: pointer;" data-conversation-id="@convo.Id">
                             <div class="d-flex w-100 justify-content-between">
                                 <h6 class="mb-1">@convo.Subject</h6>
                                 <small>@convo.Status</small>
                             </div>
                             <p class="mb-1">@convo.OtherParticipantName</p>
+                            <small class="text-muted">@convo.CreatedAt.ToString("g")</small>
+                        </li> *@
+                        <li class="list-group-item list-group-item-action"
+                            style="cursor:pointer;"
+                            data-conversation-id="@convo.Id"
+                            aria-label="Conversation with @convo.OtherParticipantName about @convo.Subject">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1" text-truncate" style="max-width: 75%;">
+                                    <strong>Subject:</strong> @convo.Subject
+                                </h6>
+                                <small>
+                                    <span class="status-dot @convo.StatusCss"></span>
+                                    @convo.Status
+                                </small>
+                            </div>
+
+                            <p class="mb-1">
+                                <strong>From:</strong>
+                                <span class="badge @convo.OtherRoleBadgeCss">@convo.OtherParticipantName</span>
+
+                                @* If you have the unit number available, show it next to the badge *@
+                                @if (convo.OtherParticipantRole == "Unit Owner" && !string.IsNullOrEmpty(convo.UnitNumber))
+                                {
+                                    <span class="badge bg-light text-dark ms-2">Unit: @convo.UnitNumber</span>
+                                }
+                            </p>
+
                             <small class="text-muted">@convo.CreatedAt.ToString("g")</small>
                         </li>
                     }

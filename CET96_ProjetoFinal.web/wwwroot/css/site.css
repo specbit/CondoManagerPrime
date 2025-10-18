@@ -20,3 +20,34 @@ html {
 body {
   margin-bottom: 60px;
 }
+
+.status-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: middle
+}
+
+/* dot colors per status */
+.status-pending {
+    background: #f0ad4e;
+}
+/* amber */
+.status-assigned {
+    background: #0d6efd;
+}
+/* blue */
+.status-inprogress {
+    background: #6f42c1;
+}
+/* purple */
+.status-resolved {
+    background: #198754;
+}
+/* green */
+.status-closed {
+    background: #6c757d;
+}
+/* gray */
