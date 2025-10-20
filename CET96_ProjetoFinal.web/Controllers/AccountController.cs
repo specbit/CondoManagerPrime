@@ -2007,7 +2007,7 @@ namespace CET96_ProjetoFinal.web.Controllers
         /// </summary>
         /// <param name="id">The ID of the company (passed as CompanyId).</param>
         /// <returns>A view populated with a list of inactive staff accounts.</returns>
-        [Authorize(Roles = "Company Administrator")]
+        [Authorize(Roles = "Company Administrator, Condominium Manager")]
         public async Task<IActionResult> InactiveStaff(int id) // 'id' is the CompanyId
         {
             var company = await _companyRepository.GetByIdAsync(id);
