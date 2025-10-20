@@ -1,0 +1,42 @@
+﻿@{
+    ViewData["Title"] = "Assign Conversation";
+    var conversationId = (int)ViewBag.ConversationId;
+    var staff = ViewBag.Staff as List<SelectListItem>;
+    var current = ViewBag.CurrentAssigneeId as string;
+}
+
+<h2>Assign Conversation</h2>
+<p>Conversation ID: <strong>@conversationId</strong></p>
+
+@if (TempData["Error"] is string err)
+{
+    <div class="alert alert-danger">@err</div>
+}
+@if (TempData["StatusMessage"] is string ok)
+{
+    <div class="alert alert-success">@ok</div>
+}
+
+<form asp-action="AssignToStaff" method="post" class="mt-3">
+    @Html.AntiForgeryToken()
+
+    <input type="hidden" name="conversationId" value="@conversationId" />
+
+    <div class="mb-3">
+        <label for="staffUserId" class="form-label">Assign to</label>
+        <select id="staffUserId" name="staffUserId" class="form-select" required>
+            <option value="">-- Select staff --</option>
+            @foreach (var s in staff)
+            {
+                <option value="@s.Value" selected="@(s.Selected)">@s.Text</option>
+            }
+        </select>
+        @if (!string.IsNullOrEmpty(current))
+        {
+            <div class="form-text">Current assignee: @staff?.FirstOrDefault(x => x.Value == current)?.Text</div>
+        }
+    </div>
+
+    <button type="submit" class="btn btn-primary">Assign</button>
+    <a asp-action="Index" class="btn btn-secondary ms-2">Cancel</a>
+</form>
