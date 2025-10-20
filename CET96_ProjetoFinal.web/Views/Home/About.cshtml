@@ -6,37 +6,50 @@
     <div class="text-center mt-5">
         <h4>Developed By</h4>
         <p>
-            This platform was designed and developed by <strong>Nuno Miguel Gomes AKA specbit</strong> as the culminating project for the CET 96 course.
+            This platform was designed and developed by <strong>Nuno Miguel Gomes (specbit)</strong> as the culminating project for the CET TPSI 96 course.
         </p>
     </div>
+
     <div class="text-center mb-5">
         <h1 class="display-4">About CondoManagerPrime</h1>
-        <p class="lead text-muted">Your complete solution for modern condominium management.</p>
+        <p class="lead text-muted">
+            A secure, SaaS-ready, multi-tenant ASP.NET Core MVC web application for modern condominium management — combining robust role-based access,
+            realtime collaboration, and guided workflows across companies, condominiums, staff, units, and owners.
+        </p>
     </div>
 
     <div class="row">
         <div class="col-md-6">
             <h2>Our Mission</h2>
             <p>
-                Our mission is to simplify the complexities of property management by providing a powerful, intuitive, and centralized platform. CondoManagerPrime empowers Platform Administrators, Company Administrators, and Condominium Managers to work seamlessly, ensuring efficient operations and clear communication.
+                Our mission is to simplify property management at scale. CondoManagerPrime empowers Platform Administrators, Company Administrators,
+                Condominium Managers, Staff, and Unit Owners to collaborate effectively, automate processes, and keep all operational data organized
+                within a secure, multi-tenant cloud environment.
             </p>
         </div>
         <div class="col-md-6">
             <h2>The Project</h2>
             <p>
-                This application was developed as the final project for the CET 96 course, demonstrating a full-stack web application built on modern .NET technologies. It showcases a robust, role-based architecture designed to handle a multi-tenant SaaS environment.
+                Built as the final project for the CET TPSI 96 course, CondoManagerPrime demonstrates a full-stack SaaS platform using
+                ASP.NET Core MVC, Entity Framework Core, SignalR, and ASP.NET Identity. It features a robust role-based architecture,
+                separate identity and domain databases, EF Core migrations, and scalable multi-tenant data isolation.
             </p>
         </div>
     </div>
 
     <hr class="my-5">
 
+    <!-- Core Feature Cards -->
     <div class="row text-center">
         <div class="col-lg-4">
             <div class="card h-100 shadow-sm">
                 <div class="card-body">
                     <h5 class="card-title">Robust Technology</h5>
-                    <p class="card-text">Built with ASP.NET Core MVC, Entity Framework Core, and ASP.NET Core Identity for a secure and scalable foundation.</p>
+                    <p class="card-text">
+                        Built on <strong>ASP.NET Core MVC, EF Core, SignalR, and ASP.NET Identity
+                        </strong> for a <strong>secure, scalable, and production-ready SaaS solution</strong>.
+                        Clean separation of <strong>Identity and Domain data with automated EF Core migrations</strong>.
+                    </p>
                 </div>
             </div>
         </div>
@@ -44,17 +57,85 @@
             <div class="card h-100 shadow-sm">
                 <div class="card-body">
                     <h5 class="card-title">Multi-Tiered Roles</h5>
-                    <p class="card-text">A sophisticated permission system designed for Platform Admins, Company Admins, and Condo Managers, each with a tailored experience.</p>
+                    <p class="card-text">
+                        A sophisticated permission model with tailored experiences for Platform Admins, Company Admins, Managers, Staff, and Owners.
+                        Access control is enforced throughout the platform for maximum security and data integrity.
+                    </p>
                 </div>
             </div>
         </div>
         <div class="col-lg-4">
             <div class="card h-100 shadow-sm">
                 <div class="card-body">
-                    <h5 class="card-title">Complete Management</h5>
-                    <p class="card-text">From managing companies and condominiums to handling staff and individual units, CondoManagerPrime covers all aspects of property administration.</p>
+                    <h5 class="card-title">SaaS-Ready &amp; Multi-Tenant</h5>
+                    <p class="card-text">
+                        Designed for scale: multiple companies can operate under the same platform, each with multiple condominiums,
+                        each condominium managing multiple units and owners — all with complete data isolation and scoped permissions.
+                    </p>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Extended Feature Cards -->
+    <div class="row text-center mt-4">
+        <div class="col-lg-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Comprehensive CRUD Management</h5>
+                    <p class="card-text">
+                        <strong>Full create, read, update, and delete operations</strong> for companies, condominiums, units, staff, and owners.
+                        Managers can assign or reassign units, manage ownership, and maintain structured relationships
+                        across companies, condominiums, and units, all enforced by <strong>Entity Framework Core.</strong>
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Realtime Messaging (SignalR)</h5>
+                    <p class="card-text">
+                        A live, role-aware message center powered by <strong>SignalR</strong>. Includes unread counters, per-thread badges,
+                        assignment notifications, and dynamic updates — no page refresh required.
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Account &amp; Communication</h5>
+                    <p class="card-text">
+                        ASP.NET Identity with secure login, email confirmation, password reset, and notification delivery.
+                        SMTP integration allows automated messaging for assignments, registration, and status changes.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Features -->
+    <div class="row mt-5">
+        <div class="col-lg-12">
+            <h3 class="text-center mb-3">Key Features at a Glance</h3>
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item">Full ASP.NET Core MVC web application with layered architecture, EF Core, and SignalR.</li>
+                <li class="list-group-item">Multi-tenant SaaS design: multi-company, multi-condominium, multi-unit ownership supported.</li>
+                <li class="list-group-item">Role-based authentication and authorization for all major roles (Admin, Manager, Staff, Owner).</li>
+                <li class="list-group-item">Email services for account confirmation, password resets, and workflow notifications.</li>
+                <li class="list-group-item">Owner CRUD with support for multiple units and assignment workflows across condominiums.</li>
+                <li class="list-group-item">Realtime messaging with unread tracking, assignment notes, and guided lifecycle (Pending → Closed).</li>
+                <li class="list-group-item">Scoped data isolation: users only see the companies, condominiums, and conversations they belong to.</li>
+            </ul>
+        </div>
+    </div>
+    <hr class="mt-5" />
+
+    <div class="text-center text-muted small mb-4">
+        &copy; @DateTime.Now.Year - <strong>CondoManagerPrime</strong>. All rights reserved.<br />
+        Developed by <strong>Nuno Miguel Gomes (specbit)</strong> as part of the CET TPSI 96 Final Project.
+        Tutor Rafael Santos
+    </div>
+
 </div>
