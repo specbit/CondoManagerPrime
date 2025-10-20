@@ -38,6 +38,18 @@ namespace CET96_ProjetoFinal.web.Controllers
 
         // The main action to display the messaging page
 
+        /// <summary>
+        /// Displays the messaging inbox for the current user.
+        /// Shows all conversations where the user is either the initiator or the assignee,
+        /// ordered by most recent first, and enriches them with metadata for UI display.
+        /// </summary>
+        /// <param name="condominiumId">
+        /// Optional condominium ID used for navigation context (e.g. return links).
+        /// </param>
+        /// <returns>
+        /// A view containing a list of <see cref="ConversationViewModel"/> items, each with
+        /// status dot, participant details, role badges, and unit number (if applicable).
+        /// </returns>
         public async Task<IActionResult> Index(int? condominiumId)
         {
             ViewBag.CondominiumId = condominiumId;
