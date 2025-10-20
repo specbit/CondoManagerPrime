@@ -17,7 +17,6 @@ namespace CET96_ProjetoFinal.web.Controllers
         private readonly ICondominiumRepository _condominiumRepository;
         private readonly UserManager<ApplicationUser> _userManager; //For AssignOwnerToUnit
 
-        // --- ADD DEPENDENCIES FOR EMAIL ---
         private readonly IEmailSender _emailSender;
         private readonly IApplicationUserRepository _userRepository;
         private readonly ICompanyRepository _companyRepository;
@@ -382,9 +381,14 @@ namespace CET96_ProjetoFinal.web.Controllers
             var condo = await _condominiumRepository.GetByIdAsync(unit.CondominiumId);
 
             var allOwners = await _userManager.GetUsersInRoleAsync("Unit Owner");
-            // Find owners in this condo who are not yet assigned to any unit
-            var availableOwners = allOwners.Where(o => o.CondominiumId == unit.CondominiumId && !_unitRepository.IsOwnerAssigned(o.Id));
 
+            // Find owners in this condo who are not yet assigned to any unit
+            //var availableOwners = allOwners.Where(o => o.CondominiumId == unit.CondominiumId && !_unitRepository.IsOwnerAssigned(o.Id));
+
+            // Allow assigning an owner even if they already own other units
+            // (filter only by same condominium; remove the IsOwnerAssigned(...) exclusion)
+            var availableOwners = allOwners
+                .Where(o => o.CondominiumId == unit.CondominiumId);
             var model = new AssignOwnerToUnitViewModel
             {
                 UnitId = unit.Id,
@@ -415,8 +419,15 @@ namespace CET96_ProjetoFinal.web.Controllers
             // The dropdown list must be re-populated BEFORE checking ModelState.IsValid.
             // This satisfies the model binder and prevents the hidden "AvailableOwners is required" error.
             var allOwners = await _userManager.GetUsersInRoleAsync("Unit Owner");
-            var availableOwners = allOwners.Where(o => o.CondominiumId == unit.CondominiumId && !_unitRepository.IsOwnerAssigned(o.Id));
-                model.AvailableOwners = availableOwners.Select(o => new SelectListItem
+
+            // Original filtering logic (commented out) uncomment to restrict to unassigned owners only
+            //var availableOwners = allOwners.Where(o => o.CondominiumId == unit.CondominiumId && !_unitRepository.IsOwnerAssigned(o.Id));
+
+            // Allow assigning an owner even if they already own other units
+            // (filter only by same condominium; remove the IsOwnerAssigned(...) exclusion)
+            var availableOwners = allOwners
+                .Where(o => o.CondominiumId == unit.CondominiumId);
+            model.AvailableOwners = availableOwners.Select(o => new SelectListItem
                 {
                     Value = o.Id,
                     Text = $"{o.FirstName} {o.LastName} ({o.Email})"
