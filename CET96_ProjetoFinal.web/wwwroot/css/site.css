@@ -51,3 +51,15 @@ body {
     background: #6c757d;
 }
 /* gray */
+
+/* Light gray highlight for selected conversation */
+.list-group-item.active {
+    background-color: #f0f0f0 !important;
+    border-color: #dcdcdc !important;
+    color: #333 !important;
+}
+
+    .list-group-item.active .badge {
+        color: #fff;
+    }
+

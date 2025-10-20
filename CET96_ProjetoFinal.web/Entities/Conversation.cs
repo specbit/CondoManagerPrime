@@ -22,10 +22,12 @@ namespace CET96_ProjetoFinal.web.Data.Entities
         // The timestamp when the conversation was first created.
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+
         /// <summary>
         /// The current workflow status of the conversation (e.g., Pending, Resolved).
         /// </summary>
         public MessageStatus Status { get; set; } = MessageStatus.Pending;
+
 
         /// <summary>
         /// The ID of the user who created the conversation thread.
@@ -36,6 +38,7 @@ namespace CET96_ProjetoFinal.web.Data.Entities
         /// </remarks>
         public string InitiatorId { get; set; }
 
+
         /// <summary>
         /// The ID of the user to whom this conversation has been assigned for handling or resolution.
         /// </summary>
@@ -45,10 +48,12 @@ namespace CET96_ProjetoFinal.web.Data.Entities
         /// </remarks>
         public string? AssignedToId { get; set; }
 
+
         /// <summary>
         /// The ID of the unit this conversation is related to.
         /// </summary>
         public int UnitId { get; set; }
+
 
         // Navigation property holding all messages belonging to this conversation.
         public ICollection<Message> Messages { get; set; } = new List<Message>();
