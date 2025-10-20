@@ -48,7 +48,7 @@
                             data-conversation-id="@convo.Id"
                             aria-label="Conversation '@convo.Subject' started by @convo.StarterName">
 
-                            <div class="d-flex w-100 justify-content-between">
+                            <div class="d-flex w-100 justify-content-between align-items-center">
                                 <h6 class="mb-1 text-truncate" style="max-width: 75%;">
                                     <strong>Subject:</strong> @convo.Subject
                                 </h6>
@@ -64,20 +64,18 @@
                             <p class="mb-1">
                                 <strong>Started by:</strong>
                                 <span class="badge bg-light text-dark">@convo.StarterName</span>
-                                @* show the role as a light badge; swap class if you compute per-role CSS *@
                                 @if (!string.IsNullOrWhiteSpace(convo.StarterRole))
                                 {
                                     <span class="badge bg-light text-dark ms-2">@convo.StarterRole</span>
                                 }
 
-                                @* Preserve Unit badge behavior for owners *@
                                 @if (convo.StarterRole == "Unit Owner" && !string.IsNullOrEmpty(convo.UnitNumber))
                                 {
                                     <span class="badge bg-light text-dark ms-2">Unit: @convo.UnitNumber</span>
                                 }
                             </p>
 
-                            <!-- Assignee container: keep stable ID for SignalR updates; label is 'Assignee:' (never 'To:') -->
+                            <!-- Assignee container -->
                             <div id="assigned-to-@convo.Id">
                                 @if (!string.IsNullOrEmpty(convo.AssignedToName))
                                 {
@@ -90,7 +88,6 @@
                                         }
                                     </p>
                                 }
-                                @* else: keep empty; SignalR can populate later *@
                             </div>
 
                             <small class="text-muted">@convo.CreatedAt.ToString("g")</small>
@@ -98,8 +95,7 @@
                             @{
                                 var canAssign = convo.CanAssign;
                             }
-                            <!-- use policy from controller -->
-                            @if (canAssign)
+@*                          @if (canAssign) // TODO: I'll leave this for when reassigning is implemented
                             {
                                 <div class="mt-2">
                                     <a class="btn btn-sm btn-outline-primary"
@@ -110,6 +106,40 @@
                                     </a>
                                 </div>
                             }
+ *@
+                            @if (canAssign) // This simply shows "Assign" for now
+                            {
+                                <div class="mt-2">
+                                    <a class="btn btn-sm btn-outline-primary"
+                                       asp-controller="Messages"
+                                       asp-action="AssignToStaff"
+                                       asp-route-id="@convo.Id">
+                                        Assign
+                                    </a>
+                                </div>
+                            }
+
+                            <!-- Workflow action buttons (only appear if allowed) -->
+                            <div class="mt-2 d-flex gap-2">
+                                @if (convo.CanMarkInProgress)
+                                {
+                                    <form asp-controller="Messages" asp-action="MarkInProgress" asp-route-id="@convo.Id" method="post" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-warning">Mark In Progress</button>
+                                    </form>
+                                }
+                                @if (convo.CanResolve)
+                                {
+                                    <form asp-controller="Messages" asp-action="MarkResolved" asp-route-id="@convo.Id" method="post" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-success">Mark Resolved</button>
+                                    </form>
+                                }
+                                @if (convo.CanClose)
+                                {
+                                    <form asp-controller="Messages" asp-action="Close" asp-route-id="@convo.Id" method="post" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-danger">Close Conversation</button>
+                                    </form>
+                                }
+                            </div>
                         </li>
                     }
                 }
@@ -150,22 +180,11 @@
             const sendButton = document.getElementById("send-button");
             const messageInput = document.getElementById("message-input");
             const messageList = document.getElementById("message-list");
-            const conversationListItems = document.querySelectorAll("#conversation-list li[data-conversation-id]");
+            // const conversationListItems = document.querySelectorAll("#conversation-list li[data-conversation-id]"); // replaced by delegated listener below
+            const conversationList = document.getElementById("conversation-list"); // ✅ for delegated clicks
             const chatHeader = document.getElementById("chat-header");
 
             // Map status → CSS class used on the colored dot (keep in sync with your server-side StatusCss)
-            // function statusCssFor(status) {
-            //     switch ((status || "").toLowerCase()) {
-            //         case "pending":    return "dot-pending";
-            //         case "assigned":   return "dot-assigned";
-            //         case "inprogress":
-            //         case "in progress":return "dot-inprogress";
-            //         case "resolved":   return "dot-resolved";
-            //         case "closed":     return "dot-closed";
-            //         default:           return "";
-            //     }
-            // }
-
             function statusCssFor(status) {
                 switch ((status || "").toLowerCase()) {
                     case "pending":     return "status-pending";
@@ -175,9 +194,8 @@
                     case "resolved":    return "status-resolved";
                     case "closed":      return "status-closed";
                     default:            return "";
-              }
+                }
             }
-
 
             // --- Function to load messages for a selected conversation ---
             async function loadMessages(conversationId, subject) {
@@ -204,10 +222,23 @@
                         appendMessage(msg.senderName, msg.content);
                     });
 
-                    messageInput.disabled = false;
-                    sendButton.disabled = false;
-                    messageInput.placeholder = "Type a message...";
-                } catch (error) {
+                    // After messages are loaded (and server marked them read), remove unread badge in the list
+                    const unreadEl = document.getElementById(`unread-${conversationId}`);
+                    if (unreadEl) {
+                        unreadEl.remove();
+                    }
+
+                    // Detect if the conversation is closed and disable input
+                    const statusText = document.getElementById(`status-text-${conversationId}`)?.textContent?.trim()?.toLowerCase();
+                    if (statusText === "closed") {
+                        messageInput.disabled = true;
+                        sendButton.disabled = true;
+                        messageInput.placeholder = "This conversation is closed.";
+                    } else {
+                        messageInput.disabled = false;
+                        sendButton.disabled = false;
+                        messageInput.placeholder = "Type a message...";
+                    }                } catch (error) {
                     console.error("Failed to load messages:", error);
                     messageList.innerHTML = '<h6 class="text-danger">Could not load messages.</h6>';
                 }
@@ -222,19 +253,23 @@
             }
 
             // --- Add click listeners to each conversation item ---
-            conversationListItems.forEach(item => {
-                item.addEventListener("click", function () {
-                    const conversationId = parseInt(this.getAttribute("data-conversation-id"), 10);
-                    // Extract subject text without the "Subject:" label
-                    const h6 = this.querySelector("h6");
-                    const subject = (h6 ? h6.textContent : "").replace(/^Subject:\s*/i, "").trim();
+            conversationList.addEventListener("click", function (e) {
+                // Ignore clicks on forms/buttons so action buttons still submit normally
+                if (e.target.closest("form")) return;
 
-                    // highlight selected conversation
-                    conversationListItems.forEach(i => i.classList.remove("active"));
-                    this.classList.add("active");
+                const li = e.target.closest("li[data-conversation-id]");
+                if (!li) return;
 
-                    loadMessages(conversationId, subject);
-                });
+                const conversationId = parseInt(li.getAttribute("data-conversation-id"), 10);
+                // Extract subject text without the "Subject:" label
+                const h6 = li.querySelector("h6");
+                const subject = (h6 ? h6.textContent : "").replace(/^Subject:\s*/i, "").trim();
+
+                // highlight selected conversation
+                document.querySelectorAll("#conversation-list li[data-conversation-id]").forEach(i => i.classList.remove("active"));
+                li.classList.add("active");
+
+                loadMessages(conversationId, subject);
             });
 
             // --- SignalR: incoming chat messages ---
@@ -242,7 +277,7 @@
                 appendMessage(messageViewModel.senderName, messageViewModel.content);
             });
 
-            // ✅ Handle assignment or status updates broadcast by the server
+            // Handle assignment or status updates broadcast by the server
             connection.on("ConversationUpdated", function (payload) {
                 console.log("ConversationUpdated received:", payload);
 
@@ -256,24 +291,15 @@
                     statusTextEl.textContent = payload.status;
                 }
 
-                // 1b) Update the status dot CSS (optional but recommended)
-                // const statusDotEl = li.querySelector(`#status-dot-${payload.conversationId}`);
-                // if (statusDotEl && payload.status) {
-                //     // wipe any previous dot-* classes, then add the new one
-                //     statusDotEl.classList.remove("dot-pending","dot-assigned","dot-inprogress","dot-resolved","dot-closed");
-                //     const css = statusCssFor(payload.status);
-                //     if (css) statusDotEl.classList.add(css);
-                // }
-
                 // 1b) Update the status dot CSS
                 const statusDotEl = li.querySelector(`#status-dot-${payload.conversationId}`);
                 if (statusDotEl && payload.status) {
                     statusDotEl.classList.remove(
-                    "status-pending","status-assigned","status-inprogress","status-resolved","status-closed"
-                );
-                const css = statusCssFor(payload.status);
-                if (css) statusDotEl.classList.add(css);
-        }
+                        "status-pending","status-assigned","status-inprogress","status-resolved","status-closed"
+                    );
+                    const css = statusCssFor(payload.status);
+                    if (css) statusDotEl.classList.add(css);
+                } 
 
                 // 2) Update the Assignee section (replace old "To:" logic)
                 const assigneeWrap = li.querySelector(`#assigned-to-${payload.conversationId}`);
@@ -283,7 +309,7 @@
                             <p class="mb-1">
                                 <strong>Assignee:</strong>
                                 <span class="badge bg-secondary assigned-to-badge">${payload.assignedToName}</span>
-                                ${payload.assignedToRole ? `<span class="text-muted ms-1">(${payload.assignedToRole})</span>` : ""}
+                                ${payload.assignedToRole ? `<span class="badge bg-light text-dark ms-2">${payload.assignedToRole}</span>` : ""}
                             </p>`;
                     } else {
                         // no assignee: clear the container (kept empty so SignalR can populate later)
@@ -310,4 +336,3 @@
         });
     </script>
 }
-

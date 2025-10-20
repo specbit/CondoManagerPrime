@@ -53,13 +53,13 @@ namespace CET96_ProjetoFinal.web.Controllers
         /// current user is a participant (initiator or assignee) are shown.
         /// </param>
         /// <returns>
-        /// A view containing a list of conversations represented by <see cref="ConversationViewModel"/>
-        /// objects, including metadata such as subject, status, participants, unit, assignee details,
-        /// the initiator’s role, and a precomputed <c>CanAssign</c> flag (so the view can hide the
-        /// Assign button when policy forbids it).
+        /// A view containing a list of conversations represented by <see cref="ConversationViewModel"/>.
+        /// Each conversation includes subject, status, participants, roles, unit information,
+        /// assignment details, initiator metadata, and a <c>CanAssign</c> policy flag to control
+        /// whether the Assign button is rendered in the UI.
         /// </returns>
         /// <remarks>
-        /// This action dynamically adjusts the conversation list based on the current user's role:
+        /// <para><strong>Role-based behavior:</strong></para>
         /// <list type="bullet">
         ///   <item>
         ///     <description><c>Manager/Admin</c>: Can view all conversations for the specified condominium.</description>
@@ -68,12 +68,26 @@ namespace CET96_ProjetoFinal.web.Controllers
         ///     <description><c>Staff/Owner</c>: Only sees conversations they initiated or were assigned to.</description>
         ///   </item>
         /// </list>
-        /// Additionally, the result includes assignment metadata (<c>AssignedToName</c>, <c>AssignedToRole</c>),
-        /// and the <c>InitiatorRole</c> + <c>CanAssign</c> policy flag used by the UI.
+        ///
+        /// <para><strong>Included metadata:</strong></para>
+        /// <list type="bullet">
+        ///   <item><description><c>StarterName</c> and <c>StarterRole</c>: Identify who started the conversation.</description></item>
+        ///   <item><description><c>AssignedToName</c> and <c>AssignedToRole</c>: Show current assignee details.</description></item>
+        ///   <item><description><c>UnitNumber</c>: Displays the unit number if applicable (owners only).</description></item>
+        ///   <item><description><c>StatusCss</c>: A precomputed CSS class for rendering the status indicator dot.</description></item>
+        ///   <item><description><c>UnreadCount</c>: The number of unread messages in the conversation for the current user. If greater than zero, a red badge is displayed next to the subject.</description></item>
+        ///   <item><description><c>CanAssign</c>: Indicates whether the current user can assign or reassign the conversation.</description></item>
+        /// </list>
+        ///
+        /// <para><strong>UI behavior:</strong></para>
+        /// - Conversations with unread messages show a red badge (<c>bg-danger</c>) next to the subject.
+        /// - Status dots and labels update dynamically via SignalR when conversation state changes.
+        /// - The Assign button is hidden if <c>CanAssign</c> is <c>false</c>.
         /// </remarks>
-        public async Task<IActionResult> Index(int? condominiumId)
+        public async Task<IActionResult> Index(int? condominiumId, bool assignedByMe = false)
         {
             ViewBag.CondominiumId = condominiumId;
+
 
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -91,9 +105,38 @@ namespace CET96_ProjetoFinal.web.Controllers
                 q = q.Where(c => c.InitiatorId == currentUserId || c.AssignedToId == currentUserId);
             }
 
+            // ✅ Managers: also keep track of threads they assigned to staff (when not scoped to a specific condominium)
+            //    We piggyback on the existing system note format: "[System] Assigned to ..."
+            if (User.IsInRole("Condominium Manager") && !User.IsInRole("Company Administrator") && !condominiumId.HasValue)
+            {
+                var myAssignedConvoIds = await _context.Messages
+                    .Where(m => m.SenderId == currentUserId
+                             && m.ConversationId != 0
+                             && m.Content.StartsWith("[System] Assigned to"))
+                    .Select(m => m.ConversationId)
+                    .Distinct()
+                    .ToListAsync();
+
+                // widen the scope to include assignments made by this manager
+                q = _context.Conversations.Where(c =>
+                    c.InitiatorId == currentUserId ||
+                    c.AssignedToId == currentUserId ||
+                    myAssignedConvoIds.Contains(c.Id));
+            }
+
             var conversations = await q
                 .OrderByDescending(c => c.CreatedAt)
                 .ToListAsync();
+
+            // --- Unread counts for the current user across those conversations
+            var convoIds = conversations.Select(c => c.Id).ToList();
+            var unreadCounts = await _context.Messages
+                .Where(m => convoIds.Contains(m.ConversationId)
+                         && m.ReceiverId == currentUserId
+                         && !m.IsRead)
+                .GroupBy(m => m.ConversationId)
+                .Select(g => new { ConversationId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.ConversationId, x => x.Count);
 
             // 1a) Units
             var unitIds = conversations
@@ -139,6 +182,7 @@ namespace CET96_ProjetoFinal.web.Controllers
             // Who am I (policy flags)?
             bool isAdmin = User.IsInRole("Company Administrator");
             bool isManager = User.IsInRole("Condominium Manager");
+            bool isStaff = User.IsInRole("Condominium Staff");
 
             // 4) Project to ViewModel
             var model = conversations.Select(c =>
@@ -164,14 +208,13 @@ namespace CET96_ProjetoFinal.web.Controllers
                 var assignedRole = (c.AssignedToId != null && rolesByUser.TryGetValue(c.AssignedToId, out var aTuple))
                     ? aTuple.Role : null;
 
-                // Initiator (STARTER) — NEW: populate StarterName / StarterRole
+                // Initiator (STARTER)
                 users.TryGetValue(c.InitiatorId, out var initiatorUser);
                 var starterName = DisplayName(initiatorUser);
                 var starterRole = rolesByUser.TryGetValue(c.InitiatorId, out var initTupleRole)
                     ? initTupleRole.Role
                     : "User";
 
-                // Initiator role (used by CanAssign policy) — keep existing semantics
                 var initiatorRole = starterRole;
 
                 // Status -> css token
@@ -188,13 +231,29 @@ namespace CET96_ProjetoFinal.web.Controllers
                 var unitNumber = unitNumbersById.TryGetValue(c.UnitId, out var num) ? num : null;
 
                 // CanAssign policy (matches your GET/POST guards)
-                // - Admin: can assign any (except Closed)
-                // - Manager: can assign only if initiator is Owner or Staff (and not Closed)
+                // - Only when Pending (not Assigned/InProgress/Resolved/Closed)
+                // - Admin: can assign any pending thread
+                // - Manager: can assign pending threads only if initiator is Unit Owner or Condominium Staff
                 bool canAssign =
-                    c.Status != MessageStatus.Closed && (
+                    c.Status == MessageStatus.Pending && (
                         isAdmin ||
                         (isManager && (initiatorRole == "Unit Owner" || initiatorRole == "Condominium Staff"))
                     );
+
+                // --- Per-conversation workflow permissions
+                bool amAssignedStaff = isStaff && c.AssignedToId == currentUserId;
+                bool canMarkInProgress =
+                    c.Status == MessageStatus.Assigned && (amAssignedStaff || isManager || isAdmin);
+
+                // Manager/Admin may resolve directly from Assigned (skip InProgress if they want)
+                bool canResolve =
+                    c.Status == MessageStatus.InProgress && (amAssignedStaff || isManager || isAdmin);
+
+                bool canClose =
+                    c.Status == MessageStatus.Resolved && (isManager || isAdmin);
+
+                // --- Unread count for this conversation
+                int unread = unreadCounts.TryGetValue(c.Id, out var cnt) ? cnt : 0;
 
                 return new ConversationViewModel
                 {
@@ -203,7 +262,7 @@ namespace CET96_ProjetoFinal.web.Controllers
                     Status = c.Status.ToString(),
                     CreatedAt = c.CreatedAt,
 
-                    // NEW: show who started the thread
+                    // Show who started the thread
                     StarterName = starterName,
                     StarterRole = starterRole,
 
@@ -219,9 +278,14 @@ namespace CET96_ProjetoFinal.web.Controllers
                     AssignedToName = assignedUser != null ? DisplayName(assignedUser) : null,
                     AssignedToRole = assignedRole,
 
-                    // NEW metadata for UI policy & trace
+                    // Metadata for UI policy & trace
                     InitiatorRole = initiatorRole,
-                    CanAssign = canAssign
+                    CanAssign = canAssign,
+
+                    UnreadCount = unread,
+                    CanMarkInProgress = canMarkInProgress,
+                    CanResolve = canResolve,
+                    CanClose = canClose
                 };
             }).ToList();
 
@@ -230,6 +294,7 @@ namespace CET96_ProjetoFinal.web.Controllers
 
             return View(model);
         }
+
 
 
         /// <summary>
@@ -665,6 +730,21 @@ namespace CET96_ProjetoFinal.web.Controllers
                 .OrderBy(m => m.SentAt)
                 .ToListAsync();
 
+            // ✅ Mark messages as read for the current user (so unread badge disappears)
+            var currentUserId = _userManager.GetUserId(User);
+            var unreadMessages = messages
+                .Where(m => m.ReceiverId == currentUserId && !m.IsRead)
+                .ToList();
+
+            if (unreadMessages.Any())
+            {
+                foreach (var msg in unreadMessages)
+                {
+                    msg.IsRead = true;
+                }
+                await _context.SaveChangesAsync();
+            }
+
             // 2. From that list, get all the unique sender IDs.
             var senderIds = messages.Select(m => m.SenderId).Distinct().ToList();
 
@@ -920,13 +1000,29 @@ namespace CET96_ProjetoFinal.web.Controllers
         }
 
 
-
         /// <summary>
-        /// Marks an assigned conversation as <see cref="MessageStatus.InProgress"/>.
-        /// Only the assigned staff member (or a manager/admin) can do this.
+        /// Marks a conversation as <see cref="MessageStatus.InProgress"/> to indicate work has started.
         /// </summary>
-        /// <param name="id">Conversation ID.</param>
-        /// <returns>A redirect back to the message list.</returns>
+        /// <param name="id">
+        /// The unique identifier of the conversation to update.
+        /// </param>
+        /// <returns>
+        /// A redirect to <see cref="Index"/> after the status is updated (or to <see cref="Index"/> with an error if not permitted).
+        /// </returns>
+        /// <remarks>
+        /// <para><strong>Access control</strong></para>
+        /// Only the assigned <c>Condominium Staff</c> member may mark the conversation In&nbsp;Progress,
+        /// or a <c>Condominium Manager</c>/<c>Company Administrator</c>.
+        ///
+        /// <para><strong>Behavior</strong></para>
+        /// <list type="bullet">
+        ///   <item><description>Returns 404 if the conversation does not exist.</description></item>
+        ///   <item><description>Refuses changes to conversations already in <c>Closed</c> state.</description></item>
+        ///   <item><description>Validates the caller is either the assigned staff member or a manager/admin.</description></item>
+        ///   <item><description>Sets the status to <c>InProgress</c> and appends a system message noting who made the change and when.</description></item>
+        ///   <item><description>Shows a success banner via <c>TempData["StatusMessage"]</c> on redirect.</description></item>
+        /// </list>
+        /// </remarks>
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Condominium Staff, Condominium Manager, Company Administrator")]
@@ -973,6 +1069,163 @@ namespace CET96_ProjetoFinal.web.Controllers
             await _context.SaveChangesAsync();
 
             TempData["StatusMessage"] = "Conversation marked as In Progress.";
+            return RedirectToAction(nameof(Index));
+        }
+
+
+        /// <summary>
+        /// Marks a conversation as <see cref="MessageStatus.Resolved"/> to indicate that the reported issue
+        /// has been addressed by staff or management.
+        /// </summary>
+        /// <param name="id">
+        /// The unique identifier of the conversation to mark as resolved.
+        /// </param>
+        /// <returns>
+        /// A redirect to the <see cref="Index"/> view after successfully updating the conversation status.
+        /// </returns>
+        /// <remarks>
+        /// <para><strong>Access Control:</strong></para>
+        /// This action is restricted to:
+        /// <list type="bullet">
+        ///   <item><description>Condominium Staff — only if they are the assigned handler of the conversation.</description></item>
+        ///   <item><description>Condominium Manager and Company Administrator — unrestricted for conversations in their scope.</description></item>
+        /// </list>
+        ///
+        /// <para><strong>Behavior:</strong></para>
+        /// <list type="bullet">
+        ///   <item><description>Validates that the conversation exists and is not already <c>Closed</c>.</description></item>
+        ///   <item><description>Checks authorization to ensure that only the assigned staff or a manager/admin can perform this action.</description></item>
+        ///   <item><description>Updates the conversation’s status to <c>Resolved</c> in the database.</description></item>
+        ///   <item><description>Appends a system-generated message to the conversation indicating who marked it resolved and when.</description></item>
+        ///   <item><description>Broadcasts a <c>ConversationUpdated</c> SignalR event to all connected clients in the conversation group to trigger UI updates (e.g., status label, buttons).</description></item>
+        /// </list>
+        ///
+        /// <para><strong>UI Impact:</strong></para>
+        /// - The conversation card updates to show a <c>Resolved</c> status badge and status dot.
+        /// - The “Mark Resolved” button should disappear or become disabled after this action.
+        /// - Managers can later choose to close the conversation.
+        /// </remarks>
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Condominium Staff, Condominium Manager, Company Administrator")]
+        public async Task<IActionResult> MarkResolved(int id)
+        {
+            var convo = await _context.Conversations.FirstOrDefaultAsync(c => c.Id == id);
+            if (convo == null) return NotFound();
+            if (convo.Status == MessageStatus.Closed)
+            {
+                TempData["Error"] = "Conversation already closed.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var currentUserId = _userManager.GetUserId(User)!;
+            var isManagerOrAdmin = User.IsInRole("Condominium Manager") || User.IsInRole("Company Administrator");
+            var isAssignedStaff = convo.AssignedToId == currentUserId && User.IsInRole("Condominium Staff");
+            if (!isAssignedStaff && !isManagerOrAdmin) return Forbid();
+
+            convo.Status = MessageStatus.Resolved;
+
+            // system note
+            var actor = await _userManager.FindByIdAsync(currentUserId);
+            var actorName = $"{actor?.FirstName} {actor?.LastName}".Trim();
+            _context.Messages.Add(new Message
+            {
+                ConversationId = convo.Id,
+                SenderId = currentUserId,
+                Content = $"[System] Marked as Resolved by {actorName} ({DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC)",
+                SentAt = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+
+            try
+            {
+                await _hub.Clients.Group($"conversation-{convo.Id}")
+                    .SendAsync("ConversationUpdated", new
+                    {
+                        conversationId = convo.Id,
+                        status = convo.Status.ToString()
+                    });
+            }
+            catch { }
+
+            TempData["StatusMessage"] = "Conversation marked as Resolved.";
+            return RedirectToAction(nameof(Index));
+        }
+
+
+        /// <summary>
+        /// Closes an existing conversation by updating its status to <see cref="MessageStatus.Closed"/>.
+        /// </summary>
+        /// <param name="id">
+        /// The unique identifier of the conversation to close.
+        /// </param>
+        /// <returns>
+        /// A redirect to the <see cref="Index"/> view after successfully closing the conversation.
+        /// </returns>
+        /// <remarks>
+        /// <para><strong>Access Control:</strong></para>
+        /// Only users in the <c>Condominium Manager</c> or <c>Company Administrator</c> roles are authorized to close a conversation.
+        ///
+        /// <para><strong>Behavior:</strong></para>
+        /// <list type="bullet">
+        ///   <item>
+        ///     <description>Updates the conversation’s status to <c>Closed</c> in the database.</description>
+        ///   </item>
+        ///   <item>
+        ///     <description>Appends a system-generated message to the conversation thread indicating who closed it and when.</description>
+        ///   </item>
+        ///   <item>
+        ///     <description>Broadcasts a <c>ConversationUpdated</c> SignalR event to all connected clients in the conversation group so the UI can update in real time (e.g., status badges, buttons).</description>
+        ///   </item>
+        ///   <item>
+        ///     <description>After completion, redirects the user to the <c>Index</c> view and displays a status message.</description>
+        ///   </item>
+        /// </list>
+        ///
+        /// <para><strong>UI Impact:</strong></para>
+        /// - The conversation will show a <c>Closed</c> status label and status dot.
+        /// - Conversation input is expected to be disabled in the client UI once closed.
+        /// - The Assign and workflow buttons are hidden once the status becomes <c>Closed</c>.
+        /// </remarks>
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Condominium Manager, Company Administrator")]
+        public async Task<IActionResult> Close(int id)
+        {
+            var convo = await _context.Conversations.FirstOrDefaultAsync(c => c.Id == id);
+            if (convo == null) return NotFound();
+
+            convo.Status = MessageStatus.Closed;
+
+            var currentUserId = _userManager.GetUserId(User)!;
+            var actor = await _userManager.FindByIdAsync(currentUserId);
+            var actorName = $"{actor?.FirstName} {actor?.LastName}".Trim();
+
+            _context.Messages.Add(new Message
+            {
+                ConversationId = convo.Id,
+                SenderId = currentUserId,
+                Content = $"[System] Closed by {actorName} ({DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC)",
+                SentAt = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+
+            try
+            {
+                await _hub.Clients.Group($"conversation-{convo.Id}")
+                    .SendAsync("ConversationUpdated", new
+                    {
+                        conversationId = convo.Id,
+                        status = convo.Status.ToString()
+                    });
+            }
+            catch { }
+
+            TempData["StatusMessage"] = "Conversation closed.";
             return RedirectToAction(nameof(Index));
         }
     }
