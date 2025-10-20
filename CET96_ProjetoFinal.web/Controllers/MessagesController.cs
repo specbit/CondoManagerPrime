@@ -44,58 +44,30 @@ namespace CET96_ProjetoFinal.web.Controllers
         // The main action to display the messaging page
 
         /// <summary>
-        /// Displays the main message center view for the current user.
+        /// Displays the messaging inbox for the current user.
+        /// Shows all conversations where the user is either the initiator or the assignee,
+        /// ordered by most recent first, and enriches them with metadata for UI display.
         /// </summary>
         /// <param name="condominiumId">
-        /// The unique identifier of the condominium context. If provided and the current user
-        /// is a <c>Condominium Manager</c> or <c>Company Administrator</c>, all conversations
-        /// for that condominium are displayed. Otherwise, only conversations in which the
-        /// current user is a participant (initiator or assignee) are shown.
+        /// Optional condominium ID used for navigation context (e.g. return links).
         /// </param>
         /// <returns>
-        /// A view containing a list of conversations represented by <see cref="ConversationViewModel"/>
-        /// objects, including metadata such as subject, status, participants, unit, assignee details,
-        /// the initiator’s role, and a precomputed <c>CanAssign</c> flag (so the view can hide the
-        /// Assign button when policy forbids it).
+        /// A view containing a list of <see cref="ConversationViewModel"/> items, each with
+        /// status dot, participant details, role badges, and unit number (if applicable).
         /// </returns>
-        /// <remarks>
-        /// This action dynamically adjusts the conversation list based on the current user's role:
-        /// <list type="bullet">
-        ///   <item>
-        ///     <description><c>Manager/Admin</c>: Can view all conversations for the specified condominium.</description>
-        ///   </item>
-        ///   <item>
-        ///     <description><c>Staff/Owner</c>: Only sees conversations they initiated or were assigned to.</description>
-        ///   </item>
-        /// </list>
-        /// Additionally, the result includes assignment metadata (<c>AssignedToName</c>, <c>AssignedToRole</c>),
-        /// and the <c>InitiatorRole</c> + <c>CanAssign</c> policy flag used by the UI.
-        /// </remarks>
         public async Task<IActionResult> Index(int? condominiumId)
         {
             ViewBag.CondominiumId = condominiumId;
 
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            // 1) Conversations - if Manager/Admin, show all for the condominium
-            IQueryable<Conversation> q = _context.Conversations;
-
-            var isMgrOrAdmin = User.IsInRole("Condominium Manager") || User.IsInRole("Company Administrator");
-            if (isMgrOrAdmin && condominiumId.HasValue)
-            {
-                var condo = condominiumId.Value;
-                q = q.Where(c => _context.Units.Any(u => u.Id == c.UnitId && u.CondominiumId == condo));
-            }
-            else
-            {
-                q = q.Where(c => c.InitiatorId == currentUserId || c.AssignedToId == currentUserId);
-            }
-
-            var conversations = await q
+            // 1) Conversations (no Include)
+            var conversations = await _context.Conversations
+                .Where(c => c.InitiatorId == currentUserId || c.AssignedToId == currentUserId)
                 .OrderByDescending(c => c.CreatedAt)
                 .ToListAsync();
 
-            // 1a) Units
+            // 1a) Units for those conversations
             var unitIds = conversations
                 .Select(c => c.UnitId)
                 .Where(id => id > 0)
@@ -106,9 +78,9 @@ namespace CET96_ProjetoFinal.web.Controllers
                 .Where(u => unitIds.Contains(u.Id))
                 .ToDictionaryAsync(u => u.Id, u => u.UnitNumber);
 
-            // 2) User IDs (initiators, assignees) — include both to resolve roles & names in one pass
+            // 2) Other user ids
             var userIds = conversations
-                .SelectMany(c => new[] { c.InitiatorId, c.AssignedToId })
+                .Select(c => c.InitiatorId == currentUserId ? c.AssignedToId : c.InitiatorId)
                 .Where(id => id != null)
                 .Distinct()
                 .ToList();
@@ -118,7 +90,7 @@ namespace CET96_ProjetoFinal.web.Controllers
                 .Where(u => userIds.Contains(u.Id))
                 .ToDictionaryAsync(u => u.Id);
 
-            // 3a) Roles
+            // 3a) Roles -> badge css
             var rolesByUser = new Dictionary<string, (string Role, string BadgeCss)>();
             foreach (var kv in users)
             {
@@ -136,45 +108,16 @@ namespace CET96_ProjetoFinal.web.Controllers
                 rolesByUser[usr.Id] = (role, badgeCss);
             }
 
-            // Who am I (policy flags)?
-            bool isAdmin = User.IsInRole("Company Administrator");
-            bool isManager = User.IsInRole("Condominium Manager");
-
-            // 4) Project to ViewModel
+            // 4) Project VM
             var model = conversations.Select(c =>
             {
-                // Helper for nice display names
-                string DisplayName(ApplicationUser? u) =>
-                    (u is null) ? "System" :
-                    $"{(u.FirstName ?? "").Trim()} {(u.LastName ?? "").Trim()}".Trim() switch
-                    {
-                        "" => (u.Email ?? u.UserName ?? "User"),
-                        var s => s
-                    };
-
-                // Other participant (for display)
                 var otherUserId = c.InitiatorId == currentUserId ? c.AssignedToId : c.InitiatorId;
                 users.TryGetValue(otherUserId ?? "", out var otherUser);
 
-                var (otherRole, otherBadge) = (otherUserId != null && rolesByUser.TryGetValue(otherUserId, out var tuple))
+                var (role, badge) = (otherUserId != null && rolesByUser.TryGetValue(otherUserId, out var tuple))
                     ? tuple : ("User", "bg-secondary");
 
-                // Assigned user (for "Assignee")
-                users.TryGetValue(c.AssignedToId ?? "", out var assignedUser);
-                var assignedRole = (c.AssignedToId != null && rolesByUser.TryGetValue(c.AssignedToId, out var aTuple))
-                    ? aTuple.Role : null;
-
-                // Initiator (STARTER) — NEW: populate StarterName / StarterRole
-                users.TryGetValue(c.InitiatorId, out var initiatorUser);
-                var starterName = DisplayName(initiatorUser);
-                var starterRole = rolesByUser.TryGetValue(c.InitiatorId, out var initTupleRole)
-                    ? initTupleRole.Role
-                    : "User";
-
-                // Initiator role (used by CanAssign policy) — keep existing semantics
-                var initiatorRole = starterRole;
-
-                // Status -> css token
+                // map your enum -> css class for the status dot
                 var statusCss = c.Status switch
                 {
                     MessageStatus.Pending => "status-pending",
@@ -185,53 +128,28 @@ namespace CET96_ProjetoFinal.web.Controllers
                     _ => "status-closed"
                 };
 
+                // Only assign a unit number if the conversation is linked to a unit
                 var unitNumber = unitNumbersById.TryGetValue(c.UnitId, out var num) ? num : null;
-
-                // CanAssign policy (matches your GET/POST guards)
-                // - Admin: can assign any (except Closed)
-                // - Manager: can assign only if initiator is Owner or Staff (and not Closed)
-                bool canAssign =
-                    c.Status != MessageStatus.Closed && (
-                        isAdmin ||
-                        (isManager && (initiatorRole == "Unit Owner" || initiatorRole == "Condominium Staff"))
-                    );
 
                 return new ConversationViewModel
                 {
                     Id = c.Id,
                     Subject = c.Subject,
                     Status = c.Status.ToString(),
-                    CreatedAt = c.CreatedAt,
-
-                    // NEW: show who started the thread
-                    StarterName = starterName,
-                    StarterRole = starterRole,
-
-                    // Keep “other participant” for any places you still use it
-                    OtherParticipantName = DisplayName(otherUser),
-                    OtherParticipantRole = otherRole,
-                    OtherRoleBadgeCss = otherBadge,
-
+                    OtherParticipantName = otherUser != null ? $"{otherUser.FirstName} {otherUser.LastName}" : "System",
+                    OtherParticipantRole = role,
+                    OtherRoleBadgeCss = badge,
                     StatusCss = statusCss,
-                    UnitNumber = otherRole == "Unit Owner" ? unitNumber : null,
-
-                    // Assignment info (rendered as "Assignee:")
-                    AssignedToName = assignedUser != null ? DisplayName(assignedUser) : null,
-                    AssignedToRole = assignedRole,
-
-                    // NEW metadata for UI policy & trace
-                    InitiatorRole = initiatorRole,
-                    CanAssign = canAssign
+                    UnitNumber = role == "Unit Owner" ? unitNumber : null,
+                    CreatedAt = c.CreatedAt
                 };
             }).ToList();
-
-            // Bubble up any GET-guard error message (so the view can show it once)
-            ViewBag.Error = TempData["Error"] as string;
 
             return View(model);
         }
 
 
+        // GET: /Messages/Create
         /// <summary>
         /// Displays the "Create Conversation" form and dynamically builds the recipient list
         /// based on the current user's role and the specified condominium.
@@ -416,126 +334,6 @@ namespace CET96_ProjetoFinal.web.Controllers
             return View(model);
         }
 
-
-        // TODO: delete this commented-out GET action if not needed
-
-        // GET: /Messages/Create
-        ///// <summary>
-        ///// Displays the form for a user to create a new conversation.
-        ///// It intelligently populates the recipient list based on the user's role.
-        ///// </summary>
-        //[Authorize(Roles = "Unit Owner, Condominium Manager, Company Administrator, Condominium Staff")]
-        //[HttpGet]
-        //public async Task<IActionResult> Create(int? condominiumId, string? recipientId = null)
-        //{
-        //    ViewBag.CondominiumId = condominiumId; // For return url
-
-        //    var model = new CreateConversationViewModel
-        //    {
-        //        RecipientId = recipientId
-        //    };
-        //    var currentUser = await _userManager.GetUserAsync(User);
-        //    if (currentUser == null) return Unauthorized();
-
-        //    var recipients = new List<SelectListItem>();
-
-        //    // --- Smart Recipient Logic ---
-        //    if (User.IsInRole("Unit Owner"))
-        //    {
-        //        // An Owner can message their Manager and the Company Admin.
-        //        var assignedUnit = await _context.Units.FirstOrDefaultAsync(u => u.OwnerId == currentUser.Id);
-        //        if (assignedUnit != null)
-        //        {
-        //            var condominium = await _context.Condominiums.FindAsync(assignedUnit.CondominiumId);
-        //            if (condominium != null)
-        //            {
-        //                // Add the Condo Manager
-        //                if (!string.IsNullOrEmpty(condominium.CondominiumManagerId))
-        //                {
-        //                    var manager = await _userManager.FindByIdAsync(condominium.CondominiumManagerId);
-        //                    if (manager != null)
-        //                        recipients.Add(new SelectListItem($"{manager.FirstName} {manager.LastName} (Manager)", manager.Id));
-        //                }
-        //                // Add the Company Admin
-        //                var company = await _companyRepository.GetByIdAsync(condominium.CompanyId);
-        //                if (company != null && !string.IsNullOrEmpty(company.ApplicationUserId))
-        //                {
-        //                    var admin = await _userManager.FindByIdAsync(company.ApplicationUserId);
-        //                    if (admin != null)
-        //                        recipients.Add(new SelectListItem($"{admin.FirstName} {admin.LastName} (Admin)", admin.Id));
-        //                }
-        //            }
-        //        }
-        //    }
-        //    else if (User.IsInRole("Company Administrator"))
-        //    {
-        //        // A Company Admin can message all the managers in their company.
-        //        var allManagers = await _userManager.GetUsersInRoleAsync("Condominium Manager");
-        //        var managersInCompany = allManagers.Where(m => m.CompanyId == currentUser.CompanyId);
-
-        //        foreach (var manager in managersInCompany)
-        //        {
-        //            recipients.Add(new SelectListItem($"{manager.FirstName} {manager.LastName} (Manager)", manager.Id));
-        //        }
-        //    }
-        //    else if (User.IsInRole("Condominium Manager"))
-        //    {
-        //        // A Manager can message their Staff, Owners in their condo, and their Company Admin.
-        //        var managedCondo = await _condominiumRepository.GetCondominiumByManagerIdAsync(currentUser.Id);
-        //        if (managedCondo != null)
-        //        {
-        //            // Add their Company Admin
-        //            var company = await _companyRepository.GetByIdAsync(managedCondo.CompanyId);
-        //            if (company != null && !string.IsNullOrEmpty(company.ApplicationUserId))
-        //            {
-        //                var admin = await _userManager.FindByIdAsync(company.ApplicationUserId);
-        //                if (admin != null && admin.Id != currentUser.Id)
-        //                    recipients.Add(new SelectListItem($"{admin.FirstName} {admin.LastName} (Admin)", admin.Id));
-        //            }
-        //            // Add all Staff in their condo
-        //            var staffInCondo = await _userRepository.GetStaffByCondominiumIdAsync(managedCondo.Id);
-        //            foreach (var staff in staffInCondo)
-        //            {
-        //                recipients.Add(new SelectListItem($"{staff.FirstName} {staff.LastName} (Staff)", staff.Id));
-        //            }
-
-        //            // Add all Owners in their condo
-        //            var ownersInCondo = await _userRepository.GetUsersInRoleByCondominiumAsync("Unit Owner", managedCondo.Id);
-
-        //            foreach (var owner in ownersInCondo)
-        //            {
-        //                recipients.Add(new SelectListItem($"{owner.FirstName} {owner.LastName} (Owner)", owner.Id));
-        //            }
-        //        }
-        //    }
-        //    else if (User.IsInRole("Condominium Staff"))
-        //    {
-        //        // A Staff member can message their Manager and Owners in their condo.
-        //        if (currentUser.CondominiumId.HasValue)
-        //        {
-        //            var assignedCondo = await _condominiumRepository.GetByIdAsync(currentUser.CondominiumId.Value);
-        //            if (assignedCondo != null)
-        //            {
-        //                // Add their Condo Manager
-        //                if (!string.IsNullOrEmpty(assignedCondo.CondominiumManagerId))
-        //                {
-        //                    var manager = await _userManager.FindByIdAsync(assignedCondo.CondominiumManagerId);
-        //                    if (manager != null)
-        //                        recipients.Add(new SelectListItem($"{manager.FirstName} {manager.LastName} (Manager)", manager.Id));
-        //                }
-        //                // Add all Owners in their condo
-        //                var ownersInCondo = await _userRepository.GetUsersInRoleByCondominiumAsync("Unit Owner", assignedCondo.Id);
-        //                foreach (var owner in ownersInCondo)
-        //                {
-        //                    recipients.Add(new SelectListItem($"{owner.FirstName} {owner.LastName} (Owner)", owner.Id));
-        //                }
-        //            }
-        //        }
-        //    }
-
-        //    model.Recipients = recipients.OrderBy(r => r.Text);
-        //    return View(model);
-        //}
 
         // POST: /Messages/Create
         /// <summary>
@@ -759,102 +557,6 @@ namespace CET96_ProjetoFinal.web.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-
-
-        // TODO: delete if upgrage works
-
-        ///// <summary>
-        ///// Handles the submission of the new conversation form.
-        ///// </summary>
-        //[HttpPost]
-        //[ValidateAntiForgeryToken]
-        //[Authorize(Roles = "Unit Owner, Condominium Manager, Company Administrator, Condominium Staff")]
-        //public async Task<IActionResult> Create(CreateConversationViewModel model)
-        //{
-        //    // Get the user who is initiating the conversation.
-        //    var initiator = await _userManager.GetUserAsync(User);
-        //    if (initiator == null) return Unauthorized();
-
-        //    // The recipient list must be re-populated every time this action is called,
-        //    // both for the initial GET and for POSTs that fail validation.
-        //    // This prevents the dropdown from being empty if the page needs to be re-displayed with an error.
-        //    var recipients = new List<SelectListItem>();
-        //    if (User.IsInRole("Unit Owner"))
-        //    {
-        //        var assignedUnit = await _context.Units.FirstOrDefaultAsync(u => u.OwnerId == initiator.Id);
-        //        if (assignedUnit != null)
-        //        {
-        //            var condominium = await _context.Condominiums.FindAsync(assignedUnit.CondominiumId);
-        //            if (condominium != null)
-        //            {
-        //                // Add the Condo Manager
-        //                if (!string.IsNullOrEmpty(condominium.CondominiumManagerId))
-        //                {
-        //                    var manager = await _userManager.FindByIdAsync(condominium.CondominiumManagerId);
-        //                    if (manager != null)
-        //                        recipients.Add(new SelectListItem($"{manager.FirstName} {manager.LastName} (Manager)", manager.Id));
-        //                }
-        //                // Add the Company Admin
-        //                var company = await _companyRepository.GetByIdAsync(condominium.CompanyId);
-        //                if (company != null && !string.IsNullOrEmpty(company.ApplicationUserId))
-        //                {
-        //                    var admin = await _userManager.FindByIdAsync(company.ApplicationUserId);
-        //                    if (admin != null)
-        //                        recipients.Add(new SelectListItem($"{admin.FirstName} {admin.LastName} (Admin)", admin.Id));
-        //                }
-        //            }
-        //        }
-        //    }
-        //    // We will add logic for other roles (e.g., Manager, Staff) here in the future.
-        //    model.Recipients = recipients;
-
-        //    if (ModelState.IsValid)
-        //    {
-        //        // Find the unit associated with the initiator (for now, we assume it's an owner).
-        //        var userId = initiator.Id;               // string
-        //        var unit = await _context.Units
-        //            .FirstOrDefaultAsync(u => u.OwnerId == userId);
-
-        //        if (unit == null)
-        //        {
-        //            ModelState.AddModelError("", "Could not find an associated unit for this user.");
-        //            // Because we repopulated the list above, we can now safely return the view.
-        //            return View(model);
-        //        }
-
-        //        // 1. Create the Conversation object.
-        //        var conversation = new Conversation
-        //        {
-        //            Subject = model.Subject,
-        //            InitiatorId = initiator.Id,
-        //            AssignedToId = model.RecipientId, // Initially assigned to the chosen recipient
-        //            UnitId = unit.Id,
-        //            Status = MessageStatus.Pending
-        //        };
-        //        _context.Conversations.Add(conversation);
-        //        await _context.SaveChangesAsync(); // Save to get the new ConversationId
-
-        //        // 2. Create the first Message in that conversation.
-        //        var message = new Message
-        //        {
-        //            Content = model.Message,
-        //            SenderId = initiator.Id,
-        //            ReceiverId = model.RecipientId, // The first message goes to the chosen recipient
-        //            ConversationId = conversation.Id,
-        //        };
-        //        _context.Messages.Add(message);
-        //        await _context.SaveChangesAsync();
-
-        //        // TODO: Use SignalR to notify the specific recipient in real-time.
-
-        //        TempData["StatusMessage"] = "Your new conversation has been created successfully.";
-        //        return RedirectToAction(nameof(Index));
-        //    }
-
-        //    // If the initial model state was invalid (e.g., no recipient was selected),
-        //    // the view is returned with the correctly re-populated dropdown list.
-        //    return View(model);
-        //}
 
         // This action is called by JavaScript to get a conversation's message history
         [HttpGet]
