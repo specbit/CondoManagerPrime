@@ -2,12 +2,14 @@
 using CET96_ProjetoFinal.web.Data.Entities;
 using CET96_ProjetoFinal.web.Entities;
 using CET96_ProjetoFinal.web.Enums;
+using CET96_ProjetoFinal.web.Hubs;
 using CET96_ProjetoFinal.web.Models;
 using CET96_ProjetoFinal.web.Repositories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
@@ -21,19 +23,22 @@ namespace CET96_ProjetoFinal.web.Controllers
         private readonly ICompanyRepository _companyRepository;
         private readonly IApplicationUserRepository _userRepository;
         private readonly ICondominiumRepository _condominiumRepository;
+        private readonly IHubContext<ChatHub> _hub;
 
         public MessagesController(
             CondominiumDataContext context,
             UserManager<ApplicationUser> userManager,
             ICompanyRepository companyRepository,
             IApplicationUserRepository userRepository,
-            ICondominiumRepository condominiumRepository)
+            ICondominiumRepository condominiumRepository,
+            IHubContext<ChatHub> hub)
         {
             _context = context;
             _userManager = userManager;
             _companyRepository = companyRepository;
             _userRepository = userRepository;
             _condominiumRepository = condominiumRepository;
+            _hub = hub;
         }
 
         // The main action to display the messaging page
@@ -592,6 +597,286 @@ namespace CET96_ProjetoFinal.web.Controllers
         {
             ViewBag.CondominiumId = condominiumId;
             return View();
+        }
+
+
+        /// <summary>
+        /// Displays a form that allows a manager or company administrator to assign a conversation 
+        /// to an eligible staff member for handling.
+        /// </summary>
+        /// <param name="id">
+        /// The unique identifier of the conversation to be assigned.
+        /// </param>
+        /// <returns>
+        /// A view containing a dropdown list of active staff members associated with the same 
+        /// condominium as the conversation. Only active staff are included.
+        /// </returns>
+        /// <remarks>
+        /// Access rules:
+        /// <list type="bullet">
+        ///   <item>
+        ///     <description><c>Company Administrator</c>: may assign any conversation.</description>
+        ///   </item>
+        ///   <item>
+        ///     <description><c>Condominium Manager</c>: may assign only conversations started by a 
+        ///     <c>Unit Owner</c> or <c>Condominium Staff</c>. Attempts to assign manager/admin-initiated
+        ///     threads are rejected and redirected back to the index with an error message.</description>
+        ///   </item>
+        /// </list>
+        /// The staff list is filtered by role (<c>Condominium Staff</c>), activation status
+        /// (<c>DeactivatedAt == null</c>), and condominium association.
+        /// 
+        /// UI note: the assignee should be displayed with the label <c>Assignee:</c> on the card/list
+        /// (avoid an email-style <c>To:</c> label to prevent ambiguity).
+        /// </remarks>
+        [HttpGet]
+        [Authorize(Roles = "Condominium Manager, Company Administrator")]
+        public async Task<IActionResult> AssignToStaff(int id)
+        {
+            // 1) Load conversation (NO Include — Unit is [NotMapped])
+            var convo = await _context.Conversations
+                .FirstOrDefaultAsync(c => c.Id == id);
+
+            if (convo == null) return NotFound();
+
+            // Load Unit to get condo id
+            var unit = await _context.Units.FirstOrDefaultAsync(u => u.Id == convo.UnitId);
+            if (unit == null) return NotFound();
+
+            var condoId = unit.CondominiumId;  // int
+
+            // --- Managers may assign only Owner/Staff-initiated threads; Admins can assign anything.
+            var isManagerOnly = User.IsInRole("Condominium Manager") && !User.IsInRole("Company Administrator");
+            if (isManagerOnly)
+            {
+                var initiator = await _userManager.FindByIdAsync(convo.InitiatorId);
+                var initiatorIsOwner = initiator != null && await _userManager.IsInRoleAsync(initiator, "Unit Owner");
+                var initiatorIsStaff = initiator != null && await _userManager.IsInRoleAsync(initiator, "Condominium Staff");
+
+                if (!(initiatorIsOwner || initiatorIsStaff))
+                {
+                    TempData["Error"] = "Managers can only assign conversations started by a Unit Owner or Condominium Staff.";
+                    return RedirectToAction(nameof(Index));
+                }
+            }
+
+            // 2) Get all users in the STAFF role
+            var allStaff = await _userManager.GetUsersInRoleAsync("Condominium Staff"); // change role name if needed
+
+            // 3) Filter to ACTIVE and SAME CONDO
+            var eligibleStaff = allStaff
+                .Where(u => u.DeactivatedAt == null                      // active only
+                         && u.CondominiumId.HasValue
+                         && u.CondominiumId.Value == condoId)            // same condominium
+                .OrderBy(u => u.FirstName)
+                .ThenBy(u => u.LastName)
+                .ToList();
+
+            ViewBag.ConversationId = convo.Id;
+            ViewBag.CurrentAssigneeId = convo.AssignedToId;
+            ViewBag.Staff = eligibleStaff
+                .Select(u => new SelectListItem(
+                    $"{u.FirstName} {u.LastName}",
+                    u.Id,
+                    convo.AssignedToId == u.Id))
+                .ToList();
+
+            return View();
+        }
+
+/// <summary>
+/// Assigns an existing conversation to a specific staff member for handling and 
+/// updates its workflow status to <see cref="MessageStatus.Assigned"/>.
+/// </summary>
+/// <param name="conversationId">
+/// The unique identifier of the conversation to assign.
+/// </param>
+/// <param name="staffUserId">
+/// The ID of the staff user who will handle the conversation.
+/// </param>
+/// <returns>
+/// A redirect to the conversation list (or details page) after the assignment is complete.
+/// </returns>
+/// <remarks>
+/// Access rules:
+/// <list type="bullet">
+///   <item>
+///     <description><c>Company Administrator</c>: may assign any conversation.</description>
+///   </item>
+///   <item>
+///     <description><c>Condominium Manager</c>: may only assign conversations started by a 
+///     <c>Unit Owner</c> or <c>Condominium Staff</c>. Attempts to assign conversations initiated 
+///     by another manager or administrator are blocked and redirected with an error message.</description>
+///   </item>
+/// </list>
+/// This action also appends a system-generated message to the conversation thread (audit trail),
+/// and broadcasts a real-time update via SignalR so the UI can refresh the card showing
+/// <c>Assignee:</c> and status without relying on an email-style <c>To:</c> field.
+/// </remarks>
+[HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Condominium Manager, Company Administrator")]
+        public async Task<IActionResult> AssignToStaff(int conversationId, string staffUserId)
+        {
+            // 1) Load conversation (NO Include — Unit is [NotMapped])
+            var convo = await _context.Conversations
+                .FirstOrDefaultAsync(c => c.Id == conversationId);
+            if (convo == null) return NotFound();
+
+            // 2) Basic guard: don't assign closed threads
+            if (convo.Status == MessageStatus.Closed)
+            {
+                TempData["Error"] = "This conversation is already closed.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            // 3) Validate staff user exists
+            var staff = await _userManager.FindByIdAsync(staffUserId);
+            if (staff == null)
+            {
+                TempData["Error"] = "Selected staff member not found.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            // 4) Verify that the selected user is eligible to receive assignments
+            // Load Unit because convo.Unit is [NotMapped]
+            var unit = await _context.Units.FirstOrDefaultAsync(u => u.Id == convo.UnitId);
+
+            var inStaffRole = await _userManager.IsInRoleAsync(staff, "Condominium Staff");
+            var isActive = staff.DeactivatedAt == null;
+            var sameCondo = unit != null
+                              && staff.CondominiumId.HasValue
+                              && staff.CondominiumId.Value == unit.CondominiumId;
+
+            if (!inStaffRole || !isActive || !sameCondo)
+            {
+                TempData["Error"] = "The selected user is not an eligible active staff member for this condominium.";
+                return RedirectToAction(nameof(AssignToStaff), new { id = conversationId });
+            }
+
+            // Managers may assign only conversations started by an Owner or Staff.
+            // Company Admins can assign anything.
+            var isManager = User.IsInRole("Condominium Manager") && !User.IsInRole("Company Administrator");
+            if (isManager)
+            {
+                var initiator = await _userManager.FindByIdAsync(convo.InitiatorId);
+                var initiatorIsOwner = initiator != null && await _userManager.IsInRoleAsync(initiator, "Unit Owner");
+                var initiatorIsStaff = initiator != null && await _userManager.IsInRoleAsync(initiator, "Condominium Staff");
+
+                if (!(initiatorIsOwner || initiatorIsStaff))
+                {
+                    TempData["Error"] = "Managers can assign only conversations started by a Unit Owner or Condominium Staff.";
+                    return RedirectToAction(nameof(Index));
+                }
+            }
+
+            // 5) Update conversation state
+            convo.AssignedToId = staff.Id;
+            convo.Status = MessageStatus.Assigned; // UI should display as "Assignee: {Name}" (not "To:")
+            await _context.SaveChangesAsync();
+
+            // --- Real-time notify the conversation group (SignalR) ---
+            // Keep payload keys stable; the UI will use these to update the card.
+            string assigneeName = $"{staff.FirstName} {staff.LastName}".Trim();
+            try
+            {
+                await _hub.Clients
+                    .Group($"conversation-{convo.Id}")
+                    .SendAsync("ConversationUpdated", new
+                    {
+                        conversationId = convo.Id,
+                        status = convo.Status.ToString(),
+                        assignedToName = assigneeName,
+                        assignedToRole = "Condominium Staff" // or resolve actual role if you support multiple
+                    });
+            }
+            catch
+            {
+                // If SignalR isn't configured/connected, just ignore; the core flow still works.
+            }
+
+            // 6) Append a simple “[System] …” message for traceability (no schema changes)
+            var actorId = _userManager.GetUserId(User) ?? "system";
+            var actor = await _userManager.FindByIdAsync(actorId);
+
+            string ShowName(IdentityUser? u) =>
+                (u as ApplicationUser)?.FirstName is string fn && (u as ApplicationUser)?.LastName is string ln
+                    ? $"{fn} {ln}"
+                    : u?.Email ?? u?.UserName ?? u?.Id ?? "User";
+
+            var actorName = ShowName(actor);
+
+            _context.Messages.Add(new Message
+            {
+                ConversationId = convo.Id,
+                SenderId = actorId,
+                ReceiverId = staff.Id, // informational; your UI doesn’t rely on this
+                Content = $"[System] Assigned to {assigneeName} by {actorName} ({DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC)",
+                SentAt = DateTime.UtcNow,
+                IsRead = false
+            });
+
+            await _context.SaveChangesAsync();
+
+            TempData["StatusMessage"] = "Conversation assigned to staff.";
+            return RedirectToAction(nameof(Index)); // change to Details if you have it
+        }
+
+
+
+        /// <summary>
+        /// Marks an assigned conversation as <see cref="MessageStatus.InProgress"/>.
+        /// Only the assigned staff member (or a manager/admin) can do this.
+        /// </summary>
+        /// <param name="id">Conversation ID.</param>
+        /// <returns>A redirect back to the message list.</returns>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Condominium Staff, Condominium Manager, Company Administrator")]
+        public async Task<IActionResult> MarkInProgress(int id)
+        {
+            var convo = await _context.Conversations.FirstOrDefaultAsync(c => c.Id == id);
+            if (convo == null) return NotFound();
+
+            // Block if already closed
+            if (convo.Status == MessageStatus.Closed)
+            {
+                TempData["Error"] = "Cannot change status of a closed conversation.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var userId = _userManager.GetUserId(User)!;
+
+            // Only assigned staff OR manager/admin may move to InProgress
+            var isManagerOrAdmin = User.IsInRole("Condominium Manager") || User.IsInRole("Company Administrator");
+            var isAssignedStaff = convo.AssignedToId == userId && User.IsInRole("Condominium Staff");
+            if (!isAssignedStaff && !isManagerOrAdmin)
+            {
+                return Forbid();
+            }
+
+            // Set status
+            convo.Status = MessageStatus.InProgress;
+
+            // System note
+            var actor = await _userManager.FindByIdAsync(userId);
+            var actorName = (actor?.FirstName, actor?.LastName) is (string fn, string ln) ? $"{fn} {ln}"
+                         : actor?.Email ?? actor?.UserName ?? "User";
+
+            _context.Messages.Add(new Message
+            {
+                ConversationId = convo.Id,
+                SenderId = userId,
+                ReceiverId = null,
+                Content = $"[System] Marked as In Progress by {actorName} ({DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC)",
+                SentAt = DateTime.UtcNow,
+                IsRead = false
+            });
+
+            await _context.SaveChangesAsync();
+
+            TempData["StatusMessage"] = "Conversation marked as In Progress.";
+            return RedirectToAction(nameof(Index));
         }
     }
 }

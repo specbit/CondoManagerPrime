@@ -32,6 +32,7 @@
            class="btn btn-secondary">Back to Messaging Dashboard</a>
     }
 </div>
+
 <div class="row">
     <div class="col-md-4">
         <div class="card">
@@ -42,41 +43,73 @@
                 {
                     @foreach (var convo in Model) // The OrderBy is now in the controller
                     {
-                        @* Each list item is clickable and stores its unique conversation ID in a data attribute. *@
-                        @* <li class="list-group-item list-group-item-action" style="cursor: pointer;" data-conversation-id="@convo.Id">
-                            <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1">@convo.Subject</h6>
-                                <small>@convo.Status</small>
-                            </div>
-                            <p class="mb-1">@convo.OtherParticipantName</p>
-                            <small class="text-muted">@convo.CreatedAt.ToString("g")</small>
-                        </li> *@
                         <li class="list-group-item list-group-item-action"
                             style="cursor:pointer;"
                             data-conversation-id="@convo.Id"
-                            aria-label="Conversation with @convo.OtherParticipantName about @convo.Subject">
+                            aria-label="Conversation '@convo.Subject' started by @convo.StarterName">
+
                             <div class="d-flex w-100 justify-content-between">
                                 <h6 class="mb-1" text-truncate" style="max-width: 75%;">
                                     <strong>Subject:</strong> @convo.Subject
                                 </h6>
-                                <small>
-                                    <span class="status-dot @convo.StatusCss"></span>
-                                    @convo.Status
+
+                                <!-- Status (dot + text) gets stable IDs so we can live-update -->
+                                <small id="status-wrap-@convo.Id">
+                                    <span id="status-dot-@convo.Id" class="status-dot @convo.StatusCss"></span>
+                                    <span id="status-text-@convo.Id">@convo.Status</span>
                                 </small>
                             </div>
 
+                            <!-- Starter (initiator) info replaces the ambiguous "From:" row -->
                             <p class="mb-1">
-                                <strong>From:</strong>
-                                <span class="badge @convo.OtherRoleBadgeCss">@convo.OtherParticipantName</span>
+                                <strong>Started by:</strong>
+                                <span class="badge bg-light text-dark">@convo.StarterName</span>
+                                @* show the role as a light badge; swap class if you compute per-role CSS *@
+                                @if (!string.IsNullOrWhiteSpace(convo.StarterRole))
+                                {
+                                    <span class="badge bg-light text-dark ms-2">@convo.StarterRole</span>
+                                }
 
-                                @* If you have the unit number available, show it next to the badge *@
-                                @if (convo.OtherParticipantRole == "Unit Owner" && !string.IsNullOrEmpty(convo.UnitNumber))
+                                @* Preserve Unit badge behavior for owners *@
+                                @if (convo.StarterRole == "Unit Owner" && !string.IsNullOrEmpty(convo.UnitNumber))
                                 {
                                     <span class="badge bg-light text-dark ms-2">Unit: @convo.UnitNumber</span>
                                 }
                             </p>
 
+                            <!-- Assignee container: keep stable ID for SignalR updates; label is 'Assignee:' (never 'To:') -->
+                            <div id="assigned-to-@convo.Id">
+                                @if (!string.IsNullOrEmpty(convo.AssignedToName))
+                                {
+                                    <p class="mb-1">
+                                        <strong>Assignee:</strong>
+                                        <span class="badge bg-secondary assigned-to-badge">@convo.AssignedToName</span>
+                                        @if (!string.IsNullOrEmpty(convo.AssignedToRole))
+                                        {
+                                            <span class="badge bg-light text-dark ms-2">@convo.AssignedToRole</span>
+                                        }
+                                    </p>
+                                }
+                                @* else: keep empty; SignalR can populate later *@
+                            </div>
+
                             <small class="text-muted">@convo.CreatedAt.ToString("g")</small>
+
+                            @{
+                                var canAssign = convo.CanAssign;
+                            }
+                            <!-- use policy from controller -->
+                            @if (canAssign)
+                            {
+                                <div class="mt-2">
+                                    <a class="btn btn-sm btn-outline-primary"
+                                       asp-controller="Messages"
+                                       asp-action="AssignToStaff"
+                                       asp-route-id="@convo.Id">
+                                        @(convo.Status == "Assigned" ? "Reassign" : "Assign")
+                                    </a>
+                                </div>
+                            }
                         </li>
                     }
                 }
@@ -109,94 +142,149 @@
     <script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@latest/dist/browser/signalr.min.js"></script>
 
     <script>
-                document.addEventListener("DOMContentLoaded", function () {
-                    let currentConversationId = null;
-                    let previousConversationId = null; // <-- NEW: Keep track of the last room joined
+        document.addEventListener("DOMContentLoaded", function () {
+            let currentConversationId = null;
+            let previousConversationId = null; // Keep track of the last room joined
 
-                    const connection = new signalR.HubConnectionBuilder().withUrl("/chatHub").build();
-                    const sendButton = document.getElementById("send-button");
-                    const messageInput = document.getElementById("message-input");
-                    const messageList = document.getElementById("message-list");
-                    const conversationListItems = document.querySelectorAll("#conversation-list li[data-conversation-id]");
-                    const chatHeader = document.getElementById("chat-header");
+            const connection = new signalR.HubConnectionBuilder().withUrl("/chatHub").build();
+            const sendButton = document.getElementById("send-button");
+            const messageInput = document.getElementById("message-input");
+            const messageList = document.getElementById("message-list");
+            const conversationListItems = document.querySelectorAll("#conversation-list li[data-conversation-id]");
+            const chatHeader = document.getElementById("chat-header");
 
-                    // --- Function to load messages for a selected conversation ---
-                    async function loadMessages(conversationId, subject) {
-                        // ** THE FIX - PART 1: JOIN THE NEW GROUP **
-                        // If we were in a different conversation before, leave that group first.
-                        if (previousConversationId && previousConversationId !== conversationId) {
-                            connection.invoke("LeaveConversationGroup", previousConversationId).catch(err => console.error(err.toString()));
-                        }
+            // Map status → CSS class used on the colored dot (keep in sync with your server-side StatusCss)
+            function statusCssFor(status) {
+                switch ((status || "").toLowerCase()) {
+                    case "pending":    return "dot-pending";
+                    case "assigned":   return "dot-assigned";
+                    case "inprogress":
+                    case "in progress":return "dot-inprogress";
+                    case "resolved":   return "dot-resolved";
+                    case "closed":     return "dot-closed";
+                    default:           return "";
+                }
+            }
 
-                        // Join the new conversation's group.
-                        connection.invoke("JoinConversationGroup", conversationId).catch(err => console.error(err.toString()));
+            // --- Function to load messages for a selected conversation ---
+            async function loadMessages(conversationId, subject) {
+                // If we were in a different conversation before, leave that group first.
+                if (previousConversationId && previousConversationId !== conversationId) {
+                    connection.invoke("LeaveConversationGroup", previousConversationId).catch(err => console.error(err.toString()));
+                }
 
-                        // Update our tracking variables.
-                        currentConversationId = conversationId;
-                        previousConversationId = conversationId;
+                // Join the new conversation's group.
+                connection.invoke("JoinConversationGroup", conversationId).catch(err => console.error(err.toString()));
 
-                        messageList.innerHTML = '<h6>Loading messages...</h6>';
-                        chatHeader.textContent = subject;
+                // Update our tracking variables.
+                currentConversationId = conversationId;
+                previousConversationId = conversationId;
 
-                        try {
-                            const response = await fetch(`/Messages/GetMessagesForConversation?conversationId=${conversationId}`);
-                            const messages = await response.json();
-                            messageList.innerHTML = '';
-                            messages.forEach(msg => {
-                                appendMessage(msg.senderName, msg.content);
-                            });
+                messageList.innerHTML = '<h6>Loading messages...</h6>';
+                chatHeader.textContent = subject;
 
-                            messageInput.disabled = false;
-                            sendButton.disabled = false;
-                            messageInput.placeholder = "Type a message...";
-                        } catch (error) {
-                            console.error("Failed to load messages:", error);
-                            messageList.innerHTML = '<h6 class="text-danger">Could not load messages.</h6>';
-                        }
-                    }
-
-                    // --- Function to append a message to the UI ---
-                    function appendMessage(user, message) {
-                        const p = document.createElement("p");
-                        p.innerHTML = `<strong>${user}:</strong> ${message}`;
-                        messageList.appendChild(p);
-                        messageList.scrollTop = messageList.scrollHeight;
-                    }
-
-                    // --- Add click listeners to each conversation item ---
-                    conversationListItems.forEach(item => {
-                        item.addEventListener("click", function () {
-                            const conversationId = parseInt(this.getAttribute("data-conversation-id"));
-                            const subject = this.querySelector("h6").textContent;
-
-                            conversationListItems.forEach(i => i.classList.remove("active"));
-                            this.classList.add("active");
-
-                            loadMessages(conversationId, subject);
-        });
+                try {
+                    const response = await fetch(`/Messages/GetMessagesForConversation?conversationId=${conversationId}`);
+                    const messages = await response.json();
+                    messageList.innerHTML = '';
+                    messages.forEach(msg => {
+                        appendMessage(msg.senderName, msg.content);
                     });
 
-                    // --- SignalR connection logic ---
-                    connection.on("ReceiveMessage", function (messageViewModel) {
-                        appendMessage(messageViewModel.senderName, messageViewModel.content);
-                    });
+                    messageInput.disabled = false;
+                    sendButton.disabled = false;
+                    messageInput.placeholder = "Type a message...";
+                } catch (error) {
+                    console.error("Failed to load messages:", error);
+                    messageList.innerHTML = '<h6 class="text-danger">Could not load messages.</h6>';
+                }
+            }
 
-                    connection.start()
-                        .then(() => console.log("SignalR Connected!"))
-                        .catch(err => console.error(err.toString()));
+            // --- Function to append a message to the UI ---
+            function appendMessage(user, message) {
+                const p = document.createElement("p");
+                p.innerHTML = `<strong>${user}:</strong> ${message}`;
+                messageList.appendChild(p);
+                messageList.scrollTop = messageList.scrollHeight;
+            }
 
-                    // --- Send button click event ---
-                    sendButton.addEventListener("click", function (event) {
-                        const message = messageInput.value;
-                        if (message.trim() !== "" && currentConversationId) {
-                            // ** THE FIX - PART 2: SEND MESSAGE TO THE CURRENT GROUP **
-                            // This now sends the message to the correct conversation group on the server.
-                            connection.invoke("SendMessage", currentConversationId, message).catch(err => console.error(err.toString()));
-                            messageInput.value = "";
-                            messageInput.focus();
-                        }
-                        event.preventDefault();
-                    });
+            // --- Add click listeners to each conversation item ---
+            conversationListItems.forEach(item => {
+                item.addEventListener("click", function () {
+                    const conversationId = parseInt(this.getAttribute("data-conversation-id"), 10);
+                    // Extract subject text without the "Subject:" label
+                    const h6 = this.querySelector("h6");
+                    const subject = (h6 ? h6.textContent : "").replace(/^Subject:\s*/i, "").trim();
+
+                    // highlight selected conversation
+                    conversationListItems.forEach(i => i.classList.remove("active"));
+                    this.classList.add("active");
+
+                    loadMessages(conversationId, subject);
                 });
+            });
+
+            // --- SignalR: incoming chat messages ---
+            connection.on("ReceiveMessage", function (messageViewModel) {
+                appendMessage(messageViewModel.senderName, messageViewModel.content);
+            });
+
+            // ✅ Handle assignment or status updates broadcast by the server
+            connection.on("ConversationUpdated", function (payload) {
+                console.log("ConversationUpdated received:", payload);
+
+                // Find the list item for this conversation
+                const li = document.querySelector(`#conversation-list li[data-conversation-id='${payload.conversationId}']`);
+                if (!li) return;
+
+                // 1) Update the status text (use the stable ID you render server-side)
+                const statusTextEl = li.querySelector(`#status-text-${payload.conversationId}`);
+                if (statusTextEl && payload.status) {
+                    statusTextEl.textContent = payload.status;
+                }
+
+                // 1b) Update the status dot CSS (optional but recommended)
+                const statusDotEl = li.querySelector(`#status-dot-${payload.conversationId}`);
+                if (statusDotEl && payload.status) {
+                    // wipe any previous dot-* classes, then add the new one
+                    statusDotEl.classList.remove("dot-pending","dot-assigned","dot-inprogress","dot-resolved","dot-closed");
+                    const css = statusCssFor(payload.status);
+                    if (css) statusDotEl.classList.add(css);
+                }
+
+                // 2) Update the Assignee section (replace old "To:" logic)
+                const assigneeWrap = li.querySelector(`#assigned-to-${payload.conversationId}`);
+                if (assigneeWrap) {
+                    if (payload.assignedToName) {
+                        assigneeWrap.innerHTML = `
+                            <p class="mb-1">
+                                <strong>Assignee:</strong>
+                                <span class="badge bg-secondary assigned-to-badge">${payload.assignedToName}</span>
+                                ${payload.assignedToRole ? `<span class="text-muted ms-1">(${payload.assignedToRole})</span>` : ""}
+                            </p>`;
+                    } else {
+                        // no assignee: clear the container (kept empty so SignalR can populate later)
+                        assigneeWrap.innerHTML = "";
+                    }
+                }
+            });
+
+            connection.start()
+                .then(() => console.log("SignalR Connected!"))
+                .catch(err => console.error(err.toString()));
+
+            // --- Send button click event ---
+            sendButton.addEventListener("click", function (event) {
+                const message = messageInput.value;
+                if (message.trim() !== "" && currentConversationId) {
+                    // This now sends the message to the correct conversation group on the server.
+                    connection.invoke("SendMessage", currentConversationId, message).catch(err => console.error(err.toString()));
+                    messageInput.value = "";
+                    messageInput.focus();
+                }
+                event.preventDefault();
+            });
+        });
     </script>
 }
+
