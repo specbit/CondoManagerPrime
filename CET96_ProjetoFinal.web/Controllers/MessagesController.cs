@@ -767,12 +767,32 @@ namespace CET96_ProjetoFinal.web.Controllers
         }
 
         /// <summary>
-        /// This action renders the dashboard view for messaging for the roles "Company Administrator" and "Condominium Manager"
+        /// Displays the messaging dashboard for the current user and shows a global unread count.
         /// </summary>
-        /// <returns></returns>
-        public IActionResult Dashboard(int? condominiumId)
+        /// <param name="condominiumId">
+        /// (Optional) The ID of the condominium context to filter conversations.
+        /// </param>
+        /// <returns>
+        /// A <see cref="ViewResult"/> containing the messaging dashboard view.  
+        /// The view includes a <c>TotalUnread</c> value in <see cref="ViewBag"/> representing  
+        /// the total number of unread messages for the current user across all conversations.
+        /// </returns>
+        /// <remarks>
+        /// This endpoint is typically used to render the main messaging dashboard or  
+        /// staff/manager landing pages. The unread count is computed server-side by  
+        /// counting all messages where the current user is the receiver and <c>IsRead</c> is <c>false</c>.
+        /// </remarks>
+
+        public async Task<IActionResult> Dashboard(int? condominiumId)
         {
             ViewBag.CondominiumId = condominiumId;
+
+            // Global unread total for the current user (all conversations)
+            var currentUserId = _userManager.GetUserId(User)!;
+            ViewBag.TotalUnread = await _context.Messages
+                .Where(m => m.ReceiverId == currentUserId && !m.IsRead)
+                .CountAsync();
+
             return View();
         }
 

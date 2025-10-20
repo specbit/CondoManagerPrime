@@ -51,6 +51,10 @@
                             <div class="d-flex w-100 justify-content-between align-items-center">
                                 <h6 class="mb-1 text-truncate" style="max-width: 75%;">
                                     <strong>Subject:</strong> @convo.Subject
+                                    @if (convo.UnreadCount > 0)
+                                    {
+                                        <span id="unread-@convo.Id" class="badge bg-danger ms-2">@convo.UnreadCount</span>
+                                    }
                                 </h6>
 
                                 <!-- Status (dot + text) gets stable IDs so we can live-update -->
