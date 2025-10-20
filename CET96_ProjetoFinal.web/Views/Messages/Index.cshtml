@@ -39,7 +39,7 @@
             <div class="card-header">Conversations</div>
             <ul class="list-group list-group-flush" id="conversation-list">
                 @* This section now dynamically builds the list from the data passed by the controller. *@
-                @if (Model.Any())
+                @if (Model != null && Model.Any())
                 {
                     @foreach (var convo in Model) // The OrderBy is now in the controller
                     {
@@ -49,7 +49,7 @@
                             aria-label="Conversation '@convo.Subject' started by @convo.StarterName">
 
                             <div class="d-flex w-100 justify-content-between">
-                                <h6 class="mb-1" text-truncate" style="max-width: 75%;">
+                                <h6 class="mb-1 text-truncate" style="max-width: 75%;">
                                     <strong>Subject:</strong> @convo.Subject
                                 </h6>
 
@@ -154,17 +154,30 @@
             const chatHeader = document.getElementById("chat-header");
 
             // Map status → CSS class used on the colored dot (keep in sync with your server-side StatusCss)
+            // function statusCssFor(status) {
+            //     switch ((status || "").toLowerCase()) {
+            //         case "pending":    return "dot-pending";
+            //         case "assigned":   return "dot-assigned";
+            //         case "inprogress":
+            //         case "in progress":return "dot-inprogress";
+            //         case "resolved":   return "dot-resolved";
+            //         case "closed":     return "dot-closed";
+            //         default:           return "";
+            //     }
+            // }
+
             function statusCssFor(status) {
                 switch ((status || "").toLowerCase()) {
-                    case "pending":    return "dot-pending";
-                    case "assigned":   return "dot-assigned";
+                    case "pending":     return "status-pending";
+                    case "assigned":    return "status-assigned";
                     case "inprogress":
-                    case "in progress":return "dot-inprogress";
-                    case "resolved":   return "dot-resolved";
-                    case "closed":     return "dot-closed";
-                    default:           return "";
-                }
+                    case "in progress": return "status-inprogress";
+                    case "resolved":    return "status-resolved";
+                    case "closed":      return "status-closed";
+                    default:            return "";
+              }
             }
+
 
             // --- Function to load messages for a selected conversation ---
             async function loadMessages(conversationId, subject) {
@@ -244,13 +257,23 @@
                 }
 
                 // 1b) Update the status dot CSS (optional but recommended)
+                // const statusDotEl = li.querySelector(`#status-dot-${payload.conversationId}`);
+                // if (statusDotEl && payload.status) {
+                //     // wipe any previous dot-* classes, then add the new one
+                //     statusDotEl.classList.remove("dot-pending","dot-assigned","dot-inprogress","dot-resolved","dot-closed");
+                //     const css = statusCssFor(payload.status);
+                //     if (css) statusDotEl.classList.add(css);
+                // }
+
+                // 1b) Update the status dot CSS
                 const statusDotEl = li.querySelector(`#status-dot-${payload.conversationId}`);
                 if (statusDotEl && payload.status) {
-                    // wipe any previous dot-* classes, then add the new one
-                    statusDotEl.classList.remove("dot-pending","dot-assigned","dot-inprogress","dot-resolved","dot-closed");
-                    const css = statusCssFor(payload.status);
-                    if (css) statusDotEl.classList.add(css);
-                }
+                    statusDotEl.classList.remove(
+                    "status-pending","status-assigned","status-inprogress","status-resolved","status-closed"
+                );
+                const css = statusCssFor(payload.status);
+                if (css) statusDotEl.classList.add(css);
+        }
 
                 // 2) Update the Assignee section (replace old "To:" logic)
                 const assigneeWrap = li.querySelector(`#assigned-to-${payload.conversationId}`);
