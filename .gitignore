@@ -361,3 +361,34 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Ignore .NET appsettings with secrets
+appsettings.json
+appsettings.Development.json
+appsettings.Production.json
+appsettings.Local.json
+
+# Allow only example versions
+!appsettings.json.example
+!appsettings.Development.json.example
+
+# Backups, exports, dumps and compressed files
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
+*.bak
+BackupProjetoFinal.zip
+
+*.db
+*.sqlite
+*.db3
+*.bak
+*.mdf
+*.ldf
+*.ndf
+
+# Ignore custom/local folders
+_github/
+Publish/
