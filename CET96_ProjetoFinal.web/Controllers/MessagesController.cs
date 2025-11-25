@@ -790,8 +790,12 @@ namespace CET96_ProjetoFinal.web.Controllers
             // Global unread total for the current user (all conversations)
             var currentUserId = _userManager.GetUserId(User)!;
             ViewBag.TotalUnread = await _context.Messages
-                .Where(m => m.ReceiverId == currentUserId && !m.IsRead)
-                .CountAsync();
+                    .Where(m =>
+                        m.ReceiverId == currentUserId &&
+                        !m.IsRead &&
+                        !m.Content.StartsWith("[System]") &&
+                        m.Conversation.Status != MessageStatus.Closed)
+                    .CountAsync();
 
             return View();
         }

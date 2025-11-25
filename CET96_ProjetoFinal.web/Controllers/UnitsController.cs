@@ -383,12 +383,12 @@ namespace CET96_ProjetoFinal.web.Controllers
             var allOwners = await _userManager.GetUsersInRoleAsync("Unit Owner");
 
             // Find owners in this condo who are not yet assigned to any unit
-            //var availableOwners = allOwners.Where(o => o.CondominiumId == unit.CondominiumId && !_unitRepository.IsOwnerAssigned(o.Id));
+            var availableOwners = allOwners.Where(o => o.CondominiumId == unit.CondominiumId && !_unitRepository.IsOwnerAssigned(o.Id));
 
             // Allow assigning an owner even if they already own other units
             // (filter only by same condominium; remove the IsOwnerAssigned(...) exclusion)
-            var availableOwners = allOwners
-                .Where(o => o.CondominiumId == unit.CondominiumId);
+            //var availableOwners = allOwners
+            //    .Where(o => o.CondominiumId == unit.CondominiumId);
             var model = new AssignOwnerToUnitViewModel
             {
                 UnitId = unit.Id,
@@ -421,12 +421,12 @@ namespace CET96_ProjetoFinal.web.Controllers
             var allOwners = await _userManager.GetUsersInRoleAsync("Unit Owner");
 
             // Original filtering logic (commented out) uncomment to restrict to unassigned owners only
-            //var availableOwners = allOwners.Where(o => o.CondominiumId == unit.CondominiumId && !_unitRepository.IsOwnerAssigned(o.Id));
+            var availableOwners = allOwners.Where(o => o.CondominiumId == unit.CondominiumId && !_unitRepository.IsOwnerAssigned(o.Id));
 
             // Allow assigning an owner even if they already own other units
             // (filter only by same condominium; remove the IsOwnerAssigned(...) exclusion)
-            var availableOwners = allOwners
-                .Where(o => o.CondominiumId == unit.CondominiumId);
+            //var availableOwners = allOwners
+            //    .Where(o => o.CondominiumId == unit.CondominiumId);
             model.AvailableOwners = availableOwners.Select(o => new SelectListItem
                 {
                     Value = o.Id,

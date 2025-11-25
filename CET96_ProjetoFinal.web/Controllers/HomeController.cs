@@ -177,6 +177,7 @@ namespace CET96_ProjetoFinal.web.Controllers
         /// Displays the application's About page.
         /// </summary>
         /// <returns>The About view.</returns>
+        [AllowAnonymous]
         public IActionResult About()
         {
             return View();
